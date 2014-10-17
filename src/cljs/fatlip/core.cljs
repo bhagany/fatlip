@@ -12,7 +12,7 @@
 
 (defrecord Node [id layer-id characters])
 (defrecord Edge [src dest characters])
-(defrecord Layer [id duration nodes marked])
+(defrecord Layer [id duration nodes])
 (defrecord SegmentContainer [segments])
 (defrecord Segment [edge])
 (defrecord AccumulatorNode [weight node-edges is-seg-c])
@@ -144,8 +144,7 @@
         layer-id (count layers)
         layer (Layer. layer-id
                       (input-layer :duration)
-                      []
-                      #{})]
+                      [])]
     (loop [g (update-in graph [:layers] conj layer)
            input-groups (input-layer :groups)]
       (if (empty? input-groups)
@@ -164,6 +163,7 @@
                          :p #{}
                          :q #{}
                          :r #{}
+                         :marked #{}
                          :last-nodes-by-character {}
                          :last-nodes-by-node {}}))
   ([input graph]
@@ -400,15 +400,15 @@
   right sibling represents weight of the edges that were added ahead of this one,
   and therefore, crossings. Then we walk up the tree to the root, incrementing and
   adding right siblings, for a total count of edges that cross this one"
-  [layer tree orig-index edge]
+  [graph tree orig-index edge]
   (let [weight (count (:characters edge))
         is-seg-c (instance? SegmentContainer (:dest edge))]
-    (loop [layer layer
+    (loop [graph graph
            tree tree
            index orig-index
            crossings 0]
       (if (zero? index)
-        [layer tree crossings]
+        [graph tree crossings]
         (let [parent-index (.floor js/Math (/ (dec index) 2))]
           (if (odd? index)
             (let [right-sib (get tree (inc index))
@@ -420,14 +420,14 @@
                            (if (:is-seg-c right-sib)
                              #{(:forward-edge edge)}
                              #{}))
-                  l (update-in layer [:marked] set/union marked)]
-              (recur l tree parent-index c))
+                  g (update-in graph [:marked] set/union marked)]
+              (recur g tree parent-index c))
             (let [t (-> tree
                         (update-in [index :weight] + weight)
                         (cond->
                          is-seg-c (assoc-in [index :is-seg-c] true)
                          (not is-seg-c) (update-in [index :node-edges] conj (:forward-edge edge))))]
-              (recur layer t parent-index crossings))))))))
+              (recur graph t parent-index crossings))))))))
 
 
 (defn count-crossings
@@ -443,16 +443,16 @@
         edge-order (sorted-edge-order layer-1 layer-2 edges)
         tree-size (next-power-of-2-minus-1 (count layer-2))
         first-leaf (/ (dec tree-size) 2)]
-    (loop [layer layer
+    (loop [graph graph
            tree (vec (repeat tree-size (AccumulatorNode. 0 #{} false)))
            crossings 0
            order edge-order]
       (if (empty? order)
-        [layer crossings]
+        [graph crossings]
         (let [[ord edge] (first order)
               index (+ first-leaf ord)
-              [l t c] (single-edge-crossings layer tree index edge)]
-          (recur l t (+ crossings c) (rest order)))))))
+              [g t c] (single-edge-crossings graph tree index edge)]
+          (recur g t (+ crossings c) (rest order)))))))
 
 
 (defn reverse-graph
@@ -483,10 +483,10 @@
                             (order-next-layer layer)
                             add-qs
                             ensure-alternating)
-            [marked-layer crossings] (count-crossings graph layer next-layer)
-            g (-> graph
+            [marked-graph crossings] (count-crossings graph layer next-layer)
+            g (-> marked-graph
                   (update-in [:crossings] + crossings)
-                  (update-in [:layers] assoc layer-idx marked-layer)
+                  (update-in [:layers] assoc layer-idx layer)
                   (update-in [:layers] assoc next-layer-idx next-layer))]
         (recur g next-layer-idx (inc next-layer-idx))))))
 
