@@ -496,20 +496,20 @@
   'An Efficient Implementation of Sugiyama’s Algorithm for Layered Graph Drawing',
   a paper by Markus Eiglsperger, Martin Sieberhaller, and Michael Kaufmann (ESK)"
   [sparse-graph]
-  ;; seed the first layer with initial compact representation and alternating layer
-  (let [nodes (-> sparse-graph :layers first :nodes)
-        alternating (cons (first segment-containers)
-                          (interleave nodes segment-containers))]
-    (loop [seeded-graph (update-in sparse-graph [:layers 0] assoc :alternating alternating)
-           counter 0]
-      (if (= counter 20)
-        seeded-graph
-        (let [ordered-graph (order-graph-once seeded-graph)
-              last-alternating (-> ordered-graph :layers peek :alternating)
-              sd-graph (-> sparse-graph
-                           (#(if (odd? counter)
-                               (reverse-graph %)
-                               %))
-                           (update-in [:layers 0] assoc :alternating last-alternating))]
-          (println counter (:crossings ordered-graph) last-alternating)
-          (recur sd-graph (inc counter)))))))
+  ;; seed the first layer with initial alternating layer
+  (loop [alternating (cons (first segment-containers)
+                           (interleave (-> sparse-graph :layers first :nodes)
+                                       segment-containers))
+         orderings []]
+    (let [c (count orderings)]
+      (if (= c 20)
+        orderings
+        (let [reverse? (odd? c)
+              ordered-graph (-> (if reverse?
+                                  (reverse-graph sparse-graph)
+                                  sparse-graph)
+                                (update-in [:layers 0] assoc :alternating alternating)
+                                order-graph-once)]
+          (println c (:crossings ordered-graph) (-> ordered-graph :layers peek :alternating))
+          (recur (-> ordered-graph :layers peek :alternating)
+                 (conj orderings (if reverse? (reverse-graph ordered-graph) ordered-graph))))))))
