@@ -1,5 +1,5 @@
-(ns nchart.examples.agot
-  (:require [nchart.core :as nchart]))
+(ns fatlip.examples.agot
+  (:require [fatlip.core :as fatlip]))
 
 (def input
   ;; A Game of Thrones
@@ -224,4 +224,4 @@
 ;;*** Guess at all of Beric's deaths?
 
 
-(def graph (nchart/make-sparse-graph input))
+(def graph (fatlip/make-sparse-graph input))

@@ -1,4 +1,4 @@
-(defproject nchart "0.1.0-SNAPSHOT"
+(defproject fatlip "0.1.0-SNAPSHOT"
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
@@ -6,24 +6,25 @@
 
   :source-paths ["src/clj" "src/cljs"]
 
-  :dependencies [[com.cemerick/piggieback "0.1.3"]
-                 [compojure "1.1.9"]
+  :dependencies [[com.cemerick/austin "0.1.5"]
+                 [com.cemerick/piggieback "0.1.3"]
+                 [compojure "1.2.0"]
                  [enlive "1.1.5"]
                  [environ "1.0.0"]
                  [figwheel "0.1.4-SNAPSHOT"]
-                 [om "0.7.1"]
+                 [om "0.7.3"]
                  [org.clojure/clojure "1.6.0"]
-                 [org.clojure/clojurescript "0.0-2342"]
+                 [org.clojure/clojurescript "0.0-2371" :scope "provided"]
                  [org.clojure/core.rrb-vector "0.0.11"]
                  [ring "1.3.1"]
                  [weasel "0.4.0-SNAPSHOT"]]
 
-  :plugins [[com.cemerick/austin "0.1.5"]
-            [lein-cljsbuild "1.0.3"]]
+  :plugins [[lein-cljsbuild "1.0.3"]
+            [lein-environ "1.0.0"]]
 
   :min-lein-version "2.0.0"
 
-  :uberjar-name "nchart.jar"
+  :uberjar-name "fatlip.jar"
 
   :cljsbuild {:builds {:app {:source-paths ["src/cljs"]
                              :compiler {:output-to     "resources/public/app.js"
@@ -34,9 +35,10 @@
                                         :optimizations :none
                                         :pretty-print  true}}}}
 
-  :profiles {:dev {:repl-options {:init-ns nchart.server
+  :profiles {:dev {:repl-options {:init-ns fatlip.server
                                   :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
-                   :plugins [[lein-figwheel "0.1.4-SNAPSHOT"]]
+                   :plugins [[lein-figwheel "0.1.4-SNAPSHOT"]
+                             [com.cemerick/austin "0.1.5"]]
                    :figwheel {:http-server-root "public"
                               :port 3449}
                    :env {:is-dev true}}

@@ -1,25 +1,13 @@
-(ns nchart.core
-  (:require [clojure.browser.repl]
-            [clojure.core.rrb-vector :as rrb]
+;; Change name to urthr?  sudicka?
+;; Count crossings for subnodes
+;; Account for danglers
+;; cycle detection to short circuit the layer sweeps
+;; do cross counting based on the smaller of the two layers
+
+(ns fatlip.core
+  (:require [clojure.core.rrb-vector :as rrb]
             [clojure.set :as set]
-            [clojure.string :as s]
-            [figwheel.client :as fw :include-macros true]
-            [om.core :as om :include-macros true]
-            [om.dom :as dom :include-macros true]))
-
-(def localhost? (-> js/window
-                    (.-location)
-                    (.-host)
-                    (.indexOf "localhost")
-                    (>= 0)))
-
-
-(if localhost?
-  (do
-    (enable-console-print!)
-    (fw/watch-and-reload
-     :websocket-url   "ws://localhost:3449/figwheel-ws"
-     :jsload-callback (fn [] (print "reloaded")))))
+            [clojure.string :as s]))
 
 
 (defrecord Node [id layer-id characters])
@@ -523,5 +511,5 @@
                                (reverse-graph %)
                                %))
                            (update-in [:layers 0] assoc :alternating last-alternating))]
-          (println counter (:crossings ordered-graph))
+          (println counter (:crossings ordered-graph) last-alternating)
           (recur sd-graph (inc counter)))))))
