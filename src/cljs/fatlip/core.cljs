@@ -180,7 +180,7 @@
 (defn replace-ps
   "Step 1 of ESK - replace all p nodes with segments and merge segment containers"
   [graph layer]
-  (->> (:alternating layer)
+  (->> (:ordered layer)
        (map #(if (contains? (:p graph) %)
                ;; p nodes always have only one successor
                (SegmentContainer. [(-> (:succs graph) (get %) first)])
@@ -194,26 +194,25 @@
 
 
 (defn- set-positions
-  "Positions in an alternating layer are used to calculate the order of the next layer.
+  "Positions in an ordered layer are used to calculate the order of the next layer.
   ESK's description of the position algorithm is almost willfully circuitous and obtuse,
-  so here's a simplified description: An item's position in an alternating layer is the
+  so here's a simplified description: An item's position in an ordered layer is the
   sum of the size of all previous items, plus 1, where the size of a segment container
   is the number of segments it contains, and the size of a node is 1.
 
   Also, it doesn't really matter what seed you choose for the initial value of the sum. I
   chose -1, which is implied by the description in ESK."
   [layer]
-  (loop [alt (:alternating layer)
+  (loop [ordered (:ordered layer)
          current-position -1
          positions {}]
-    (if (empty? alt)
+    (if (empty? ordered)
       (assoc layer :positions positions)
-      (let [item (first alt)
-            ;; When (count alt) is odd, item is a SegmentContainer
-            c-p (if (odd? (count alt))
+      (let [item (first ordered)
+            c-p (if (instance? SegmentContainer item)
                   (+ current-position (count (:segments item)))
                   (inc current-position))]
-        (recur (rest alt) c-p (assoc positions item (inc current-position)))))))
+        (recur (rest ordered) c-p (assoc positions item (inc current-position)))))))
 
 
 (defn- set-qs-non-qs
@@ -257,46 +256,47 @@
   equivalent to the position in the previous layer, so we just use that), and we merge
   the two lists into a single ordering based on these measures."
   [layer next-layer]
-  (let [minus-ps (:minus-ps layer)
-        positions (:positions layer)
-        non-qs (:non-qs next-layer)
-        measures (:measures layer)
-        ordered (loop [nodes (sort-by #(get measures %) non-qs)
-                       segments (sort-by #(get positions %) (take-nth 2 minus-ps))
-                       pos positions
-                       ord []]
-                  (if (or (empty? nodes) (empty? segments))
-                    ;; ESK's algorithm doesn't specify what to do with leftover things
-                    ;; I think this is because it doesn't take into account nodes that don't have
-                    ;; parents in layers > 0. In any case, at most one of rem-nodes or rem-segs
-                    ;; will be non-empty
-                    (-> ord (into nodes) (into (filter #(seq (:segments %)) segments)))
-                    (let [node-1 (first nodes)
-                          seg-1 (first segments)
-                          node-measure (get measures node-1)
-                          seg-position (get pos seg-1)
-                          node-first (<= node-measure seg-position)
-                          seg-first (>= node-measure (+ seg-position (count (:segments seg-1))))]
-                      (cond node-first (recur (rest nodes) segments pos (conj ord node-1))
-                            seg-first (recur nodes (rest segments) pos (conj ord seg-1))
-                            :else (let [k (.ceil js/Math (- node-measure seg-position))
-                                        s-1 (update-in seg-1 [:segments] rrb/subvec 0 k)
-                                        s-2 (update-in seg-1 [:segments] rrb/subvec k)]
-                                    (recur
-                                     (rest nodes)
-                                     (cons s-2 segments)
-                                     (assoc pos s-2 (+ (get pos seg-1) 1))
-                                     (into ord [s-1 node-1])))))))]
-    (assoc next-layer :minus-qs ordered)))
+  (let [positions (:positions layer)
+        measures (:measures next-layer)
+        ns (sort-by #(get measures %) (:non-qs next-layer))
+        ss (->> (:minus-ps layer)
+                (filter #(instance? SegmentContainer %))
+                (sort-by #(get positions %)))
+        minus-qs (loop [nodes ns
+                        segments ss
+                        pos positions
+                        ord []]
+                   (if (or (empty? nodes) (empty? segments))
+                     ;; ESK's algorithm doesn't specify what to do with leftover things
+                     ;; I think this is because it doesn't take into account nodes that don't have
+                     ;; parents in layers > 0. In any case, at most one of nodes or segments
+                     ;; will be non-empty
+                     (-> ord (into nodes) (into segments))
+                     (let [node-1 (first nodes)
+                           seg-1 (first segments)
+                           node-measure (get measures node-1)
+                           seg-position (get pos seg-1)
+                           node-first (<= node-measure seg-position)
+                           seg-first (>= node-measure (+ seg-position (count (:segments seg-1))))]
+                       (cond node-first (recur (rest nodes) segments pos (conj ord node-1))
+                             seg-first (recur nodes (rest segments) pos (conj ord seg-1))
+                             :else (let [k (.ceil js/Math (- node-measure seg-position))
+                                         s-1 (update-in seg-1 [:segments] rrb/subvec 0 k)
+                                         s-2 (update-in seg-1 [:segments] rrb/subvec k)]
+                                     (recur
+                                      (rest nodes)
+                                      (cons s-2 segments)
+                                      (assoc pos s-2 (+ (get pos seg-1) 1))
+                                      (into ord [s-1 node-1])))))))]
+    (assoc next-layer :minus-qs minus-qs)))
 
 
 (defn add-qs
   "Step 4 of ESK - takes the results of step 3, which doesn't include the q-nodes, and adds them,
   splitting their segment containers in the process"
   [next-layer]
-  (let [ordered (:minus-qs next-layer)
-        qs (:qs next-layer)
-        flat (->> ordered
+  (let [qs (:qs next-layer)
+        flat (->> (:minus-qs next-layer)
                   (mapcat #(if (instance? SegmentContainer %)
                              (:segments %)
                              [%]))
@@ -304,7 +304,7 @@
                                  (contains? qs (:dest %)))
                           (:dest %)
                           %)))
-        plus-qs (loop [f flat
+        ordered (loop [f flat
                        seg-c (first segment-containers)
                        layer []]
                   (if (empty? f)
@@ -317,34 +317,7 @@
                         (if (empty? (:segments seg-c))
                           (recur (rest f) seg-c (conj layer item))
                           (recur (rest f) (first segment-containers) (conj layer seg-c item)))))))]
-    (assoc next-layer :plus-qs plus-qs)))
-
-
-(defn ensure-alternating
-  "Step 6 of ESK, ensure that the resulting layer is alternating. We do this in a
-  different order than the paper first because we can due to not working with
-  mutable state, and second because it just flows better this way. Specifically, it
-  is conceptually easier to think of it as an algorithm for taking one alternating
-  layer and using it to produce the next alternating layer in the graph (steps 1-4, 6),
-  and then a separate algorithm that counts the crossings that result from the
-  orderings on those two layers (step 5)."
-  [next-layer]
-  (->> (:plus-qs next-layer)
-       (partition-by #(instance? SegmentContainer %))
-       (mapcat (fn [items]
-                 (if (instance? SegmentContainer (first items))
-                   [(reduce #(update-in %1 [:segments] rrb/catvec (:segments %2))
-                            items)]
-                   (interpose (first segment-containers) items))))
-       vec
-       (#(if (instance? SegmentContainer (first %))
-           %
-           (rrb/catvec (vec (take 1 segment-containers)) %)))
-       (#(if (instance? SegmentContainer (peek %))
-           %
-           (rrb/catvec % (vec (take 1 segment-containers)))))
-       (assoc next-layer :alternating)))
-
+    (assoc next-layer :ordered ordered)))
 
 
 (defn- sorted-edge-order
@@ -481,8 +454,7 @@
                             (set-qs-non-qs graph)
                             (set-measures graph layer)
                             (order-next-layer layer)
-                            add-qs
-                            ensure-alternating)
+                            add-qs)
             [marked-graph crossings] (count-crossings graph layer next-layer)
             g (-> marked-graph
                   (update-in [:crossings] + crossings)
@@ -496,10 +468,8 @@
   'An Efficient Implementation of Sugiyama’s Algorithm for Layered Graph Drawing',
   a paper by Markus Eiglsperger, Martin Sieberhaller, and Michael Kaufmann (ESK)"
   [sparse-graph]
-  ;; seed the first layer with initial alternating layer
-  (loop [alternating (cons (first segment-containers)
-                           (interleave (-> sparse-graph :layers first :nodes)
-                                       segment-containers))
+  ;; seed the first layer with initial ordered layer
+  (loop [seed-order (-> sparse-graph :layers first :nodes)
          orderings []]
     (let [c (count orderings)]
       (if (= c 20)
@@ -508,8 +478,8 @@
               ordered-graph (-> (if reverse?
                                   (reverse-graph sparse-graph)
                                   sparse-graph)
-                                (update-in [:layers 0] assoc :alternating alternating)
+                                (update-in [:layers 0] assoc :ordered seed-order)
                                 order-graph-once)]
-          (println c (:crossings ordered-graph) (-> ordered-graph :layers peek :alternating))
-          (recur (-> ordered-graph :layers peek :alternating)
+          ;; (println c (:crossings ordered-graph) (-> ordered-graph :layers peek :ordered))
+          (recur (-> ordered-graph :layers peek :ordered)
                  (conj orderings (if reverse? (reverse-graph ordered-graph) ordered-graph))))))))
