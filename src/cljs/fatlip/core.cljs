@@ -342,7 +342,7 @@
                    (map (fn [[seg-c characters]]
                           [seg-c (Edge. seg-c seg-c characters)]))
                    (into {})
-                   graph-edges)]
+                   (merge graph-edges))]
     (->> ordered
          (mapcat (fn [item]
                    (sort-by #(get next-order-map (:dest %))
