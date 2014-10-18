@@ -19,21 +19,28 @@
                  [ring "1.3.1"]
                  [weasel "0.4.0-SNAPSHOT"]]
 
-  :plugins [[lein-cljsbuild "1.0.3"]
+  :plugins [[com.cemerick/clojurescript.test "0.3.1"]
+            [lein-cljsbuild "1.0.3"]
             [lein-environ "1.0.0"]]
 
   :min-lein-version "2.0.0"
 
   :uberjar-name "fatlip.jar"
 
-  :cljsbuild {:builds {:app {:source-paths ["src/cljs"]
-                             :compiler {:output-to     "resources/public/app.js"
-                                        :output-dir    "resources/public/out"
-                                        :source-map    "resources/public/out.js.map"
-                                        :preamble      ["react/react.min.js"]
-                                        :externs       ["react/externs/react.js"]
-                                        :optimizations :none
-                                        :pretty-print  true}}}}
+  :cljsbuild {:builds
+              {:dev {:source-paths ["src/cljs"]
+                     :compiler {:output-to     "resources/public/fatlip.js"
+                                :output-dir    "resources/public/out"
+                                :source-map    "resources/public/fatlip.js.map"
+                                :preamble      ["react/react.min.js"]
+                                :externs       ["react/externs/react.js"]
+                                :optimizations :none
+                                :pretty-print  true}}
+               :test {:source-paths ["src/cljs" "test/cljs"]
+                      :notify-command ["phantomjs" :cljs.test/runner "target/test.js"]
+                      :compiler {:output-to     "target/test.js"
+                                 :optimizations :simple
+                                 :pretty-print true}}}}
 
   :profiles {:dev {:repl-options {:init-ns fatlip.server
                                   :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
