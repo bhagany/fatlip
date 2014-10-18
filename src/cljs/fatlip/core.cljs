@@ -1,9 +1,3 @@
-;; Change name to urthr?  sudicka?
-;; Count crossings for subnodes
-;; Account for danglers
-;; cycle detection to short circuit the layer sweeps
-;; do cross counting based on the smaller of the two layers
-
 (ns fatlip.core
   (:require [clojure.core.rrb-vector :as rrb]
             [clojure.set :as set]
