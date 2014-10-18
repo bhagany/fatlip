@@ -304,7 +304,7 @@
                           (:dest %)
                           %)))
         with-qs (loop [f flat
-                       seg-c (take 1 segment-containers)
+                       seg-c (first segment-containers)
                        layer []]
                   (if (empty? f)
                     (if (empty? (:segments seg-c))
@@ -315,7 +315,7 @@
                         (recur (rest f) (update-in seg-c [:segments] conj item) layer)
                         (if (empty? (:segments seg-c))
                           (recur (rest f) seg-c (conj layer item))
-                          (recur (rest f) [] (conj layer seg-c item)))))))]
+                          (recur (rest f) (first segment-containers) (conj layer seg-c item)))))))]
     (assoc next-layer :with-qs with-qs)))
 
 
