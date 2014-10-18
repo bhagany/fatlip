@@ -14,7 +14,6 @@
 (defrecord Edge [src dest characters])
 (defrecord Layer [id duration nodes])
 (defrecord SegmentContainer [segments])
-(defrecord Segment [edge])
 (defrecord AccumulatorNode [weight node-edges is-seg-c])
 
 
@@ -300,9 +299,9 @@
                   (mapcat #(if (instance? SegmentContainer %)
                              (:segments %)
                              [%]))
-                  (map #(if (and (instance? Segment %)
-                                 (contains? qs (-> % :edge :dest)))
-                          (-> % :edge :dest)
+                  (map #(if (and (instance? Edge %)
+                                 (contains? qs (:dest %)))
+                          (:dest %)
                           %)))
         with-qs (loop [f flat
                        seg-c (take 1 segment-containers)
@@ -312,7 +311,7 @@
                       layer
                       (conj layer seg-c))
                     (let [item (first f)]
-                      (if (instance? Segment item)
+                      (if (instance? Edge item)
                         (recur (rest f) (update-in seg-c [:segments] conj item) layer)
                         (if (empty? (:segments seg-c))
                           (recur (rest f) seg-c (conj layer item))
