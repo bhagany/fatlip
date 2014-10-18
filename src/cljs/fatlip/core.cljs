@@ -406,7 +406,17 @@
 (defn count-crossings
   "Step 5 of ESK, counts the number of crossings that result from a
   bi-layer ordering. Implements the algorithm found in Bilayer Cross Counting,
-  by Wilhelm Barth, Petra Mutzel and Michael Jünger"
+  by Wilhelm Barth, Petra Mutzel and Michael Jünger
+
+  I've made the following modifications:
+  - Added weights to the edges
+  - Marking node -> node edges that cross segment containers, which helps
+    in the layout process later, by
+    - Storing accumulated node -> node edges in the accumulator tree
+    - Storing a flag for whether a node has seen a segment container in the
+      accumulator tree
+  - Only storing information on right siblings, as the information on left
+    siblings is never accessed"
   [graph layer next-layer]
   (let [minus-ps (:minus-ps layer)
         minus-qs (:minus-qs next-layer)
@@ -466,7 +476,11 @@
 (defn order-graph
   "Implements the 2-layer crossing minimization algorithm on a sparse graph found in
   'An Efficient Implementation of Sugiyama’s Algorithm for Layered Graph Drawing',
-  a paper by Markus Eiglsperger, Martin Sieberhaller, and Michael Kaufmann (ESK)"
+  a paper by Markus Eiglsperger, Martin Sieberhaller, and Michael Kaufmann (ESK)
+
+  I've made the following modifications:
+  - Removed the concept of alternating layers, which don't help much, and hurt a bit
+  - Added weights to nodes and edges"
   [sparse-graph]
   ;; seed the first layer with initial ordered layer
   (loop [seed-order (-> sparse-graph :layers first :nodes)
