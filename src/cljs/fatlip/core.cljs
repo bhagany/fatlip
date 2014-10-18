@@ -331,10 +331,10 @@
                    (filter #(instance? SegmentContainer %))
                    (map (juxt identity
                               (fn [seg-c]
-                                (mapcat #(-> % :edge :characters)
+                                (mapcat #(-> % :characters)
                                         (:segments seg-c)))))
                    (map (fn [[seg-c characters]]
-                          [seg-c (Edge. seg-c seg-c characters)]))
+                          [seg-c #{(Edge. seg-c seg-c characters)}]))
                    (into {})
                    (merge graph-edges))]
     (->> ordered
