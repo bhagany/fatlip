@@ -220,6 +220,7 @@
   "ESK requires a layer's nodes to be split into lists of q-nodes and non-q-nodes"
   [graph layer]
   (->> ((juxt filter remove) #(contains? (:q graph) %) (:nodes layer))
+       (map set)
        (interleave [:qs :non-qs])
        (apply (partial assoc layer))))
 
