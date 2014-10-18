@@ -177,7 +177,7 @@
   (repeat (SegmentContainer. [])))
 
 
-(defn replace-p-nodes
+(defn replace-ps
   "Step 1 of ESK - replace all p nodes with segments and merge segment containers"
   [graph layer]
   (->> (:alternating layer)
@@ -475,7 +475,7 @@
     (if (>= next-layer-idx (-> graph :layers count))
       graph
       (let [layer (->> (-> graph :layers (get layer-idx))
-                       (replace-p-nodes graph)
+                       (replace-ps graph)
                        set-positions)
             next-layer (->> (-> graph :layers (get next-layer-idx))
                             (set-qs-non-qs graph)
