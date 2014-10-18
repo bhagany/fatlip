@@ -287,14 +287,14 @@
                                      (cons s-2 segments)
                                      (assoc pos s-2 (+ (get pos seg-1) 1))
                                      (into ord [s-1 node-1])))))))]
-    (assoc next-layer :without-qs ordered)))
+    (assoc next-layer :minus-qs ordered)))
 
 
 (defn add-qs
   "Step 4 of ESK - takes the results of step 3, which doesn't include the q-nodes, and adds them,
   splitting their segment containers in the process"
   [next-layer]
-  (let [ordered (:without-qs next-layer)
+  (let [ordered (:minus-qs next-layer)
         qs (:qs next-layer)
         flat (->> ordered
                   (mapcat #(if (instance? SegmentContainer %)
@@ -436,10 +436,10 @@
   by Wilhelm Barth, Petra Mutzel and Michael Jünger"
   [graph layer next-layer]
   (let [minus-ps (:minus-ps layer)
-        without-qs (:without-qs next-layer)
-        [layer-1 layer-2 edges] (if (< (count minus-ps) (count without-qs))
-                                  [without-qs minus-ps (:preds graph)]
-                                  [minus-ps without-qs (:succs graph)])
+        minus-qs (:minus-qs next-layer)
+        [layer-1 layer-2 edges] (if (< (count minus-ps) (count minus-qs))
+                                  [minus-qs minus-ps (:preds graph)]
+                                  [minus-ps minus-qs (:succs graph)])
         edge-order (sorted-edge-order layer-1 layer-2 edges)
         tree-size (next-power-of-2-minus-1 (count layer-2))
         first-leaf (/ (dec tree-size) 2)]
