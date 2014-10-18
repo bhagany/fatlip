@@ -435,11 +435,11 @@
   bi-layer ordering. Implements the algorithm found in Bilayer Cross Counting,
   by Wilhelm Barth, Petra Mutzel and Michael Jünger"
   [graph layer next-layer]
-  (let [minus-p (:minus-ps layer)
+  (let [minus-ps (:minus-ps layer)
         without-qs (:without-qs next-layer)
-        [layer-1 layer-2 edges] (if (< (count minus-p) (count without-qs))
-                                  [without-qs minus-p (:preds graph)]
-                                  [minus-p without-qs (:succs graph)])
+        [layer-1 layer-2 edges] (if (< (count minus-ps) (count without-qs))
+                                  [without-qs minus-ps (:preds graph)]
+                                  [minus-ps without-qs (:succs graph)])
         edge-order (sorted-edge-order layer-1 layer-2 edges)
         tree-size (next-power-of-2-minus-1 (count layer-2))
         first-leaf (/ (dec tree-size) 2)]
