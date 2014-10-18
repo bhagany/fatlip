@@ -194,11 +194,11 @@
 
 
 (defn- set-positions
-  "Positions in an ordered layer are used to calculate the order of the next layer.
-  ESK's description of the position algorithm is almost willfully circuitous and obtuse,
-  so here's a simplified description: An item's position in an ordered layer is the
-  sum of the size of all previous items, plus 1, where the size of a segment container
-  is the number of segments it contains, and the size of a node is 1.
+  "Step 2a of ESK. Positions in an ordered layer are used to calculate the order of the
+  next layer. ESK's description of the position algorithm is almost willfully circuitous
+  and obtuse, so here's a simplified description: An item's position in an ordered layer
+  is the sum of the size of all previous items, plus 1, where the size of a segment
+  container is the number of segments it contains, and the size of a node is 1.
 
   Also, it doesn't really matter what seed you choose for the initial value of the sum. I
   chose -1, which is implied by the description in ESK."
@@ -241,7 +241,7 @@
 
 
 (defn set-measures
-  "Step 2 of ESK - Use nodes' predecessors to calculate a 'measure' for the nodes
+  "Step 2b of ESK - Use nodes' predecessors to calculate a 'measure' for the nodes
   and containers in a layer, which is used for ordering"
   [graph layer next-layer]
   (let [positions (:positions layer)
