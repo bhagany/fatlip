@@ -350,16 +350,16 @@
          (map #(-> [(get next-order-map (:dest %)) %])))))
 
 
-(defn- next-power-of-2-minus-1
-  "A helper for cross counting; the size of the accumulator tree needs to be 1
-  less than the first power of 2 greater than the number of nodes in one layer.
+(defn- next-power-of-2
+  "A helper for cross counting; the number of leaf nodes in the accumulator tree
+  needs to be the first power of 2 greater than the number of nodes in one layer.
   This function sets all the bits to the right of the first bit set in a 32 bit
-  number, which is the same thing"
+  number, and then increments, which is the same thing"
   [x]
   (loop [num x
          exp 0]
     (if (> exp 4)
-      num
+      (inc num)
       (let [shifted (bit-shift-right num (.pow js/Math 2 exp))]
         (recur (bit-or num shifted)
                (inc exp))))))
@@ -424,8 +424,9 @@
                                   [minus-qs minus-ps (:preds graph)]
                                   [minus-ps minus-qs (:succs graph)])
         edge-order (sorted-edge-order layer-1 layer-2 edges)
-        tree-size (next-power-of-2-minus-1 (count layer-2))
-        first-leaf (/ (dec tree-size) 2)]
+        num-leaf-nodes (next-power-of-2 (count layer-2))
+        tree-size (dec (* num-leaf-nodes 2))
+        first-leaf (dec num-leaf-nodes)]
     (loop [graph graph
            tree (vec (repeat tree-size (AccumulatorNode. 0 #{} false)))
            crossings 0
