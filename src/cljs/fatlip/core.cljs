@@ -304,7 +304,7 @@
                                  (contains? qs (:dest %)))
                           (:dest %)
                           %)))
-        with-qs (loop [f flat
+        plus-qs (loop [f flat
                        seg-c (first segment-containers)
                        layer []]
                   (if (empty? f)
@@ -317,7 +317,7 @@
                         (if (empty? (:segments seg-c))
                           (recur (rest f) seg-c (conj layer item))
                           (recur (rest f) (first segment-containers) (conj layer seg-c item)))))))]
-    (assoc next-layer :with-qs with-qs)))
+    (assoc next-layer :plus-qs plus-qs)))
 
 
 (defn ensure-alternating
@@ -329,7 +329,7 @@
   and then a separate algorithm that counts the crossings that result from the
   orderings on those two layers (step 5)."
   [next-layer]
-  (->> (:with-qs next-layer)
+  (->> (:plus-qs next-layer)
        (partition-by #(instance? SegmentContainer %))
        (mapcat (fn [items]
                  (if (instance? SegmentContainer (first items))
