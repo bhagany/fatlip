@@ -88,7 +88,7 @@
   an edge in the graph)"
   [graph node]
   (loop [graph graph
-         characters (:characters node)]
+         characters (set (:characters node))]
      (if (empty? characters)
        graph
        (let [character (first characters)

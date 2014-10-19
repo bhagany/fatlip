@@ -6,16 +6,16 @@
 
 (deftest graph-properties
   (let [input [{:duration 10
-                :groups [{:characters #{:a :b :c}}
-                         {:characters #{:d :e :f}}
-                         {:characters #{:x :y :z}}]}
+                :groups [{:characters [:a :b :c]}
+                         {:characters [:d :e :f]}
+                         {:characters [:x :y :z]}]}
                {:duration 10
-                :groups [{:characters #{:a :d}}
-                         {:characters #{:b :y}}]}
+                :groups [{:characters [:a :d]}
+                         {:characters [:b :y]}]}
                {:duration 10
-                :groups [{:characters #{:c :z}}]}
+                :groups [{:characters [:c :z]}]}
                {:duration 10
-                :groups [{:characters #{:e :f :x}}]}]
+                :groups [{:characters [:e :f :x]}]}]
         graph (f/make-sparse-graph input)
         orderings (f/order-graph graph)
         ordered-graph (get orderings 0)]
