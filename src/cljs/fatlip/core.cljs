@@ -197,16 +197,16 @@
   Also, it doesn't really matter what seed you choose for the initial value of the sum. I
   chose -1, which is implied by the description in ESK."
   [layer]
-  (loop [ordered (:ordered layer)
+  (loop [minus-ps (:minus-ps layer)
          current-position -1
          positions {}]
-    (if (empty? ordered)
+    (if (empty? minus-ps)
       (assoc layer :positions positions)
-      (let [item (first ordered)
+      (let [item (first minus-ps)
             c-p (if (instance? SegmentContainer item)
                   (+ current-position (count (:segments item)))
                   (inc current-position))]
-        (recur (rest ordered) c-p (assoc positions item (inc current-position)))))))
+        (recur (rest minus-ps) c-p (assoc positions item (inc current-position)))))))
 
 
 (defn- set-qs-non-qs
