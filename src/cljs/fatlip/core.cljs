@@ -489,6 +489,5 @@
                                   sparse-graph)
                                 (update-in [:layers 0] assoc :ordered seed-order)
                                 order-graph-once)]
-          ;; (println c (:crossings ordered-graph) (-> ordered-graph :layers peek :ordered))
           (recur (-> ordered-graph :layers peek :ordered)
                  (conj orderings (if reverse? (reverse-graph ordered-graph) ordered-graph))))))))
