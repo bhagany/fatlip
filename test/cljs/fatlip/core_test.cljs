@@ -90,4 +90,5 @@
                   (assoc :minus-ps [seg-1 node-1 node-2 seg-2 node-3 seg-3 node-4]))]
     (is (= (f/set-positions layer) (assoc layer :positions {seg-1 0, node-1 2, node-2 3
                                                             seg-2 4, node-3 7, seg-3 8
-                                                            node-4 9})))))
+                                                            node-4 9}))
+        "positions are set correctly")))
