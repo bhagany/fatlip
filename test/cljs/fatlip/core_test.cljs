@@ -73,3 +73,21 @@
     (is (= (f/replace-ps graph layer)
            (assoc layer :minus-ps [(f/SegmentContainer. [p-edge seg-c-edge]) not-p]))
         "P nodes get replaced by segment containers, and joined with adjacent segment containers")))
+
+
+(deftest set-positions
+  (let [seg-1 (f/SegmentContainer. [(f/Edge. "src" "dest" #{})
+                                    (f/Edge. "src" "dest" #{})])
+        node-1 (f/Node. :0-0 0 #{})
+        node-2 (f/Node. :0-1 0 #{})
+        seg-2 (f/SegmentContainer. [(f/Edge. "src" "dest" #{})
+                                    (f/Edge. "src" "dest" #{})
+                                    (f/Edge. "src" "dest" #{})])
+        node-3 (f/Node. :0-2 0 #{})
+        seg-3 (f/SegmentContainer. [(f/Edge. "src" "dest" #{})])
+        node-4 (f/Node. :0-2 0 #{})
+        layer (-> (f/Layer. 0 0 [])
+                  (assoc :minus-ps [seg-1 node-1 node-2 seg-2 node-3 seg-3 node-4]))]
+    (is (= (f/set-positions layer) (assoc layer :positions {seg-1 0, node-1 2, node-2 3
+                                                            seg-2 4, node-3 7, seg-3 8
+                                                            node-4 9})))))
