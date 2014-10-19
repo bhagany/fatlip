@@ -51,9 +51,7 @@
                      (mapcat #(:minus-ps %))
                      (filter #(contains? (:p ordered-graph) %))))
         "No p nodes in :minus-ps")
-    ;; Fine-grained ESK processing
     (is (empty? (->> (:layers ordered-graph)
                      (mapcat #(:minus-qs %))
                      (filter #(contains? (:q ordered-graph) %))))
-        "No q nodes in :minus-qs")
-  ))
+        "No q nodes in :minus-qs")))
