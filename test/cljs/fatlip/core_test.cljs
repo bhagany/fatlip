@@ -4,7 +4,7 @@
             [fatlip.core :as f]))
 
 
-(deftest input-parsing
+(deftest graph-properties
   (let [input [{:duration 10
                 :groups [{:characters #{:a :b :c}}
                          {:characters #{:d :e :f}}
@@ -45,4 +45,15 @@
         "Number of edges")
     (is (= (count (:marked ordered-graph)) 1) "Number of marked edges")
     (is (= (:crossings ordered-graph) 5) "Number of crossings")
+
+    ;; Fine-grained ESK processing
+    (is (empty? (->> (:layers ordered-graph)
+                     (mapcat #(:minus-ps %))
+                     (filter #(contains? (:p ordered-graph) %))))
+        "No p nodes in :minus-ps")
+    ;; Fine-grained ESK processing
+    (is (empty? (->> (:layers ordered-graph)
+                     (mapcat #(:minus-qs %))
+                     (filter #(contains? (:q ordered-graph) %))))
+        "No q nodes in :minus-qs")
   ))
