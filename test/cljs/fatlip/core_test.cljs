@@ -91,7 +91,7 @@
     (is (= (f/set-positions layer) (assoc layer :positions {seg-1 0, node-1 2, node-2 3
                                                             seg-2 4, node-3 7, seg-3 8
                                                             node-4 9}))
-        "positions are set correctly")))
+        "Positions are set correctly")))
 
 
 (deftest set-qs-non-qs
@@ -100,4 +100,4 @@
         graph {:q #{q}}
         layer (f/Layer. 0 0 [q not-q])]
     (is (= (f/set-qs-non-qs graph layer) (assoc layer :qs #{q} :non-qs #{not-q}))
-        "q nodes and non-q nodes are distinguised correctly")))
+        "Q nodes and non-q nodes are distinguised correctly")))
