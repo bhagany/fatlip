@@ -43,10 +43,11 @@
            (count (mapcat (fn [[_ es]] es) (:preds graph)))
            14)
         "Number of edges")
+
+    ;; ESK ordering
     (is (= (count (:marked ordered-graph)) 1) "Number of marked edges")
     (is (= (:crossings ordered-graph) 5) "Number of crossings")
 
-    ;; Fine-grained ESK processing
     (is (empty? (->> (:layers ordered-graph)
                      (mapcat #(:minus-ps %))
                      (filter #(contains? (:p ordered-graph) %))))
