@@ -17,9 +17,8 @@
                {:duration 10
                 :groups [{:characters #{:e :f :x}}]}]
         graph (f/make-sparse-graph input)
-        ordered-graph (get (f/order-graph graph) 19)
-        ;; _ (println (:succs graph))
-        ]
+        orderings (f/order-graph graph)
+        ordered-graph (get orderings 0)]
     (is (= (count (:layers graph)) (count (:layers ordered-graph)) 4) "Number of layers")
     (is (= (count (-> graph :layers (get 0) :nodes))
            (count (-> ordered-graph :layers (get 0) :nodes))
@@ -44,4 +43,6 @@
            (count (mapcat (fn [[_ es]] es) (:preds graph)))
            14)
         "Number of edges")
+    (is (= (count (:marked ordered-graph)) 1) "Number of marked edges")
+    (is (= (:crossings ordered-graph) 5) "Number of crossings")
   ))
