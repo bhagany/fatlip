@@ -64,12 +64,12 @@
 ;; Fine-grained ESK
 (deftest replace-ps
   (let [p (f/Node. :0-0 0 #{:a})
-        not-p (f/Node. :0-1 0 #{:b})
         p-succ (f/Node. :1-0 0 #{:a})
+        p-edge (f/Edge. p p-succ #{:a})
+        not-p (f/Node. :0-1 0 #{:b})
         not-p-succ (f/Node. :1-0 0 #{:b})
         seg-c-edge (f/Edge. (f/Node. :-1:55 -1 #{:c}) (f/Node. :3-99 3 #{:c}) #{:c})
         seg-c (f/SegmentContainer. [seg-c-edge])
-        p-edge (f/Edge. p p-succ #{:a})
         graph {:p #{p}
                :succs {p #{p-edge}, not-p #{(f/Edge. not-p not-p-succ #{:b})}}}
         layer (-> (f/Layer. 0 0 [p seg-c not-p])
