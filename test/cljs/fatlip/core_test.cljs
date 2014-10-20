@@ -6,7 +6,8 @@
 
 (deftest graph-properties
   (let [input [{:groups [{:characters [:a :a]}]}]]
-    (is (thrown? js/Error (f/make-sparse-graph input))))
+    (is (thrown? js/Error (f/make-sparse-graph input))
+        "Duplicate characters in a layer throw an error"))
 
   (let [input [{:duration 10
                 :groups [{:characters [:a :b :c]}
