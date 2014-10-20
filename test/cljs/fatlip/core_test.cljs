@@ -5,6 +5,9 @@
 
 
 (deftest graph-properties
+  (let [input [{:groups [{:characters [:a :a]}]}]]
+    (is (thrown? js/Error (f/make-sparse-graph input))))
+
   (let [input [{:duration 10
                 :groups [{:characters [:a :b :c]}
                          {:characters [:d :e :f]}

@@ -162,8 +162,15 @@
   ([input graph]
      (if (empty? input)
        graph
-       (let [g (add-layer graph (first input))]
-         (recur (rest input) g)))))
+       (let [i (first input)
+             dup-character (->> (mapcat #(:characters %) (:groups i))
+                                frequencies
+                                (filter (fn [[_ c]] (> c 1)))
+                                first)]
+         (if dup-character
+           (throw (js/Error. (str (get dup-character 0) " is specified "
+                                  (get dup-character 1) " times in one layer")))
+           (recur (rest input) (add-layer graph i)))))))
 
 
 (def segment-containers
