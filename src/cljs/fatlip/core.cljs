@@ -385,9 +385,14 @@
            crossings 0]
       (if (zero? index)
         [graph tree crossings]
-        (let [parent-index (.floor js/Math (/ (dec index) 2))]
+        (let [parent-index (.floor js/Math (/ (dec index) 2))
+              ;; By kind of a coincidence, the index of a node's parent in our
+              ;; mental model of the accumulator tree is the same as that node's
+              ;; index (if it's a right child), or its sibling's index (if it's
+              ;; a left child) in the compact representation of the tree
+              real-right-index parent-index]
           (if (odd? index)
-            (let [right-sib (get tree (inc index))
+            (let [right-sib (get tree real-right-index)
                   c (+ crossings (* weight (:weight right-sib)))
                   ;; Segments cannot cross each other, so the potential hole
                   ;; in this logic is not actually a hole
@@ -399,10 +404,11 @@
                   g (update-in graph [:marked] set/union marked)]
               (recur g tree parent-index c))
             (let [t (-> tree
-                        (update-in [index :weight] + weight)
+                        (update-in [real-right-index :weight] + weight)
                         (cond->
-                         is-seg-c (assoc-in [index :is-seg-c] true)
-                         (not is-seg-c) (update-in [index :node-edges] conj (:forward-edge edge))))]
+                         is-seg-c (assoc-in [real-right-index :is-seg-c] true)
+                         (not is-seg-c) (update-in [real-right-index :node-edges]
+                                                   conj (:forward-edge edge))))]
               (recur graph t parent-index crossings))))))))
 
 
@@ -426,14 +432,15 @@
         [layer-1 layer-2 edges] (if (< (count minus-ps) (count minus-qs))
                                   [minus-qs minus-ps (:preds graph)]
                                   [minus-ps minus-qs (:succs graph)])
-        edge-order (sorted-edge-order layer-1 layer-2 edges)
-        num-leaf-nodes (next-power-of-2 (count layer-2))
-        tree-size (dec (* num-leaf-nodes 2))
-        first-leaf (dec num-leaf-nodes)]
+        num-acc-leaves (next-power-of-2 (count layer-2))
+        first-leaf (dec num-acc-leaves)
+        ;; Our compact representation has the same size as the index
+        ;; of the first leaf in the mental model of the tree
+        tree-size first-leaf]
     (loop [graph graph
            tree (vec (repeat tree-size (AccumulatorNode. 0 #{} false)))
            crossings 0
-           order edge-order]
+           order (sorted-edge-order layer-1 layer-2 edges)]
       (if (empty? order)
         [graph crossings]
         (let [[ord edge] (first order)
