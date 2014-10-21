@@ -368,12 +368,14 @@
 
 (defn- single-edge-crossings
   "Counts the number of crossings that result from adding an edge, in order,
-  to the accumulator tree. If the index is even, meaning it's a right child of its
-  parent, we increment its value. If the index is odd (left child), we add the
-  value of its right sibling times the current weight to the cross count, as the
-  right sibling represents weight of the edges that were added ahead of this one,
-  and therefore, crossings. Then we walk up the tree to the root, incrementing and
-  adding right siblings, for a total count of edges that cross this one"
+  to the accumulator tree. If the index is even, meaning it's a right
+  child of its parent, we increment its value. If the index is
+  odd (left child), we add the value of its right sibling times the
+  current weight to the cross count, as the right sibling represents
+  weight of the edges that were added ahead of this one, and
+  therefore, crossings. Then we walk up the tree to the root,
+  incrementing and adding right siblings, for a total count of edges
+  that cross this one"
   [graph tree orig-index edge]
   (let [weight (count (:characters edge))
         is-seg-c (instance? SegmentContainer (:dest edge))]
