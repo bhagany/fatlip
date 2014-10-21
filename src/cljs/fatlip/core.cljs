@@ -366,7 +366,7 @@
                (inc exp))))))
 
 
-(defn- single-edge-crossings
+(defn- single-edge-super-crossings
   "Counts the number of crossings that result from adding an edge, in order,
   to the accumulator tree. If the index is even, meaning it's a right
   child of its parent, we increment its value. If the index is
@@ -412,20 +412,8 @@
               (recur graph t parent-index crossings))))))))
 
 
-(defn count-crossings
-  "Step 5 of ESK, counts the number of crossings that result from a
-  bi-layer ordering. Implements the algorithm found in Bilayer Cross Counting,
-  by Wilhelm Barth, Petra Mutzel and Michael Jünger
-
-  I've made the following modifications:
-  - Added weights to the edges
-  - Marking node -> node edges that cross segment containers, which helps
-    in the layout process later, by
-    - Storing accumulated node -> node edges in the accumulator tree
-    - Storing a flag for whether a node has seen a segment container in the
-      accumulator tree
-  - Only storing information on right siblings, as the information on left
-    siblings is never accessed"
+(defn count-super-crossings
+  "Counts crossings between separate nodes from one layer to the next"
   [graph layer next-layer]
   (let [minus-ps (:minus-ps layer)
         minus-qs (:minus-qs next-layer)
@@ -445,8 +433,111 @@
         [graph crossings]
         (let [[ord edge] (first order)
               index (+ first-leaf ord)
-              [g t c] (single-edge-crossings graph tree index edge)]
+              [g t c] (single-edge-super-crossings graph tree index edge)]
           (recur g t (+ crossings c) (rest order)))))))
+
+
+(defn single-edge-sub-crossings
+  "Counts the sub-crossings that result from adding a single sub-edge
+  to the accumulator tree"
+  ([tree index]
+     (single-edge-sub-crossings tree index 0))
+  ([tree index crossings]
+     (if (zero? index)
+       [tree crossings]
+       (let [parent-index (.floor js/Math (/ (dec index) 2))
+             real-right-index parent-index]
+         (if (odd? index)
+           (recur tree parent-index (+ crossings (get tree real-right-index)))
+           (recur (update-in tree [real-right-index] inc) parent-index crossings))))))
+
+
+(defn count-sub-crossings-single-node
+  "Counts sub-crossings for a node; short circuits if there are fewer
+  than two successor nodes"
+  [graph node next-layer]
+  (let [succs (-> graph
+                  :succs
+                  (get node)
+                  (->> (map #(:dest %))))
+        num-succs (count succs)]
+    (if (< num-succs 2)
+      0
+      (let [measures (:measures next-layer)
+            order-map (->> succs
+                           (sort-by #(get measures %))
+                           (map-indexed (fn [idx n]
+                                          (map #(-> [% idx])
+                                               (:characters n))))
+                           (apply concat)
+                           (into {}))
+            num-acc-leaves (next-power-of-2 num-succs)
+            first-leaf (dec num-acc-leaves)
+            tree-size first-leaf]
+        (loop [tree (vec (repeat tree-size 0))
+               sub-crossings 0
+               order (map #(get order-map %) (:characters node))]
+          (if (empty? order)
+            sub-crossings
+            (let [ord (first order)
+                  index (+ first-leaf ord)
+                  [t c] (single-edge-sub-crossings tree index)]
+              (recur t (+ sub-crossings c) (rest order)))))))))
+
+
+(defn count-sub-crossings
+  "A modification of ESK. In our scheme, each node in the graph
+  represents a set of characters, and those characters have an order
+  within their node. If those characters then diverge to different
+  successor nodes, then depending on their relative positions and
+  the positions of the successors, their lines may cross in a way
+  that is not detected by the coarser-grained node-by-node cross
+  counting. We apply the same methodology here, but without needing
+  to deal with crossing segments, or with edge weight"
+  [graph layer next-layer]
+  (loop [nodes (filter #(instance? Node %) (:minus-ps layer))
+         crossings 0]
+    (if (empty? nodes)
+      crossings
+      (let [node (first nodes)
+            c (count-sub-crossings-single-node graph node next-layer)]
+        (recur (rest nodes) (+ crossings c))))))
+
+
+(defn count-crossings
+  "Step 5 of ESK, counts the number of crossings that result from a
+  bi-layer ordering. Implements the algorithm found in Bilayer Cross
+  Counting, by Wilhelm Barth, Petra Mutzel and Michael Jünger
+
+  I've made the following modifications:
+  - Counting inter-node crossings and intra-node crossings. For inter-node
+    crossings, edges that originate from separate nodes in one layer and
+    arrive at separate nodes in the next layer may cross each other. These
+    is what is normally counted in layered graph drawing. However, for
+    this application, those coarse edges may be composed of several finer
+    sub-edges, and the sub-edges may cross each other as well, depending on
+    their initial ordering and the ordering of their destination nodes. We
+    can use basically the same algorithm at a smaller scale to count these
+    crossings as well
+  - Added weights to the inter-node edges
+  - Marking inter-node edges that cross segment containers, which helps
+    in the layout process later, by:
+    - Storing accumulated node -> node edges in the accumulator tree
+    - Storing a flag for whether a node has seen a segment container in the
+      accumulator tree
+  - Only storing information on right siblings, as the information on the root
+    or left siblings is never accessed
+  - Due to not storing information on the root or left siblings, we can store
+    everything in a compact representation of the tree that is one less than
+    half the size of the mental model of the tree, by only accounting for
+    right siblings. This leads to a few coincidences, namely, the size of the
+    compact representation is the same as the index of the first leaf in the
+    expanded tree, and the index of a right sibling in the compact
+    representation is the same as that node's parent in the expanded tree"
+  [graph layer next-layer]
+  (let [[g sup-crossings] (count-super-crossings graph layer next-layer)
+        sub-crossings (count-sub-crossings graph layer next-layer)]
+    [g (+ sup-crossings sub-crossings)]))
 
 
 (defn reverse-graph
