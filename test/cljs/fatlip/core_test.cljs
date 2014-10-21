@@ -63,15 +63,15 @@
 
 ;; Fine-grained ESK
 (deftest replace-ps
-  (let [p (f/Node. :0-0 0 #{:a})
-        p-succ (f/Node. :1-0 0 #{:a})
-        p-edge (f/Edge. p p-succ #{:a})
-        not-p (f/Node. :0-1 0 #{:b})
-        not-p-succ (f/Node. :1-0 0 #{:b})
-        seg-c-edge (f/Edge. (f/Node. :-1:55 -1 #{:c}) (f/Node. :3-99 3 #{:c}) #{:c})
+  (let [p (f/Node. :0-0 0 [:a])
+        p-succ (f/Node. :1-0 0 [:a])
+        p-edge (f/Edge. p p-succ [:a])
+        not-p (f/Node. :0-1 0 [:b])
+        not-p-succ (f/Node. :1-0 0 [:b])
+        seg-c-edge (f/Edge. (f/Node. :-1:55 -1 [:c]) (f/Node. :3-99 3 [:c]) [:c])
         seg-c (f/SegmentContainer. [seg-c-edge])
         graph {:p #{p}
-               :succs {p #{p-edge}, not-p #{(f/Edge. not-p not-p-succ #{:b})}}}
+               :succs {p #{p-edge}, not-p #{(f/Edge. not-p not-p-succ [:b])}}}
         layer (-> (f/Layer. 0 0 [p seg-c not-p])
                   (assoc :ordered [p seg-c not-p]))]
     (is (= (f/replace-ps graph layer)
@@ -80,16 +80,16 @@
 
 
 (deftest set-positions
-  (let [seg-1 (f/SegmentContainer. [(f/Edge. "src" "dest" #{})
-                                    (f/Edge. "src" "dest" #{})])
-        node-1 (f/Node. :0-0 0 #{})
-        node-2 (f/Node. :0-1 0 #{})
-        seg-2 (f/SegmentContainer. [(f/Edge. "src" "dest" #{})
-                                    (f/Edge. "src" "dest" #{})
-                                    (f/Edge. "src" "dest" #{})])
-        node-3 (f/Node. :0-2 0 #{})
-        seg-3 (f/SegmentContainer. [(f/Edge. "src" "dest" #{})])
-        node-4 (f/Node. :0-2 0 #{})
+  (let [seg-1 (f/SegmentContainer. [(f/Edge. "src" "dest" [])
+                                    (f/Edge. "src" "dest" [])])
+        node-1 (f/Node. :0-0 0 [])
+        node-2 (f/Node. :0-1 0 [])
+        seg-2 (f/SegmentContainer. [(f/Edge. "src" "dest" [])
+                                    (f/Edge. "src" "dest" [])
+                                    (f/Edge. "src" "dest" [])])
+        node-3 (f/Node. :0-2 0 [])
+        seg-3 (f/SegmentContainer. [(f/Edge. "src" "dest" [])])
+        node-4 (f/Node. :0-2 0 [])
         layer (-> (f/Layer. 0 0 [])
                   (assoc :minus-ps [seg-1 node-1 node-2 seg-2 node-3 seg-3 node-4]))]
     (is (= (f/set-positions layer) (assoc layer :positions {seg-1 0, node-1 2, node-2 3

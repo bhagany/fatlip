@@ -97,7 +97,7 @@
                      (let [last-node-characters (-> graph
                                                     :last-nodes-by-node
                                                     ((:id last-node) #{}))
-                           edge-characters (set/intersection last-node-characters characters)
+                           edge-characters (vec (set/intersection last-node-characters characters))
                            g (process-edge-characters graph last-node node edge-characters)]
                        [g (set/difference characters last-node-characters)])
                      [graph (disj characters character)])]
