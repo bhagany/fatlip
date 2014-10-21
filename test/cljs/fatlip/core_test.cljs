@@ -4,7 +4,7 @@
             [fatlip.core :as f]))
 
 
-(deftest graph-properties
+(deftest test-graph-properties
   (let [input [{:groups [{:characters [:a :a]}]}]]
     (is (thrown? js/Error (f/make-sparse-graph input))
         "Duplicate characters in a layer throw an error"))
@@ -62,7 +62,7 @@
 
 
 ;; Fine-grained ESK
-(deftest replace-ps
+(deftest test-replace-ps
   (let [p (f/Node. :0-0 0 [:a])
         p-succ (f/Node. :1-0 0 [:a])
         p-edge (f/Edge. p p-succ [:a])
@@ -79,7 +79,7 @@
         "P nodes get replaced by segment containers, and joined with adjacent segment containers")))
 
 
-(deftest set-positions
+(deftest test-set-positions
   (let [seg-1 (f/SegmentContainer. [(f/Edge. "src" "dest" [])
                                     (f/Edge. "src" "dest" [])])
         node-1 (f/Node. :0-0 0 [])
