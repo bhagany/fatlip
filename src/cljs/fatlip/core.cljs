@@ -7,7 +7,7 @@
 (defrecord Node [id layer-id characters])
 (defrecord Edge [src dest characters])
 (defrecord Layer [id duration nodes])
-(defrecord SegmentContainer [segments])
+(defrecord SegmentContainer [edges])
 (defrecord AccumulatorNode [weight node-edges is-seg-c])
 
 
@@ -179,7 +179,7 @@
 
 
 (defn replace-ps
-  "Step 1 of ESK - replace all p nodes with segments and merge segment containers"
+  "Step 1 of ESK - replace all p nodes with edges and merge segment containers"
   [graph layer]
   (->> (:ordered layer)
        (map #(if (contains? (:p graph) %)
@@ -188,7 +188,7 @@
                %))
        (reduce #(if (and (instance? SegmentContainer (peek %1))
                          (instance? SegmentContainer %2))
-                  (update-in %1 [(dec (count %1)) :segments] rrb/catvec (:segments %2))
+                  (update-in %1 [(dec (count %1)) :edges] rrb/catvec (:edges %2))
                   (conj %1 %2))
                [])
        (assoc layer :minus-ps)))
@@ -199,7 +199,7 @@
   next layer. ESK's description of the position algorithm is almost willfully circuitous
   and obtuse, so here's a simplified description: An item's position in an ordered layer
   is the sum of the size of all previous items, plus 1, where the size of a segment
-  container is the number of segments it contains, and the size of a node is 1.
+  container is the number of edges it contains, and the size of a node is 1.
 
   Also, it doesn't really matter what seed you choose for the initial value of the sum. I
   chose -1, which is implied by the description in ESK."
@@ -211,7 +211,7 @@
       (assoc layer :positions positions)
       (let [item (first minus-ps)
             c-p (if (instance? SegmentContainer item)
-                  (+ current-position (count (:segments item)))
+                  (+ current-position (count (:edges item)))
                   (inc current-position))]
         (recur (rest minus-ps) c-p (assoc positions item (inc current-position)))))))
 
@@ -278,12 +278,12 @@
                            node-measure (get measures node-1)
                            seg-position (get pos seg-1)
                            node-first (<= node-measure seg-position)
-                           seg-first (>= node-measure (+ seg-position (count (:segments seg-1))))]
+                           seg-first (>= node-measure (+ seg-position (count (:edges seg-1))))]
                        (cond node-first (recur (rest nodes) segments pos (conj ord node-1))
                              seg-first (recur nodes (rest segments) pos (conj ord seg-1))
                              :else (let [k (.ceil js/Math (- node-measure seg-position))
-                                         s-1 (update-in seg-1 [:segments] rrb/subvec 0 k)
-                                         s-2 (update-in seg-1 [:segments] rrb/subvec k)]
+                                         s-1 (update-in seg-1 [:edges] rrb/subvec 0 k)
+                                         s-2 (update-in seg-1 [:edges] rrb/subvec k)]
                                      (recur
                                       (rest nodes)
                                       (cons s-2 segments)
@@ -299,7 +299,7 @@
   (let [qs (:qs next-layer)
         flat (->> (:minus-qs next-layer)
                   (mapcat #(if (instance? SegmentContainer %)
-                             (:segments %)
+                             (:edges %)
                              [%]))
                   (map #(if (and (instance? Edge %)
                                  (contains? qs (:dest %)))
@@ -309,13 +309,13 @@
                        seg-c (first segment-containers)
                        layer []]
                   (if (empty? f)
-                    (if (empty? (:segments seg-c))
+                    (if (empty? (:edges seg-c))
                       layer
                       (conj layer seg-c))
                     (let [item (first f)]
                       (if (instance? Edge item)
-                        (recur (rest f) (update-in seg-c [:segments] conj item) layer)
-                        (if (empty? (:segments seg-c))
+                        (recur (rest f) (update-in seg-c [:edges] conj item) layer)
+                        (if (empty? (:edges seg-c))
                           (recur (rest f) seg-c (conj layer item))
                           (recur (rest f) (first segment-containers) (conj layer seg-c item)))))))]
     (assoc next-layer :ordered ordered)))
@@ -339,7 +339,7 @@
                    (map (juxt identity
                               (fn [seg-c]
                                 (mapcat #(-> % :characters)
-                                        (:segments seg-c)))))
+                                        (:edges seg-c)))))
                    (map (fn [[seg-c characters]]
                           [seg-c #{(Edge. seg-c seg-c characters)}]))
                    (into {})
