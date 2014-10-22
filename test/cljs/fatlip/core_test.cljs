@@ -146,7 +146,8 @@
            (assoc next-layer :measures {nl-node-1 0
                                         nl-node-2 1
                                         nl-node-3 0
-                                        nl-node-4 1})))))
+                                        nl-node-4 1}))
+        "Measures are set correctly")))
 
 
 (deftest test-single-edge-sub-crossings
