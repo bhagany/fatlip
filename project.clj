@@ -39,7 +39,7 @@
                :test {:source-paths ["src/cljs" "test/cljs"]
                       :notify-command ["phantomjs" :cljs.test/runner "target/test.js"]
                       :compiler {:output-to     "target/test.js"
-                                 :optimizations :simple
+                                 :optimizations :whitespace
                                  :pretty-print true}}}}
 
   :profiles {:dev {:repl-options {:init-ns fatlip.server
