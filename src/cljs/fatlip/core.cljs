@@ -62,7 +62,7 @@
   "R nodes are created to assist in drawing the graph, when an edge skips over a layer.
   In that case, the r node is placed in the intervening layer, and an edge is created
   from last-node to r node"
-  (let [r-layer-id (inc (:layer-id last-node ))
+  (let [r-layer-id (inc (:layer-id last-node))
         r-node (make-node graph r-layer-id {:characters characters})
         g (-> graph
               (update-in [:layers r-layer-id :nodes] conj r-node)
