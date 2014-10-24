@@ -50,8 +50,8 @@
         g (-> graph
               (update-in [:layers p-layer-id :nodes] conj p-node)
               (update-in [:layers q-layer-id :nodes] conj q-node)
-              (update-in [:p] conj p-node)
-              (update-in [:q] conj q-node)
+              (update-in [:ps] conj p-node)
+              (update-in [:qs] conj q-node)
               (add-edge last-node p-node characters)
               (add-edge p-node q-node characters))]
     [g q-node]))
@@ -65,7 +65,7 @@
         r-node (make-node graph r-layer-id {:characters characters})
         g (-> graph
               (update-in [:layers r-layer-id :nodes] conj r-node)
-              (update-in [:r] conj r-node)
+              (update-in [:rs] conj r-node)
               (add-edge last-node r-node characters))]
     [g r-node]))
 
@@ -152,9 +152,9 @@
                         {:layers []
                          :succs {}
                          :preds {}
-                         :p #{}
-                         :q #{}
-                         :r #{}
+                         :ps #{}
+                         :qs #{}
+                         :rs #{}
                          :marked #{}
                          :last-nodes-by-character {}
                          :last-nodes-by-node {}}))
@@ -176,7 +176,7 @@
   "Step 1 of ESK - replace all p nodes with edges and merge segment containers"
   [graph layer]
   (->> (:ordered layer)
-       (map #(if (contains? (:p graph) %)
+       (map #(if (contains? (:ps graph) %)
                ;; p nodes always have only one successor
                [(-> (:succs graph) (get %) first)]
                %))
@@ -213,7 +213,7 @@
 (defn- set-qs-non-qs
   "ESK requires a layer's nodes to be split into lists of q-nodes and non-q-nodes"
   [graph layer]
-  (->> ((juxt filter remove) #(contains? (:q graph) %) (:nodes layer))
+  (->> ((juxt filter remove) #(contains? (:qs graph) %) (:nodes layer))
        (map set)
        (interleave [:qs :non-qs])
        (apply (partial assoc layer))))
@@ -534,8 +534,8 @@
   (assoc graph
     :succs (:preds graph)
     :preds (:succs graph)
-    :p (:q graph)
-    :q (:p graph)
+    :ps (:qs graph)
+    :qs (:ps graph)
     :layers (vec (rseq (:layers graph)))))
 
 
