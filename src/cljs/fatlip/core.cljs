@@ -327,9 +327,7 @@
         edges (->> next-ordered
                    (filter vector?)
                    (map (juxt identity
-                              (fn [seg-c]
-                                (mapcat #(-> % :characters)
-                                        (:edges seg-c)))))
+                              (partial mapcat #(-> % :characters))))
                    (map (fn [[seg-c characters]]
                           [seg-c #{(Edge. seg-c seg-c characters)}]))
                    (into {})
