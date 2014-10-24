@@ -69,26 +69,26 @@
         not-p (f/Node. :0-1 0 [:b])
         not-p-succ (f/Node. :1-0 0 [:b])
         seg-c-edge (f/Edge. (f/Node. :-1:55 -1 [:c]) (f/Node. :3-99 3 [:c]) [:c])
-        seg-c (f/SegmentContainer. [seg-c-edge])
+        seg-c [seg-c-edge]
         graph {:p #{p}
                :succs {p #{p-edge}, not-p #{(f/Edge. not-p not-p-succ [:b])}}}
         layer (-> (f/Layer. 0 0 [p seg-c not-p])
                   (assoc :ordered [p seg-c not-p]))]
     (is (= (f/replace-ps graph layer)
-           (assoc layer :minus-ps [(f/SegmentContainer. [p-edge seg-c-edge]) not-p]))
+           (assoc layer :minus-ps [[p-edge seg-c-edge] not-p]))
         "P nodes get replaced by segment containers, and joined with adjacent segment containers")))
 
 
 (deftest test-set-positions
-  (let [seg-1 (f/SegmentContainer. [(f/Edge. "src" "dest" [])
-                                    (f/Edge. "src" "dest" [])])
+  (let [seg-1 [(f/Edge. "src" "dest" [])
+               (f/Edge. "src" "dest" [])]
         node-1 (f/Node. :0-0 0 [])
         node-2 (f/Node. :0-1 0 [])
-        seg-2 (f/SegmentContainer. [(f/Edge. "src" "dest" [])
-                                    (f/Edge. "src" "dest" [])
-                                    (f/Edge. "src" "dest" [])])
+        seg-2 [(f/Edge. "src" "dest" [])
+               (f/Edge. "src" "dest" [])
+               (f/Edge. "src" "dest" [])]
         node-3 (f/Node. :0-2 0 [])
-        seg-3 (f/SegmentContainer. [(f/Edge. "src" "dest" [])])
+        seg-3 [(f/Edge. "src" "dest" [])]
         node-4 (f/Node. :0-2 0 [])
         layer (-> (f/Layer. 0 0 [])
                   (assoc :minus-ps [seg-1 node-1 node-2 seg-2 node-3 seg-3 node-4]))]
@@ -159,9 +159,9 @@
         nl-node-3 (f/Node. :1-2 1 [:a])
         nl-node-4 (f/Node. :1-3 1 [:d])
         nl-node-5 (f/Node. :1-4 1 [:f :g])
-        l-seg-1 (f/SegmentContainer. [(f/Edge. "whatever" "somewhere else" [:x])])
-        l-seg-2 (f/SegmentContainer. [(f/Edge. "sup" "elsewhere" [:y])
-                                      (f/Edge. "unclear" nl-node-5 [:f :g])])
+        l-seg-1 [(f/Edge. "whatever" "somewhere else" [:x])]
+        l-seg-2 [(f/Edge. "sup" "elsewhere" [:y])
+                 (f/Edge. "unclear" nl-node-5 [:f :g])]
         edge-1 (f/Edge. nl-node-1 l-node-1 [:c])
         edge-2 (f/Edge. nl-node-2 l-node-1 [:b])
         edge-3 (f/Edge. nl-node-2 l-node-3 [:e])
@@ -193,18 +193,18 @@
   (let [node-1 (f/Node. :0-0 0 [:a :b :c])
         node-2 (f/Node. :0-1 0 [:d])
         node-3 (f/Node. :0-2 0 [:e])
-        seg-1 (f/SegmentContainer. [(f/Edge. "whatever" "somewhere else" [:x])])
-        seg-2 (f/SegmentContainer. [(f/Edge. "sup" "elsewhere" [:y])
-                                    (f/Edge. "unclear" node-2 [:f :g])
-                                    (f/Edge. "doesn't" "matter" [:m])])
+        seg-1 [(f/Edge. "whatever" "somewhere else" [:x])]
+        seg-2 [(f/Edge. "sup" "elsewhere" [:y])
+               (f/Edge. "unclear" node-2 [:f :g])
+               (f/Edge. "doesn't" "matter" [:m])]
         layer (-> (f/Layer. 0 0 [node-1 node-2 node-3])
                   (assoc :qs #{node-2}
                          :minus-qs [node-1 seg-1 node-3 seg-2]))]
     (is (= (f/add-qs layer)
            (assoc layer :ordered [node-1 seg-1 node-3
-                                  (f/SegmentContainer. [(f/Edge. "sup" "elsewhere" [:y])])
+                                  [(f/Edge. "sup" "elsewhere" [:y])]
                                   node-2
-                                  (f/SegmentContainer. [(f/Edge. "doesn't" "matter" [:m])])]))
+                                  [(f/Edge. "doesn't" "matter" [:m])]]))
         "Q nodes are placed correctly, splitting the segment containers they were in")))
 
 
@@ -214,7 +214,7 @@
         nl-node-1 (f/Node. :1-0 1 [:a :c])
         nl-node-2 (f/Node. :1-1 1 [:d :g])
         nl-node-3 (f/Node. :1-1 1 [:e])
-        seg (f/SegmentContainer. [(f/Edge. "mmm" "hmm" [:b :f])])
+        seg [(f/Edge. "mmm" "hmm" [:b :f])]
         ordered [node-1 seg node-2]
         next-ordered [nl-node-1 seg nl-node-2 nl-node-3]
         edge-1 (f/Edge. node-1 nl-node-1 [:a])
@@ -248,7 +248,7 @@
                        (f/Node. :1-3 1 [:b])
                        [:b])
         edge (assoc fedge :forward-edge fedge)
-        seg (f/SegmentContainer. [(f/Edge. "mmm" "hmm" [:b :h])])
+        seg [(f/Edge. "mmm" "hmm" [:b :h])]
         sedge (f/Edge. seg seg [:b :h])
         crossed-edge (f/Edge. (f/Node. :0-2 0 [:f])
                               (f/Node. :1-2 1 [:f])
@@ -293,9 +293,9 @@
         nl-node-3 (f/Node. :1-2 1 [:a])
         nl-node-4 (f/Node. :1-3 1 [:d])
         nl-node-5 (f/Node. :1-4 1 [:f :g])
-        l-seg-1 (f/SegmentContainer. [(f/Edge. "whatever" "somewhere else" [:x])])
-        l-seg-2 (f/SegmentContainer. [(f/Edge. "sup" "elsewhere" [:y])
-                                      (f/Edge. "unclear" nl-node-5 [:f :g])])
+        l-seg-1 [(f/Edge. "whatever" "somewhere else" [:x])]
+        l-seg-2 [(f/Edge. "sup" "elsewhere" [:y])
+                 (f/Edge. "unclear" nl-node-5 [:f :g])]
         fedge-1 (f/Edge. nl-node-1 l-node-1 [:c])
         fedge-2 (f/Edge. nl-node-2 l-node-1 [:b])
         fedge-3 (f/Edge. nl-node-2 l-node-3 [:e])

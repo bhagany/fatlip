@@ -7,7 +7,6 @@
 (defrecord Node [id layer-id characters])
 (defrecord Edge [src dest characters])
 (defrecord Layer [id duration nodes])
-(defrecord SegmentContainer [edges])
 (defrecord AccumulatorNode [weight node-edges is-seg-c])
 
 
@@ -173,22 +172,17 @@
            (recur (rest input) (add-layer graph i)))))))
 
 
-(def segment-containers
-  "A lazy sequence of empty segment containers"
-  (repeat (SegmentContainer. [])))
-
-
 (defn replace-ps
   "Step 1 of ESK - replace all p nodes with edges and merge segment containers"
   [graph layer]
   (->> (:ordered layer)
        (map #(if (contains? (:p graph) %)
                ;; p nodes always have only one successor
-               (SegmentContainer. [(-> (:succs graph) (get %) first)])
+               [(-> (:succs graph) (get %) first)]
                %))
-       (reduce #(if (and (instance? SegmentContainer (peek %1))
-                         (instance? SegmentContainer %2))
-                  (update-in %1 [(dec (count %1)) :edges] rrb/catvec (:edges %2))
+       (reduce #(if (and (vector? (peek %1))
+                         (vector? %2))
+                  (update-in %1 [(dec (count %1))] rrb/catvec %2)
                   (conj %1 %2))
                [])
        (assoc layer :minus-ps)))
@@ -210,8 +204,8 @@
     (if (empty? minus-ps)
       (assoc layer :positions positions)
       (let [item (first minus-ps)
-            c-p (if (instance? SegmentContainer item)
-                  (+ current-position (count (:edges item)))
+            c-p (if (vector? item)
+                  (+ current-position (count item))
                   (inc current-position))]
         (recur (rest minus-ps) c-p (assoc positions item (inc current-position)))))))
 
@@ -257,7 +251,7 @@
         measures (:measures next-layer)
         ns (sort-by #(get measures %) (:non-qs next-layer))
         ss (->> (:minus-ps layer)
-                (filter #(instance? SegmentContainer %))
+                (filter vector?)
                 (sort-by #(get positions %)))
         minus-qs (loop [nodes ns
                         segments ss
@@ -274,12 +268,12 @@
                            node-measure (get measures node-1)
                            seg-position (get pos seg-1)
                            node-first (<= node-measure seg-position)
-                           seg-first (>= node-measure (+ seg-position (count (:edges seg-1))))]
+                           seg-first (>= node-measure (+ seg-position (count seg-1)))]
                        (cond node-first (recur (rest nodes) segments pos (conj ord node-1))
                              seg-first (recur nodes (rest segments) pos (conj ord seg-1))
                              :else (let [k (.ceil js/Math (- node-measure seg-position))
-                                         s-1 (update-in seg-1 [:edges] rrb/subvec 0 k)
-                                         s-2 (update-in seg-1 [:edges] rrb/subvec k)]
+                                         s-1 (rrb/subvec seg-1 0 k)
+                                         s-2 (rrb/subvec seg-1 k)]
                                      (recur
                                       (rest nodes)
                                       (cons s-2 segments)
@@ -294,26 +288,26 @@
   [next-layer]
   (let [qs (:qs next-layer)
         flat (->> (:minus-qs next-layer)
-                  (mapcat #(if (instance? SegmentContainer %)
-                             (:edges %)
+                  (mapcat #(if (vector? %)
+                             %
                              [%]))
                   (map #(if (and (instance? Edge %)
                                  (contains? qs (:dest %)))
                           (:dest %)
                           %)))
         ordered (loop [f flat
-                       seg-c (first segment-containers)
+                       seg-c []
                        layer []]
                   (if (empty? f)
-                    (if (empty? (:edges seg-c))
+                    (if (empty? seg-c)
                       layer
                       (conj layer seg-c))
                     (let [item (first f)]
                       (if (instance? Edge item)
-                        (recur (rest f) (update-in seg-c [:edges] conj item) layer)
-                        (if (empty? (:edges seg-c))
+                        (recur (rest f) (conj seg-c item) layer)
+                        (if (empty? seg-c)
                           (recur (rest f) seg-c (conj layer item))
-                          (recur (rest f) (first segment-containers) (conj layer seg-c item)))))))]
+                          (recur (rest f) [] (conj layer seg-c item)))))))]
     (assoc next-layer :ordered ordered)))
 
 
@@ -331,7 +325,7 @@
         ;; merge the current segment edges with the never-changing
         ;; node -> node edges
         edges (->> next-ordered
-                   (filter #(instance? SegmentContainer %))
+                   (filter vector?)
                    (map (juxt identity
                               (fn [seg-c]
                                 (mapcat #(-> % :characters)
@@ -374,7 +368,7 @@
   that cross this one"
   [graph tree orig-index edge]
   (let [weight (count (:characters edge))
-        is-seg-c (instance? SegmentContainer (:dest edge))]
+        is-seg-c (vector? (:dest edge))]
     (loop [graph graph
            tree tree
            index orig-index
