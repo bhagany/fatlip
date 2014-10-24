@@ -228,17 +228,13 @@
 (defn- get-measure
   "Calculate the average weighted position of a node's predecessors"
   [graph node pred-positions]
-  (let [preds (get-in graph [:preds node])]
-    (if preds
-      (apply / (->> preds
-                    (map #(let [weight (count (:characters %))
-                                pos (get pred-positions (:dest %))]
-                            [(* weight pos) weight]))
-                    (reduce #(-> %1
-                                 (update-in [0] + (get %2 0))
-                                 (update-in [1] + (get %2 1)))
-                            [0 0])))
-      0)))
+  (if-let [preds (get-in graph [:preds node])]
+    (apply / (->> preds
+                  (map #(let [weight (count (:characters %))
+                              pos (get pred-positions (:dest %))]
+                          [(* weight pos) weight]))
+                  (apply map +)))
+    0))
 
 
 (defn set-measures
