@@ -32,8 +32,10 @@
   when creating helper (p, q, and r) nodes. In particular, helper nodes don't require
   character group processing or bookkeeping metadata"
   (let [node-num (count (-> graph :layers (get layer-id) :nodes))
-        node-id (keyword (s/join "-" [layer-id node-num]))]
-    (map->Node (assoc input :id node-id :layer-id layer-id))))
+        node-id (keyword (s/join "-" [layer-id node-num]))
+        node (map->Node (assoc input :id node-id :layer-id layer-id))
+        g (update-in graph [:layers layer-id :nodes] conj node)]
+    [g node]))
 
 
 (defn- add-p-q-nodes [graph last-node node characters]
@@ -44,11 +46,9 @@
   (let [proto-node {:characters characters}
         p-layer-id (inc (:layer-id last-node))
         q-layer-id (dec (:layer-id node))
-        p-node (make-node graph p-layer-id proto-node)
-        q-node (make-node graph q-layer-id proto-node)
-        g (-> graph
-              (update-in [:layers p-layer-id :nodes] conj p-node)
-              (update-in [:layers q-layer-id :nodes] conj q-node)
+        [p-g p-node] (make-node graph p-layer-id proto-node)
+        [q-g q-node] (make-node p-g q-layer-id proto-node)
+        g (-> q-g
               (update-in [:ps] conj p-node)
               (update-in [:qs] conj q-node)
               (add-edge last-node p-node characters)
@@ -61,9 +61,8 @@
   In that case, the r node is placed in the intervening layer, and an edge is created
   from last-node to r node"
   (let [r-layer-id (inc (:layer-id last-node))
-        r-node (make-node graph r-layer-id {:characters characters})
-        g (-> graph
-              (update-in [:layers r-layer-id :nodes] conj r-node)
+        [r-g r-node] (make-node graph r-layer-id {:characters characters})
+        g (-> r-g
               (update-in [:rs] conj r-node)
               (add-edge last-node r-node characters))]
     [g r-node]))
@@ -107,10 +106,8 @@
   from previous layers. Then, update the bookkeeping metadata for each
   character in a node for calculating future edges from this node"
   [graph layer-id input]
-  (let [node (make-node graph layer-id input)]
-    (loop [new-g (-> graph
-                     (process-characters node)
-                     (update-in [:layers layer-id :nodes] conj node))
+  (let [[grph node] (make-node graph layer-id input)]
+    (loop [new-g (process-characters grph node)
            characters (:characters node)]
       ;; Update node metadata for all characters in the new node
       (if (empty? characters)
