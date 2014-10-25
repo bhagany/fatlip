@@ -304,7 +304,7 @@
                         (if (empty? seg-c)
                           (recur (rest f) seg-c (conj layer item))
                           (recur (rest f) [] (conj layer seg-c item)))))))]
-    (assoc next-layer :ordered ordered)))
+    (assoc next-layer :flat flat :ordered ordered)))
 
 
 (defn- sorted-edge-order

@@ -193,18 +193,20 @@
   (let [node-1 (f/Node. :0-0 0 [:a :b :c])
         node-2 (f/Node. :0-1 0 [:d])
         node-3 (f/Node. :0-2 0 [:e])
-        seg-1 [(f/Edge. "whatever" "somewhere else" [:x])]
-        seg-2 [(f/Edge. "sup" "elsewhere" [:y])
-               (f/Edge. "unclear" node-2 [:f :g])
-               (f/Edge. "doesn't" "matter" [:m])]
+        edge-1 (f/Edge. "whatever" "somewhere else" [:x])
+        edge-2 (f/Edge. "sup" "elsewhere" [:y])
+        edge-3 (f/Edge. "unclear" node-2 [:f :g])
+        edge-4 (f/Edge. "doesn't" "matter" [:m])
+        seg-1 [edge-1]
+        seg-2 [edge-2 edge-3 edge-4]
         layer (-> (f/Layer. 0 0 [node-1 node-2 node-3])
                   (assoc :qs #{node-2}
                          :minus-qs [node-1 seg-1 node-3 seg-2]))]
     (is (= (f/add-qs layer)
-           (assoc layer :ordered [node-1 seg-1 node-3
-                                  [(f/Edge. "sup" "elsewhere" [:y])]
-                                  node-2
-                                  [(f/Edge. "doesn't" "matter" [:m])]]))
+           (assoc layer
+             :ordered [node-1 seg-1 node-3
+                       [edge-2] node-2 [edge-4]]
+             :flat [node-1 edge-1 node-3 edge-2 node-2 edge-4]))
         "Q nodes are placed correctly, splitting the segment containers they were in")))
 
 
