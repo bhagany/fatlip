@@ -40,9 +40,9 @@
            (count (-> ordered-graph :layers (get 3) :nodes))
            1)
         "Number of nodes in layer 3")
-    (is (= (count (:p graph)) 2) "Number of p nodes")
-    (is (= (count (:q graph)) 2) "Number of q nodes")
-    (is (= (count (:r graph)) 2) "Number of r nodes")
+    (is (= (count (:ps graph)) 2) "Number of p nodes")
+    (is (= (count (:qs graph)) 2) "Number of q nodes")
+    (is (= (count (:rs graph)) 2) "Number of r nodes")
     (is (= (count (mapcat (fn [[_ es]] es) (:succs graph)))
            (count (mapcat (fn [[_ es]] es) (:preds graph)))
            14)
@@ -53,11 +53,11 @@
     (is (= (:crossings ordered-graph) 9) "Number of crossings")
     (is (empty? (->> (:layers ordered-graph)
                      (mapcat #(:minus-ps %))
-                     (filter #(contains? (:p ordered-graph) %))))
+                     (filter #(contains? (:ps ordered-graph) %))))
         "No p nodes in :minus-ps")
     (is (empty? (->> (:layers ordered-graph)
                      (mapcat #(:minus-qs %))
-                     (filter #(contains? (:q ordered-graph) %))))
+                     (filter #(contains? (:qs ordered-graph) %))))
         "No q nodes in :minus-qs")))
 
 
@@ -70,7 +70,7 @@
         not-p-succ (f/Node. :1-0 0 [:b])
         seg-c-edge (f/Edge. (f/Node. :-1:55 -1 [:c]) (f/Node. :3-99 3 [:c]) [:c])
         seg-c [seg-c-edge]
-        graph {:p #{p}
+        graph {:ps #{p}
                :succs {p #{p-edge}, not-p #{(f/Edge. not-p not-p-succ [:b])}}}
         layer (-> (f/Layer. 0 0 [p seg-c not-p])
                   (assoc :ordered [p seg-c not-p]))]
@@ -101,7 +101,7 @@
 (deftest test-set-qs-non-qs
   (let [q (f/Node. :0-0 0 [])
         not-q (f/Node. :0-1 0 [])
-        graph {:q #{q}}
+        graph {:qs #{q}}
         layer (f/Layer. 0 0 [q not-q])]
     (is (= (f/set-qs-non-qs graph layer) (assoc layer :qs #{q} :non-qs #{not-q}))
         "Q nodes and non-q nodes are distinguised correctly")))
