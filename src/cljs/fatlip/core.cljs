@@ -19,10 +19,9 @@
         ;; algorithm switches the order of the layers depending on which
         ;; is smaller, but we always layout and draw the graph forward, so the
         ;; marked edges need to be the forward ones.
-        edge-1 (-> forward-edge
-                   (assoc :forward-edge forward-edge))
-        edge-2 (-> (Edge. node last-node characters)
-                   (assoc :forward-edge forward-edge))]
+        edge-1 (with-meta forward-edge {:forward-edge forward-edge})
+        edge-2 (with-meta (Edge. node last-node characters)
+                 {:forward-edge forward-edge})]
     (-> graph
         (update-in [:succs last-node] (fnil conj #{}) edge-1)
         (update-in [:preds node] (fnil conj #{}) edge-2))))
@@ -387,7 +386,7 @@
                   marked (if is-seg-c
                            (:node-edges right-sib)
                            (if (:is-seg-c right-sib)
-                             #{(:forward-edge edge)}
+                             #{(-> edge meta :forward-edge)}
                              #{}))
                   g (update-in graph [:marked] set/union marked)]
               (recur g tree parent-index c))
@@ -396,7 +395,7 @@
                         (cond->
                          is-seg-c (assoc-in [real-right-index :is-seg-c] true)
                          (not is-seg-c) (update-in [real-right-index :node-edges]
-                                                   conj (:forward-edge edge))))]
+                                                   conj (-> edge meta :forward-edge))))]
               (recur graph t parent-index crossings))))))))
 
 
