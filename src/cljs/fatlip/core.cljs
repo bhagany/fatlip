@@ -545,7 +545,9 @@
   [graph]
   (assoc graph
     :aboves (:belows graph)
-    :belows (:aboves graph)))
+    :belows (:aboves graph)
+    :top-idxs (:bot-idxs graph)
+    :bot-idxs (:top-idxs graph)))
 
 
 (defn neighborify
