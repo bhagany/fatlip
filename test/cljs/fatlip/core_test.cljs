@@ -398,12 +398,36 @@
         "Mapping nodes and edges that are above or below each thing works")))
 
 
+(deftest test-indexify
+  (let [node-1 (f/Node. :0-0 0 [:a])
+        node-2 (f/Node. :0-1 0 [:b])
+        node-3 (f/Node. :0-2 0 [:c])
+        edge-1 (f/Edge. "meh" "bleh" [:d])
+        edge-2 (f/Edge. "feh" "geh" [:e])
+        layer (-> (f/Layer. 0 0 [node-1 node-2 node-3])
+                  (assoc :flat [node-1 edge-1 node-2 edge-2 node-3]))
+        graph {:top-idxs {} :bot-idxs {}}]
+    (is (= (f/indexify graph layer)
+           (assoc graph
+             :top-idxs {0 {node-1 0
+                           edge-1 1
+                           node-2 2
+                           edge-2 3
+                           node-3 4}}
+             :bot-idxs {0 {node-3 0
+                           edge-2 1
+                           node-2 2
+                           edge-1 3
+                           node-1 4}}))
+        "Mapping nodes and edges to indexes from the top and bottom of the layer")))
+
+
 (deftest test-seed-graph
   (let [node-1 (f/Node. :0-0 0 [:a])
         node-2 (f/Node. :0-1 0 [:b])
         node-3 (f/Node. :0-2 0 [:c])
         layer (f/Layer. 0 0 [node-1 node-2 node-3])
-        graph {:layers [layer] :belows {} :aboves {}}
+        graph {:layers [layer] :belows {} :aboves {} :top-idxs {} :bot-idxs {}}
         seed-order [node-1 node-2 node-3]]
     (is (= (f/seed-graph graph seed-order)
            (assoc graph
@@ -413,5 +437,11 @@
              :belows {0 {node-1 node-2
                          node-2 node-3}}
              :aboves {0 {node-3 node-2
-                         node-2 node-1}}))
+                         node-2 node-1}}
+             :top-idxs {0 {node-1 0
+                           node-2 1
+                           node-3 2}}
+             :bot-idxs {0 {node-3 0
+                           node-2 1
+                           node-1 2}}))
         "Seeding the graph ordering with the initial layer")))

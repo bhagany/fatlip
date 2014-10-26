@@ -565,6 +565,23 @@
           (recur g next-o (rest os)))))))
 
 
+(defn indexify
+  [graph layer]
+  (let [layer-id (:id layer)
+        flat (:flat layer)
+        len (count flat)
+        top-idxs (->> flat
+                      (map-indexed #(-> [%2 %1]))
+                      (into {}))
+        bot-idxs (->> top-idxs
+                      (map (fn [[o idx]]
+                             [o (- len idx 1)]))
+                      (into {}))]
+    (-> graph
+        (assoc-in [:top-idxs layer-id] top-idxs)
+        (assoc-in [:bot-idxs layer-id] bot-idxs))))
+
+
 (defn order-graph-once
   "Performs one layer-by-layer sweep of the graph using ESK's algorithm"
   [sparse-graph]
@@ -586,7 +603,8 @@
                   (update-in [:crossings] + crossings)
                   (update-in [:layers] assoc (:id l) l)
                   (update-in [:layers] assoc (:id next-l) next-l)
-                  (neighborify next-l))]
+                  (neighborify next-l)
+                  (indexify next-l))]
         (recur g next-l (rest layers))))))
 
 
@@ -600,7 +618,8 @@
                   (assoc :flat seed-order :ordered seed-order))]
     (-> graph
         (assoc-in [:layers 0] layer)
-        (neighborify layer))))
+        (neighborify layer)
+        (indexify layer))))
 
 
 (defn order-graph
