@@ -376,7 +376,7 @@
         "Sub crossings are counted correctly")))
 
 
-(deftest test-map-aboves-belows
+(deftest test-neighborify
   (let [node-1 (f/Node. :0-0 0 [:a])
         node-2 (f/Node. :0-1 0 [:b])
         node-3 (f/Node. :0-2 0 [:c])
@@ -385,7 +385,7 @@
         layer (-> (f/Layer. 0 0 [node-1 node-2 node-3])
                   (assoc :flat [node-1 edge-1 node-2 edge-2 node-3]))
         graph {:belows {} :aboves {}}]
-    (is (= (f/map-aboves-belows graph layer)
+    (is (= (f/neighborify graph layer)
            (assoc graph
              :belows {0 {node-1 edge-1
                          edge-1 node-2

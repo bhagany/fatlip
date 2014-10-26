@@ -548,7 +548,7 @@
     :belows (:aboves graph)))
 
 
-(defn map-aboves-belows
+(defn neighborify
   "Maps things in a layer (nodes and edges) to the things that are directly
   above or below"
   [graph layer]
@@ -586,7 +586,7 @@
                   (update-in [:crossings] + crossings)
                   (update-in [:layers] assoc (:id l) l)
                   (update-in [:layers] assoc (:id next-l) next-l)
-                  (map-aboves-belows next-l))]
+                  (neighborify next-l))]
         (recur g next-l (rest layers))))))
 
 
@@ -600,7 +600,7 @@
                   (assoc :flat seed-order :ordered seed-order))]
     (-> graph
         (assoc-in [:layers 0] layer)
-        (map-aboves-belows layer))))
+        (neighborify layer))))
 
 
 (defn order-graph
