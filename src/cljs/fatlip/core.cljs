@@ -280,23 +280,6 @@
     (assoc next-layer :minus-qs minus-qs)))
 
 
-(defn map-aboves-belows
-  "Maps things in a layer (nodes and edges) to the things that are directly
-  above or below"
-  [graph layer]
-  (let [layer-id (:id layer)]
-    (loop [grph graph
-           o (-> layer :flat first)
-           os (-> layer :flat rest)]
-      (if (empty? os)
-        grph
-        (let [next-o (first os)
-              g (-> grph
-                    (assoc-in [:belows layer-id o] next-o)
-                    (assoc-in [:aboves layer-id next-o] o))]
-          (recur g next-o (rest os)))))))
-
-
 (defn add-qs
   "Step 4 of ESK - takes the results of step 3, which doesn't include the q-nodes, and adds them,
   splitting their segment containers in the process"
@@ -563,6 +546,23 @@
   (assoc graph
     :aboves (:belows graph)
     :belows (:aboves graph)))
+
+
+(defn map-aboves-belows
+  "Maps things in a layer (nodes and edges) to the things that are directly
+  above or below"
+  [graph layer]
+  (let [layer-id (:id layer)]
+    (loop [grph graph
+           o (-> layer :flat first)
+           os (-> layer :flat rest)]
+      (if (empty? os)
+        grph
+        (let [next-o (first os)
+              g (-> grph
+                    (assoc-in [:belows layer-id o] next-o)
+                    (assoc-in [:aboves layer-id next-o] o))]
+          (recur g next-o (rest os)))))))
 
 
 (defn order-graph-once
