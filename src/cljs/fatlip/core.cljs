@@ -554,6 +554,17 @@
     :layers (vec (rseq (:layers graph)))))
 
 
+(defn flip-graph
+  "Flips a graph along the axis perpendicular to the layers, so that nodes and
+  edges within a layer reverse their order, more or less. This doesn't touch
+  some of the attributes of a layer that give us an ordering, but only the maps
+  that we need to touch during coordinate assignment"
+  [graph]
+  (assoc graph
+    :aboves (:belows graph)
+    :belows (:aboves graph)))
+
+
 (defn order-graph-once
   "Performs one layer-by-layer sweep of the graph using ESK's algorithm"
   [sparse-graph]
