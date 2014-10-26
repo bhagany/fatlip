@@ -569,25 +569,25 @@
   "Performs one layer-by-layer sweep of the graph using ESK's algorithm"
   [sparse-graph]
   (loop [graph sparse-graph
-         layer-idx 0
-         next-layer-idx (inc layer-idx)]
-    (if (>= next-layer-idx (-> graph :layers count))
+         layer (-> graph :layers first)
+         layers (-> graph :layers rest)]
+    (if (empty? layers)
       graph
-      (let [layer (->> (-> graph :layers (get layer-idx))
-                       (replace-ps graph)
-                       set-positions)
-            next-layer (->> (-> graph :layers (get next-layer-idx))
-                            (set-qs-non-qs graph)
-                            (set-measures graph layer)
-                            (order-next-layer layer)
-                            add-qs)
-            [marked-graph crossings] (count-crossings graph layer next-layer)
+      (let [l (->> layer
+                   (replace-ps graph)
+                   set-positions)
+            next-l (->> (first layers)
+                        (set-qs-non-qs graph)
+                        (set-measures graph l)
+                        (order-next-layer l)
+                        add-qs)
+            [marked-graph crossings] (count-crossings graph l next-l)
             g (-> marked-graph
                   (update-in [:crossings] + crossings)
-                  (update-in [:layers] assoc layer-idx layer)
-                  (update-in [:layers] assoc next-layer-idx next-layer)
-                  (map-aboves-belows next-layer))]
-        (recur g next-layer-idx (inc next-layer-idx))))))
+                  (update-in [:layers] assoc (:id l) l)
+                  (update-in [:layers] assoc (:id next-l) next-l)
+                  (map-aboves-belows next-l))]
+        (recur g next-l (rest layers))))))
 
 
 (defn seed-graph
