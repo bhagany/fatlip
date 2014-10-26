@@ -204,8 +204,7 @@
                          :minus-qs [node-1 seg-1 node-3 seg-2]))]
     (is (= (f/add-qs layer)
            (assoc layer
-             :ordered [node-1 seg-1 node-3
-                       [edge-2] node-2 [edge-4]]
+             :ordered [node-1 seg-1 node-3 [edge-2] node-2 [edge-4]]
              :flat [node-1 edge-1 node-3 edge-2 node-2 edge-4]))
         "Q nodes are placed correctly, splitting the segment containers they were in")))
 
@@ -375,3 +374,44 @@
                                           [nl-node-4]))}}]
     (is (= (f/count-sub-crossings graph layer next-layer) 3)
         "Sub crossings are counted correctly")))
+
+
+(deftest test-map-aboves-belows
+  (let [node-1 (f/Node. :0-0 0 [:a])
+        node-2 (f/Node. :0-1 0 [:b])
+        node-3 (f/Node. :0-2 0 [:c])
+        edge-1 (f/Edge. "meh" "bleh" [:d])
+        edge-2 (f/Edge. "feh" "geh" [:e])
+        layer (-> (f/Layer. 0 0 [node-1 node-2 node-3])
+                  (assoc :flat [node-1 edge-1 node-2 edge-2 node-3]))
+        graph {:belows {} :aboves {}}]
+    (is (= (f/map-aboves-belows graph layer)
+           (assoc graph
+             :belows {0 {node-1 edge-1
+                         edge-1 node-2
+                         node-2 edge-2
+                         edge-2 node-3}}
+             :aboves {0 {node-3 edge-2
+                         edge-2 node-2
+                         node-2 edge-1
+                         edge-1 node-1}}))
+        "Mapping nodes and edges that are above or below each thing works")))
+
+
+(deftest test-seed-graph
+  (let [node-1 (f/Node. :0-0 0 [:a])
+        node-2 (f/Node. :0-1 0 [:b])
+        node-3 (f/Node. :0-2 0 [:c])
+        layer (f/Layer. 0 0 [node-1 node-2 node-3])
+        graph {:layers [layer] :belows {} :aboves {}}
+        seed-order [node-1 node-2 node-3]]
+    (is (= (f/seed-graph graph seed-order)
+           (assoc graph
+             :layers [(assoc layer
+                        :flat seed-order
+                        :ordered seed-order)]
+             :belows {0 {node-1 node-2
+                         node-2 node-3}}
+             :aboves {0 {node-3 node-2
+                         node-2 node-1}}))
+        "Seeding the graph ordering with the initial layer")))

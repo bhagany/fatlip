@@ -148,6 +148,8 @@
                         {:layers []
                          :succs {}
                          :preds {}
+                         :aboves {}
+                         :belows {}
                          :ps #{}
                          :qs #{}
                          :rs #{}
@@ -276,6 +278,23 @@
                                       (assoc pos s-2 (+ (get pos seg-1) 1))
                                       (into ord [s-1 node-1])))))))]
     (assoc next-layer :minus-qs minus-qs)))
+
+
+(defn map-aboves-belows
+  "Maps things in a layer (nodes and edges) to the things that are directly
+  above or below"
+  [graph layer]
+  (let [layer-id (:id layer)]
+    (loop [grph graph
+           o (-> layer :flat first)
+           os (-> layer :flat rest)]
+      (if (empty? os)
+        grph
+        (let [next-o (first os)
+              g (-> grph
+                    (assoc-in [:belows layer-id o] next-o)
+                    (assoc-in [:aboves layer-id next-o] o))]
+          (recur g next-o (rest os)))))))
 
 
 (defn add-qs
@@ -555,8 +574,20 @@
             g (-> marked-graph
                   (update-in [:crossings] + crossings)
                   (update-in [:layers] assoc layer-idx layer)
-                  (update-in [:layers] assoc next-layer-idx next-layer))]
+                  (update-in [:layers] assoc next-layer-idx next-layer)
+                  (map-aboves-belows next-layer))]
         (recur g next-layer-idx (inc next-layer-idx))))))
+
+
+(defn seed-graph
+  [graph seed-order]
+  (let [layer (-> graph
+                  :layers
+                  (get 0)
+                  (assoc :flat seed-order :ordered seed-order))]
+    (-> graph
+        (assoc-in [:layers 0] layer)
+        (map-aboves-belows layer))))
 
 
 (defn order-graph
@@ -578,7 +609,7 @@
               ordered-graph (-> (if reverse?
                                   (reverse-graph sparse-graph)
                                   sparse-graph)
-                                (update-in [:layers 0] assoc :ordered seed-order)
+                                (seed-graph seed-order)
                                 order-graph-once)]
           (recur (-> ordered-graph :layers peek :ordered)
                  (conj orderings (if reverse? (reverse-graph ordered-graph) ordered-graph))))))))
