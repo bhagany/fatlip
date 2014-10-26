@@ -591,6 +591,8 @@
 
 
 (defn seed-graph
+  "Set up the attributes the first layer in a sweep needs in order to serve
+  as a basis for ordering the following layer"
   [graph seed-order]
   (let [layer (-> graph
                   :layers
