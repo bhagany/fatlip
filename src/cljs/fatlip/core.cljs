@@ -373,7 +373,7 @@
            crossings 0]
       (if (zero? index)
         [graph tree crossings]
-        (let [parent-index (.floor js/Math (/ (dec index) 2))
+        (let [parent-index (quot (dec index) 2)
               ;; By kind of a coincidence, the index of a node's parent in our
               ;; mental model of the accumulator tree is the same as that node's
               ;; index (if it's a right child), or its sibling's index (if it's
