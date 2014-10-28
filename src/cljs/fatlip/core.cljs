@@ -4,15 +4,16 @@
             [clojure.string :as s]))
 
 
-(defrecord Node [id layer-id characters])
-(defrecord Edge [src dest characters])
+(defrecord Node [id layer-id characters weight])
+(defrecord Edge [src dest characters weight])
 (defrecord Layer [id duration nodes])
 (defrecord AccumulatorNode [weight node-edges is-seg-c])
 
 
 (defn- add-edge [graph last-node node characters]
   "Creates an edge and adds it to the graph as a whole and to each participating node"
-  (let [forward-edge (Edge. last-node node characters)
+  (let [weight (count characters)
+        forward-edge (Edge. last-node node characters weight)
         ;; We record the "true" forward edge here, for marking edges that
         ;; cross segment containers. The ordering algorithm works through
         ;; the graph backwards on every second pass, and the cross counting
@@ -20,7 +21,7 @@
         ;; is smaller, but we always layout and draw the graph forward, so the
         ;; marked edges need to be the forward ones.
         edge-1 (with-meta forward-edge {:forward-edge forward-edge})
-        edge-2 (with-meta (Edge. node last-node characters)
+        edge-2 (with-meta (Edge. node last-node characters weight)
                  {:forward-edge forward-edge})]
     (-> graph
         (update-in [:succs last-node] (fnil conj #{}) edge-1)
@@ -33,7 +34,8 @@
   character group processing or bookkeeping metadata"
   (let [node-num (count (-> graph :layers (get layer-id) :nodes))
         node-id (keyword (s/join "-" [layer-id node-num]))
-        node (map->Node (assoc input :id node-id :layer-id layer-id))
+        weight (-> input :characters count)
+        node (map->Node (assoc input :id node-id :layer-id layer-id :weight weight))
         g (update-in graph [:layers layer-id :nodes] conj node)]
     [g node]))
 
@@ -222,7 +224,7 @@
   [graph node pred-positions]
   (if-let [preds (get-in graph [:preds node])]
     (apply / (->> preds
-                  (map #(let [weight (count (:characters %))
+                  (map #(let [weight (:weight %)
                               pos (get pred-positions (:dest %))]
                           [(* weight pos) weight]))
                   (apply map +)))
@@ -327,7 +329,7 @@
                    (map (juxt identity
                               (partial mapcat #(-> % :characters))))
                    (map (fn [[seg-c characters]]
-                          [seg-c #{(Edge. seg-c seg-c characters)}]))
+                          [seg-c #{(Edge. seg-c seg-c characters (count characters))}]))
                    (into {})
                    (merge graph-edges))]
     (->> ordered
@@ -363,7 +365,7 @@
   incrementing and adding right siblings, for a total count of edges
   that cross this one"
   [graph tree orig-index edge]
-  (let [weight (count (:characters edge))
+  (let [weight (:weight edge)
         is-seg-c (vector? (:dest edge))]
     (loop [graph graph
            tree tree
