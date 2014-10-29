@@ -544,7 +544,9 @@
     :aboves (:belows graph)
     :belows (:aboves graph)
     :top-idxs (:bot-idxs graph)
-    :bot-idxs (:top-idxs graph)))
+    :bot-idxs (:top-idxs graph)
+    :node-orders (:rev-node-orders graph)
+    :rev-node-orders (:node-orders graph)))
 
 
 (defn neighborify
@@ -565,20 +567,20 @@
 
 
 (defn indexify
+  "Indexes each layer by Node and Edge, from the top and bottom"
   [graph layer]
   (let [layer-id (:id layer)
         flat (:flat layer)
         len (count flat)
-        top-idxs (->> flat
-                      (map-indexed #(-> [%2 %1]))
-                      (into {}))
-        bot-idxs (->> top-idxs
-                      (map (fn [[o idx]]
-                             [o (- len idx 1)]))
-                      (into {}))]
+        [top bot] (->> (map-indexed #(-> [[%2 %1] [%2 (- len %1 1)]]) flat)
+                       (apply map vector)
+                       (map #(into {} %)))
+        ord (remove vector? (:ordered layer))]
     (-> graph
-        (assoc-in [:top-idxs layer-id] top-idxs)
-        (assoc-in [:bot-idxs layer-id] bot-idxs))))
+        (assoc-in [:top-idxs layer-id] top)
+        (assoc-in [:bot-idxs layer-id] bot)
+        (assoc-in [:node-orders layer-id] ord)
+        (assoc-in [:rev-node-orders layer-id] (reverse ord)))))
 
 
 (defn order-graph-once

@@ -405,8 +405,9 @@
         edge-1 (f/Edge. "meh" "bleh" [:d] 1)
         edge-2 (f/Edge. "feh" "geh" [:e] 1)
         layer (-> (f/Layer. 0 0 [node-1 node-2 node-3])
-                  (assoc :flat [node-1 edge-1 node-2 edge-2 node-3]))
-        graph {:top-idxs {} :bot-idxs {}}]
+                  (assoc :flat [node-1 edge-1 node-2 edge-2 node-3])
+                  (assoc :ordered [node-1 [edge-1] node-2 [edge-2] node-3]))
+        graph {:top-idxs {} :bot-idxs {} :node-orders {} :rev-node-orders {}}]
     (is (= (f/indexify graph layer)
            (assoc graph
              :top-idxs {0 {node-1 0
@@ -418,7 +419,9 @@
                            edge-2 1
                            node-2 2
                            edge-1 3
-                           node-1 4}}))
+                           node-1 4}}
+             :node-orders {0 [node-1 node-2 node-3]}
+             :rev-node-orders {0 [node-3 node-2 node-1]}))
         "Mapping nodes and edges to indexes from the top and bottom of the layer")))
 
 
@@ -426,7 +429,8 @@
   (let [node-1 (f/Node. :0-0 0 [:a] 1)
         node-2 (f/Node. :0-1 0 [:b] 1)
         node-3 (f/Node. :0-2 0 [:c] 1)
-        layer (f/Layer. 0 0 [node-1 node-2 node-3])
+        layer (-> (f/Layer. 0 0 [node-1 node-2 node-3])
+                  (assoc :ordered [node-1 node-2 node-3]))
         graph {:layers [layer] :belows {} :aboves {} :top-idxs {} :bot-idxs {}}
         seed-order [node-1 node-2 node-3]]
     (is (= (f/seed-graph graph seed-order)
@@ -443,5 +447,7 @@
                            node-3 2}}
              :bot-idxs {0 {node-3 0
                            node-2 1
-                           node-1 2}}))
+                           node-1 2}}
+             :node-orders {0 [node-1 node-2 node-3]}
+             :rev-node-orders {0 [node-3 node-2 node-1]}))
         "Seeding the graph ordering with the initial layer")))
