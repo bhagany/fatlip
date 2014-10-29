@@ -64,8 +64,7 @@
   from last-node to r node"
   (let [r-layer-id (inc (:layer-id last-node))
         [r-g r-node] (make-node graph r-layer-id {:characters characters})
-        g (-> r-g
-              (update-in [:rs] conj r-node)
+        g (-> (update-in r-g [:rs] conj r-node)
               (add-edge last-node r-node characters))]
     [g r-node]))
 
@@ -317,15 +316,13 @@
   of [order edge] pairs of the edge targets in the destination layer, using
   this edge ordering"
   [ordered next-ordered graph-edges]
-  (let [next-order-map (->> next-ordered
-                            (map-indexed #(-> [%2 %1]))
+  (let [next-order-map (->> (map-indexed #(-> [%2 %1]) next-ordered)
                             (into {}))
         ;; Edges between segment containers need to be counted as well
         ;; but they change with each new ordering, so we just temporarily
         ;; merge the current segment edges with the never-changing
         ;; node -> node edges
-        edges (->> next-ordered
-                   (filter vector?)
+        edges (->> (filter vector? next-ordered)
                    (map (juxt identity
                               (partial mapcat #(-> % :characters))))
                    (map (fn [[seg-c characters]]
@@ -391,8 +388,7 @@
                              #{}))
                   g (update-in graph [:marked] set/union marked)]
               (recur g tree parent-index c))
-            (let [t (-> tree
-                        (update-in [real-right-index :weight] + weight)
+            (let [t (-> (update-in tree [real-right-index :weight] + weight)
                         (cond->
                          is-seg-c (assoc-in [real-right-index :is-seg-c] true)
                          (not is-seg-c) (update-in [real-right-index :node-edges]
@@ -452,8 +448,7 @@
     (if (< num-succs 2)
       0
       (let [measures (:measures next-layer)
-            order-map (->> succs
-                           (sort-by #(get measures %))
+            order-map (->> (sort-by #(get measures %) succs)
                            (map-indexed (fn [idx n]
                                           (map #(-> [% idx])
                                                (:characters n))))
@@ -594,9 +589,8 @@
          layers (-> graph :layers rest)]
     (if (empty? layers)
       graph
-      (let [l (->> layer
-                   (replace-ps graph)
-                   set-positions)
+      (let [l (-> (replace-ps graph layer)
+                  set-positions)
             next-l (->> (first layers)
                         (set-qs-non-qs graph)
                         (set-measures graph l)
@@ -616,12 +610,10 @@
   "Set up the attributes the first layer in a sweep needs in order to serve
   as a basis for ordering the following layer"
   [graph seed-order]
-  (let [layer (-> graph
-                  :layers
+  (let [layer (-> graph :layers
                   (get 0)
                   (assoc :flat seed-order :ordered seed-order))]
-    (-> graph
-        (assoc-in [:layers 0] layer)
+    (-> (assoc-in graph [:layers 0] layer)
         (neighborify layer)
         (indexify layer))))
 
