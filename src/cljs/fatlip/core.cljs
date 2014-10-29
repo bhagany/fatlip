@@ -643,3 +643,69 @@
                                 order-graph-once)]
           (recur (-> ordered-graph :layers peek :ordered)
                  (conj orderings (if reverse? (reverse-graph ordered-graph) ordered-graph))))))))
+
+
+(defn check-alignment
+  "Checks whether a predecessor is a valid alignment candidate"
+  [graph pred last-idx]
+  (if (and (< last-idx (:idx pred))
+           (not (contains? (:marked graph) (:edge pred))))
+    pred))
+
+
+(defn blockify-layer
+  "Assign every node in a layer to an already-existing block, or begin a new
+  block with it"
+  [graph layer]
+  (loop [grph graph
+         ;; TODO this needs work - we need nodes in sorted order for this particular alignment
+         nodes (-> graph :node-orders (get (:id layer)))
+         last-idx -1]
+    (if (empty? nodes)
+      grph
+      (let [node (first nodes)
+            layer-id (-> node :layer-id dec)
+            preds (->> (-> grph :preds (get node))
+                       (map #(if (= layer-id (-> % :dest :layer-id))
+                               {:edge % :item (:dest %)}
+                               {:edge % :item %}))
+                       (map #(assoc % :idx (get-in grph [:top-idxs layer-id (:item %)])))
+                       (sort-by :idx)
+                       (mapcat #(repeat (-> % :edge :weight) %)))
+            num-preds (count preds)
+            median (quot (dec num-preds) 2)
+            aligned (or (check-alignment grph (nth preds median) last-idx)
+                        ;; If we kind of have two medians because there are an even number
+                        ;; of predecessors, then we allow the "second" median to be used
+                        ;; if the first isn't available
+                        (and (even? num-preds)
+                             (check-alignment grph (nth preds (inc median)) last-idx)))
+            g (if (not aligned)
+                ;; No aligned nodes means it's a new block root
+                (-> (assoc-in grph [:roots node] node)
+                    (assoc-in [:blocks node] [node]))
+                ;; If we have an alignment, then we have the same root, and add this
+                ;; node to that root's block
+                (let [a (:item aligned)
+                      dest (if (instance? Edge a)
+                             (:dest a)
+                             a)
+                      root (-> grph :roots (get dest))]
+                  (-> (assoc-in grph [:roots node] root)
+                      (update-in [:blocks root] conj node))))]
+        (recur g (rest nodes) last-idx)))))
+
+
+(defn blockify
+  "Associate nodes with their median-ly positioned parent if it exists, hasn't been
+  aligned with by another node, and we haven't aligned with nodes of higher index
+  in the past. Continue finding these alignments until we've assigned every node
+  into a horizontally aligned block"
+  [ordered-graph]
+  (loop [graph ordered-graph
+         ;; We align based on predecessors, and the first layer doesn't have any
+         layers (-> graph :layers rest)]
+    (if (empty? layers)
+      graph
+      (recur (blockify-layer graph (first layers))
+             (rest layers)))))
