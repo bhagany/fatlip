@@ -6,7 +6,7 @@
 
 (deftest test-graph-properties
   (let [input [{:groups [{:characters [:a :a]}]}]]
-    (is (thrown? js/Error (f/make-sparse-graph input))
+    (is (thrown? js/Error (f/inp->SparseGraph input))
         "Duplicate characters in a layer throw an error"))
 
   (let [input [{:duration 10
@@ -20,8 +20,8 @@
                 :groups [{:characters [:c :z]}]}
                {:duration 10
                 :groups [{:characters [:e :f :x]}]}]
-        graph (f/make-sparse-graph input)
-        orderings (f/order-graph graph)
+        graph (f/inp->SparseGraph input)
+        orderings (f/orderings graph)
         ordered-graph (get orderings 0)]
     (is (= (count (:layers graph)) (count (:layers ordered-graph)) 4) "Number of layers")
     (is (= (count (-> graph :layers (get 0) :nodes))

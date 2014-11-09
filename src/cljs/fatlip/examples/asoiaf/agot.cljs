@@ -225,4 +225,4 @@
 ;;*** Guess at all of Beric's deaths?
 
 
-(def graph (fatlip/make-sparse-graph input))
+(def graph (fatlip/inp->SparseGraph input))

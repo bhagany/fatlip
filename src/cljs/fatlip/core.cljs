@@ -134,7 +134,7 @@
   (let [layers (:layers graph)
         layer-id (count layers)
         layer (SparseLayer. layer-id
-                            (input-layer :duration)
+                            (:duration input-layer)
                             [])]
     (loop [g (update-in graph [:layers] conj layer)
            input-groups (input-layer :groups)]
@@ -144,33 +144,27 @@
                (rest input-groups))))))
 
 
-(defn make-sparse-graph
+(defn inp->SparseGraph
   "Creates a sparse graph, as defined in ESK"
-  ([input]
-     (make-sparse-graph input
-                        {:layers []
-                         :succs {}
-                         :preds {}
-                         :aboves {}
-                         :belows {}
-                         :ps #{}
-                         :qs #{}
-                         :rs #{}
-                         :marked #{}
-                         :last-nodes-by-character {}
-                         :last-nodes-by-node {}}))
-  ([input graph]
-     (if (empty? input)
-       graph
-       (let [i (first input)
-             dup-character (->> (mapcat #(:characters %) (:groups i))
-                                frequencies
-                                (filter (fn [[_ c]] (> c 1)))
-                                first)]
-         (if dup-character
-           (throw (js/Error. (str (get dup-character 0) " is specified "
-                                  (get dup-character 1) " times in one layer")))
-           (recur (rest input) (add-layer graph i)))))))
+  [input]
+  (loop [graph (map->SparseGraph {:layers []
+                                  :succs {}
+                                  :preds {}
+                                  :ps #{}
+                                  :qs #{}
+                                  :rs #{}})
+         inp input]
+    (if (empty? inp)
+      graph
+      (let [i (first inp)
+            dup-character (->> (mapcat #(:characters %) (:groups i))
+                               frequencies
+                               (filter (fn [[_ c]] (> c 1)))
+                               first)]
+        (if dup-character
+          (throw (js/Error. (str (get dup-character 0) " is specified "
+                                 (get dup-character 1) " times in one layer")))
+          (recur (add-layer graph i) (rest inp)))))))
 
 
 (defn replace-ps
@@ -527,18 +521,18 @@
      marked]))
 
 
-(defn order-graph-once
+(defn SparseGraph->OrderedGraph
   "Performs one layer-by-layer sweep of the graph using ESK's algorithm"
   [sparse-graph]
   (let [first-sparse-layer (-> sparse-graph :layers first)]
     (loop [prev-layer (map->OrderedLayer (-> first-sparse-layer
                                              (dissoc :nodes)
                                              (assoc :items (:nodes first-sparse-layer))))
-           ordered-graph (OrderedGraph. [prev-layer]
-                                        (:succs sparse-graph)
-                                        (:preds sparse-graph)
-                                        0
-                                        #{})
+           ordered-graph (map->OrderedGraph {:layers [prev-layer]
+                                             :succs (:succs sparse-graph)
+                                             :preds (:preds sparse-graph)
+                                             :crossings 0
+                                             :marked #{}})
            layers (-> sparse-graph :layers rest)]
       (if (empty? layers)
         ordered-graph
@@ -555,7 +549,7 @@
           (recur o-layer g (rest layers)))))))
 
 
-(defn order-graph
+(defn orderings
   "Implements the 2-layer crossing minimization algorithm on a sparse graph found in
   'An Efficient Implementation of Sugiyama’s Algorithm for Layered Graph Drawing',
   a paper by Markus Eiglsperger, Martin Sieberhaller, and Michael Kaufmann (ESK)
