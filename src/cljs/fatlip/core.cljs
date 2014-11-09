@@ -6,10 +6,20 @@
 
 (defrecord Node [id layer-id characters weight])
 (defrecord Edge [dest characters weight])
+(defrecord Segment [dest layer-id characters weight])
+(defrecord SparseGraph [layers succs preds ps qs rs])
 (defrecord SparseLayer [id duration nodes])
 (defrecord OrderedGraph [layers succs preds crossings marked])
 (defrecord OrderedLayer [id duration items])
+(defrecord FlatGraph [layers preds aboves belows top-idxs bot-idxs])
+(defrecord FlatLayer [id duration items])
+(defrecord BlockEdge [dest weight])
 (defrecord AccumulatorNode [weight node-edges is-seg-c])
+
+
+(defn Edge->Segment
+  [edge layer-id]
+  (map->Segment (assoc edge :layer-id layer-id)))
 
 
 (defn- add-edge [graph last-node node characters]
@@ -567,8 +577,79 @@
               ordered-graph (-> (if reverse?
                                   (reverse-graph sparse-graph)
                                   sparse-graph)
-                                order-graph-once)]
+                                SparseGraph->OrderedGraph)]
           (recur (conj orderings (if reverse? (reverse-graph ordered-graph) ordered-graph))))))))
+
+
+(defn neighborify
+  "Maps things in a layer (nodes and segments) to the things that are directly
+  above or below"
+  [layer]
+  (loop [aboves {}
+         belows {}
+         o (-> layer :items first)
+         os (-> layer :items rest)]
+    (if (empty? os)
+      [aboves belows]
+      (let [next-o (first os)
+            a (assoc aboves next-o o)
+            b (assoc belows o next-o)]
+        (recur a b next-o (rest os))))))
+
+
+(defn indexify
+  "Indexes each layer by Node and Segment, from the top and bottom"
+  [layer]
+  (let [items (:items layer)
+        len (count items)]
+    (->> (map-indexed #(-> [[%2 %1] [%2 (- len %1 1)]]) items)
+         (apply map vector)
+         (map #(into {} %)))))
+
+
+(defn ordered->flat-pred
+  [src edge]
+  (let [dest (:dest edge)
+        src-id (:layer-id src)
+        dest-id (:layer-id dest)
+        span (- dest-id src-id)]
+    (let [segs (map #(Edge->Segment edge %)
+                    (range (inc dest-id) src-id))
+          srcs (conj (vec segs) src)
+          dests (into [dest] segs)]
+      (map vector srcs dests))))
+
+
+(defn ordered->flat-preds
+  [[src edges]]
+  (->> (mapcat #(ordered->flat-pred src %) edges)
+       (reduce (fn [preds [src dest]]
+                 (update-in preds [src] (fnil conj #{}) dest))
+               {})))
+
+
+(defn OrderedLayer->FlatLayer
+  [ordered-layer]
+  (map->FlatLayer (assoc ordered-layer
+                    :items (map #(if (instance? Edge %)
+                                   (Edge->Segment % (:id ordered-layer))
+                                   %)
+                                (-> ordered-layer :items flatten)))))
+
+
+(defn OrderedGraph->FlatGraph
+  [ordered-graph]
+  (let [layers (into [] (map OrderedLayer->FlatLayer (:layers ordered-graph)))
+        [aboves belows] (apply map merge (map neighborify layers))
+        [top-idxs bot-idxs] (apply map merge (map indexify layers))]
+    (map->FlatGraph {:layers layers
+                     :preds (->> (:preds ordered-graph)
+                                 (map ordered->flat-preds)
+                                 (apply merge))
+                     :aboves aboves
+                     :belows belows
+                     :top-idxs top-idxs
+                     :bot-idxs bot-idxs})))
 
 
 (defn check-alignment

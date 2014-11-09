@@ -382,6 +382,118 @@
         "Mapping nodes and edges to indexes from the top and bottom of the layer")))
 
 
+(deftest test-ordered->flat-pred
+  (let [src (f/Node. :14-3 14 [:a] 1)
+        dest (f/Node. :13-3 13 [:a] 1)
+        edge (f/Edge. dest [:a] 1)]
+    (is (= (f/ordered->flat-pred src edge)
+           [[src dest]])
+        "Short edges are converted to [src dest] pairs"))
+  (let [src (f/Node. :14-3 14 [:a] 1)
+        dest (f/Node. :11-2 11 [:a] 1)
+        edge (f/Edge. dest [:a] 1)
+        seg-1 (f/Edge->Segment edge 13)
+        seg-2 (f/Edge->Segment edge 12)]
+    (is (= (f/ordered->flat-pred src edge)
+           [[seg-2 dest]
+            [seg-1 seg-2]
+            [src seg-1]])
+        "Long edges are converted into a series of [src seg] [seg seg] ... [seg dest] pairs")))
+
+
+(deftest test-ordered->flat-preds
+  (let [src (f/Node. :14-3 14 [:a :b] 1)
+        dest-1 (f/Node. :13-3 13 [:a] 1)
+        dest-2 (f/Node. :13-2 13 [:b] 1)
+        edge-1 (f/Edge. dest-1 [:a] 1)
+        edge-2 (f/Edge. dest-2 [:a] 1)]
+    (is (= (f/ordered->flat-preds [src #{edge-1 edge-2}])
+           {src #{dest-1 dest-2}})
+        "Multiple short edges are collapsed into their destinations, mapped to the same source"))
+  (let [src (f/Node. :14-3 14 [:a] 1)
+        dest (f/Node. :11-2 11 [:a] 1)
+        edge (f/Edge. dest [:a] 1)
+        seg-1 (f/Edge->Segment edge 13)
+        seg-2 (f/Edge->Segment edge 12)]
+    (is (= (f/ordered->flat-preds [src #{edge}])
+           {src #{seg-1}
+            seg-1 #{seg-2}
+            seg-2 #{dest}})
+        "Long edges are converted into a series of [src seg] [seg seg] ... [seg dest] pairs")))
+
+
+(deftest test-OrderedLayer->FlatLayer
+  (let [node-1 (f/Node. :0-0 0 [:a] 1)
+        node-2 (f/Node. :0-1 0 [:b] 1)
+        edge-1 (f/Edge. "meh" [:c] 1)
+        edge-2 (f/Edge. "bleh" [:d] 1)
+        seg-c [edge-1 edge-2]
+        ordered-layer (f/OrderedLayer. 0 0 [node-1 seg-c node-2])]
+    (is (= (f/OrderedLayer->FlatLayer ordered-layer)
+           (f/FlatLayer. 0 0 [node-1
+                              (f/Edge->Segment edge-1 0)
+                              (f/Edge->Segment edge-2 0)
+                              node-2]))
+        "Ordered layers get transformed into flat layers")))
+
+
+(deftest test-OrderedGraph->FlatGraph
+  (let [node-0-0 (f/Node. :0-0 0 [:a] 1)
+        node-0-1 (f/Node. :0-1 0 [:b] 1)
+        node-0-2 (f/Node. :0-2 0 [:c] 1)
+        node-1-0 (f/Node. :1-0 1 [:a :c] 2)
+        node-2-0 (f/Node. :2-0 2 [:a] 1)
+        node-2-1 (f/Node. :2-1 2 [:b] 1)
+        node-2-2 (f/Node. :2-2 2 [:c] 1)
+        edge (f/Edge. node-0-1 [:b] 1)
+        preds {node-1-0 #{(f/Edge. node-0-0 [:a] 1)
+                          (f/Edge. node-0-2 [:c] 1)}
+               node-2-0 #{(f/Edge. node-1-0 [:a] 1)}
+               node-2-1 #{edge}
+               node-2-2 #{(f/Edge. node-1-0 [:c] 1)}}
+        layers [(f/OrderedLayer. 0 0 [node-0-0 node-0-1 node-0-2])
+                (f/OrderedLayer. 1 0 [node-1-0 [edge]])
+                (f/OrderedLayer. 2 0 [node-2-0 node-2-1 node-2-2])]
+        ordered-graph (f/OrderedGraph. layers {} preds 0 #{})
+        seg (f/Edge->Segment edge 1)]
+    (is (= (f/OrderedGraph->FlatGraph ordered-graph)
+           (f/map->FlatGraph {:layers [(f/FlatLayer. 0 0 [node-0-0 node-0-1 node-0-2])
+                                       (f/FlatLayer. 1 0 [node-1-0 seg])
+                                       (f/FlatLayer. 2 0 [node-2-0 node-2-1 node-2-2])]
+                              :preds {node-1-0 #{node-0-0 node-0-2}
+                                      node-2-0 #{node-1-0}
+                                      node-2-1 #{seg}
+                                      seg #{node-0-1}
+                                      node-2-2 #{node-1-0}}
+                              :aboves {node-0-1 node-0-0
+                                       node-0-2 node-0-1
+                                       seg node-1-0
+                                       node-2-1 node-2-0
+                                       node-2-2 node-2-1}
+                              :belows {node-0-0 node-0-1
+                                       node-0-1 node-0-2
+                                       node-1-0 seg
+                                       node-2-0 node-2-1
+                                       node-2-1 node-2-2}
+                              :top-idxs {node-0-0 0
+                                         node-0-1 1
+                                         node-0-2 2
+                                         node-1-0 0
+                                         seg 1
+                                         node-2-0 0
+                                         node-2-1 1
+                                         node-2-2 2}
+                              :bot-idxs {node-0-0 2
+                                         node-0-1 1
+                                         node-0-2 0
+                                         node-1-0 1
+                                         seg 0
+                                         node-2-0 2
+                                         node-2-1 1
+                                         node-2-2 0}}))
+        "Ordered graphs are converted flat graphs")))
+
+
 (deftest test-check-alignment
   (let [pred-edge (f/Edge. nil [:a] 1)
         pred {:idx 2 :edge pred-edge :item nil}
@@ -401,7 +513,7 @@
         "Unmarked edge returns nil with last-idx > idx")))
 
 
-(deftest test-blockify
+#_(deftest test-blockify
   (let [;; Even predecessors
         node-1 (f/Node. :0-0 0 [:a] 1)
         node-2 (f/Node. :0-1 0 [:b] 1)
