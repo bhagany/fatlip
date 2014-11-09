@@ -5,15 +5,17 @@
 
 
 (defrecord Node [id layer-id characters weight])
-(defrecord Edge [src dest characters weight])
-(defrecord Layer [id duration nodes])
+(defrecord Edge [dest characters weight])
+(defrecord SparseLayer [id duration nodes])
+(defrecord OrderedGraph [layers succs preds crossings marked])
+(defrecord OrderedLayer [id duration items])
 (defrecord AccumulatorNode [weight node-edges is-seg-c])
 
 
 (defn- add-edge [graph last-node node characters]
   "Creates an edge and adds it to the graph as a whole and to each participating node"
   (let [weight (count characters)
-        forward-edge (Edge. last-node node characters weight)
+        forward-edge (Edge. node characters weight)
         ;; We record the "true" forward edge here, for marking edges that
         ;; cross segment containers. The ordering algorithm works through
         ;; the graph backwards on every second pass, and the cross counting
@@ -21,7 +23,7 @@
         ;; is smaller, but we always layout and draw the graph forward, so the
         ;; marked edges need to be the forward ones.
         edge-1 (with-meta forward-edge {:forward-edge forward-edge})
-        edge-2 (with-meta (Edge. node last-node characters weight)
+        edge-2 (with-meta (Edge. last-node characters weight)
                  {:forward-edge forward-edge})]
     (-> graph
         (update-in [:succs last-node] (fnil conj #{}) edge-1)
@@ -131,9 +133,9 @@
   [graph input-layer]
   (let [layers (:layers graph)
         layer-id (count layers)
-        layer (Layer. layer-id
-                      (input-layer :duration)
-                      [])]
+        layer (SparseLayer. layer-id
+                            (input-layer :duration)
+                            [])]
     (loop [g (update-in graph [:layers] conj layer)
            input-groups (input-layer :groups)]
       (if (empty? input-groups)
@@ -173,18 +175,17 @@
 
 (defn replace-ps
   "Step 1 of ESK - replace all p nodes with edges and merge segment containers"
-  [graph layer]
-  (->> (:ordered layer)
-       (map #(if (contains? (:ps graph) %)
+  [items ps succs]
+  (->> items
+       (map #(if (contains? ps %)
                ;; p nodes always have only one successor
-               [(-> (:succs graph) (get %) first)]
+               [(-> succs (get %) first)]
                %))
        (reduce #(if (and (vector? (peek %1))
                          (vector? %2))
                   (update-in %1 [(dec (count %1))] rrb/catvec %2)
                   (conj %1 %2))
-               [])
-       (assoc layer :minus-ps)))
+               [])))
 
 
 (defn- set-positions
@@ -196,118 +197,88 @@
 
   Also, it doesn't really matter what seed you choose for the initial value of the sum. I
   chose -1, which is implied by the description in ESK."
-  [layer]
-  (loop [minus-ps (:minus-ps layer)
+  [minus-ps]
+  (loop [m-ps minus-ps
          current-position -1
          positions {}]
-    (if (empty? minus-ps)
-      (assoc layer :positions positions)
-      (let [item (first minus-ps)
+    (if (empty? m-ps)
+      positions
+      (let [item (first m-ps)
             c-p (if (vector? item)
                   (+ current-position (count item))
                   (inc current-position))]
-        (recur (rest minus-ps) c-p (assoc positions item (inc current-position)))))))
-
-
-(defn- set-qs-non-qs
-  "ESK requires a layer's nodes to be split into lists of q-nodes and non-q-nodes"
-  [graph layer]
-  (->> ((juxt filter remove) #(contains? (:qs graph) %) (:nodes layer))
-       (map set)
-       (interleave [:qs :non-qs])
-       (apply (partial assoc layer))))
+        (recur (rest m-ps) c-p (assoc positions item (inc current-position)))))))
 
 
 (defn- get-measure
   "Calculate the average weighted position of a node's predecessors"
-  [graph node pred-positions]
-  (if-let [preds (get-in graph [:preds node])]
+  [node preds pred-positions]
+  (if (empty? preds)
+    0
     (apply / (->> preds
                   (map #(let [weight (:weight %)
                               pos (get pred-positions (:dest %))]
                           [(* weight pos) weight]))
-                  (apply map +)))
-    0))
+                  (apply map +)))))
 
 
 (defn set-measures
   "Step 2b of ESK - Use nodes' predecessors to calculate a 'measure' for the nodes
   and containers in a layer, which is used for ordering"
-  [graph layer next-layer]
-  (let [positions (:positions layer)
-        non-qs (:non-qs next-layer)
-        measures (reduce #(assoc %1 %2 (get-measure graph %2 positions)) {} non-qs)]
-    (assoc next-layer :measures measures)))
+  [non-qs preds positions]
+  (into {} (map #(-> [% (get-measure % (get preds %) positions)]) non-qs)))
 
 
-(defn order-next-layer
+(defn merge-layer
   "Step 3 of ESK - Considers a layer as two lists, one of nodes and the other of segment
   containers. The items in these lists have 'measures' (for segment containers, this is
   equivalent to the position in the previous layer, so we just use that), and we merge
   the two lists into a single ordering based on these measures."
-  [layer next-layer]
-  (let [positions (:positions layer)
-        measures (:measures next-layer)
-        ns (sort-by #(get measures %) (:non-qs next-layer))
-        ss (->> (:minus-ps layer)
-                (filter vector?)
-                (sort-by #(get positions %)))
-        minus-qs (loop [nodes ns
-                        segments ss
-                        pos positions
-                        ord []]
-                   (if (or (empty? nodes) (empty? segments))
-                     ;; ESK's algorithm doesn't specify what to do with leftover things
-                     ;; I think this is because it doesn't take into account nodes that don't have
-                     ;; parents in layers > 0. In any case, at most one of nodes or segments
-                     ;; will be non-empty
-                     (-> ord (into nodes) (into segments))
-                     (let [node-1 (first nodes)
-                           seg-1 (first segments)
-                           node-measure (get measures node-1)
-                           seg-position (get pos seg-1)
-                           node-first (<= node-measure seg-position)
-                           seg-first (>= node-measure (+ seg-position (count seg-1)))]
-                       (cond node-first (recur (rest nodes) segments pos (conj ord node-1))
-                             seg-first (recur nodes (rest segments) pos (conj ord seg-1))
-                             :else (let [k (.ceil js/Math (- node-measure seg-position))
-                                         s-1 (rrb/subvec seg-1 0 k)
-                                         s-2 (rrb/subvec seg-1 k)]
-                                     (recur
-                                      (rest nodes)
-                                      (cons s-2 segments)
-                                      (assoc pos s-2 (+ (get pos seg-1) 1))
-                                      (into ord [s-1 node-1])))))))]
-    (assoc next-layer :minus-qs minus-qs)))
+  [minus-ps positions non-qs measures]
+  (let [ns (sort-by #(get measures %) non-qs)
+        ss (->> (filter vector? minus-ps)
+                (sort-by #(get positions %)))]
+    (loop [nodes ns
+           segments ss
+           pos positions
+           ord []]
+      (if (or (empty? nodes) (empty? segments))
+        ;; ESK's algorithm doesn't specify what to do with leftover things
+        ;; I think this is because it doesn't take into account nodes that don't have
+        ;; parents in layers > 0. In any case, at most one of nodes or segments
+        ;; will be non-empty
+        (-> ord (into nodes) (into segments))
+        (let [node-1 (first nodes)
+              seg-1 (first segments)
+              node-measure (get measures node-1)
+              seg-position (get pos seg-1)
+              node-first (<= node-measure seg-position)
+              seg-first (>= node-measure (+ seg-position (count seg-1)))]
+          (cond node-first (recur (rest nodes) segments pos (conj ord node-1))
+                seg-first (recur nodes (rest segments) pos (conj ord seg-1))
+                :else (let [k (.ceil js/Math (- node-measure seg-position))
+                            s-1 (rrb/subvec seg-1 0 k)
+                            s-2 (rrb/subvec seg-1 k)]
+                        (recur
+                         (rest nodes)
+                         (cons s-2 segments)
+                         (assoc pos s-2 (+ (get pos seg-1) 1))
+                         (into ord [s-1 node-1])))))))))
 
 
 (defn add-qs
   "Step 4 of ESK - takes the results of step 3, which doesn't include the q-nodes, and adds them,
   splitting their segment containers in the process"
-  [next-layer]
-  (let [qs (:qs next-layer)
-        flat (->> (:minus-qs next-layer)
-                  (mapcat #(if (vector? %)
-                             %
-                             [%]))
-                  (map #(if (and (instance? Edge %)
-                                 (contains? qs (:dest %)))
-                          (:dest %)
-                          %)))
-        ordered (loop [f flat
-                       seg-c []
-                       layer []]
-                  (if (empty? f)
-                    (if (empty? seg-c)
-                      layer
-                      (conj layer seg-c))
-                    (let [item (first f)]
-                      (if (instance? Edge item)
-                        (recur (rest f) (conj seg-c item) layer)
-                        (if (empty? seg-c)
-                          (recur (rest f) seg-c (conj layer item))
-                          (recur (rest f) [] (conj layer seg-c item)))))))]
-    (assoc next-layer :flat flat :ordered ordered)))
+  [minus-qs qs]
+  (->> (map #(if (contains? qs (:dest %))
+               (:dest %)
+               %)
+            (flatten minus-qs))
+       (partition-by (partial instance? Node))
+       (reduce #(if (instance? Node (first %2))
+                  (into %1 %2)
+                  (conj %1 (vec %2)))
+               [])))
 
 
 (defn- sorted-edge-order
@@ -326,7 +297,7 @@
                    (map (juxt identity
                               (partial mapcat #(-> % :characters))))
                    (map (fn [[seg-c characters]]
-                          [seg-c #{(Edge. seg-c seg-c characters (count characters))}]))
+                          [seg-c #{(Edge. seg-c characters (count characters))}]))
                    (into {})
                    (merge graph-edges))]
     (->> ordered
@@ -361,15 +332,15 @@
   therefore, crossings. Then we walk up the tree to the root,
   incrementing and adding right siblings, for a total count of edges
   that cross this one"
-  [graph tree orig-index edge]
+  [tree orig-index edge]
   (let [weight (:weight edge)
         is-seg-c (vector? (:dest edge))]
-    (loop [graph graph
-           tree tree
-           index orig-index
-           crossings 0]
+    (loop [tree tree
+           crossings 0
+           marked #{}
+           index orig-index]
       (if (zero? index)
-        [graph tree crossings]
+        [tree crossings marked]
         (let [parent-index (quot (dec index) 2)
               ;; By kind of a coincidence, the index of a node's parent in our
               ;; mental model of the accumulator tree is the same as that node's
@@ -381,44 +352,41 @@
                   c (+ crossings (* weight (:weight right-sib)))
                   ;; Segments cannot cross each other, so the potential hole
                   ;; in this logic is not actually a hole
-                  marked (if is-seg-c
-                           (:node-edges right-sib)
-                           (if (:is-seg-c right-sib)
-                             #{(-> edge meta :forward-edge)}
-                             #{}))
-                  g (update-in graph [:marked] set/union marked)]
-              (recur g tree parent-index c))
+                  m (if is-seg-c
+                      (:node-edges right-sib)
+                      (if (:is-seg-c right-sib)
+                        #{(-> edge meta :forward-edge)}
+                        #{}))]
+              (recur tree c (set/union marked m) parent-index))
             (let [t (-> (update-in tree [real-right-index :weight] + weight)
                         (cond->
                          is-seg-c (assoc-in [real-right-index :is-seg-c] true)
                          (not is-seg-c) (update-in [real-right-index :node-edges]
                                                    conj (-> edge meta :forward-edge))))]
-              (recur graph t parent-index crossings))))))))
+              (recur t crossings marked parent-index))))))))
 
 
-(defn count-super-crossings
+(defn count-and-mark-super-crossings
   "Counts crossings between separate nodes from one layer to the next"
-  [graph layer next-layer]
-  (let [minus-ps (:minus-ps layer)
-        minus-qs (:minus-qs next-layer)
-        [layer-1 layer-2 edges] (if (< (count minus-ps) (count minus-qs))
-                                  [minus-qs minus-ps (:preds graph)]
-                                  [minus-ps minus-qs (:succs graph)])
+  [minus-ps minus-qs preds succs]
+  (let [[layer-1 layer-2 edges] (if (< (count minus-ps) (count minus-qs))
+                                  [minus-qs minus-ps preds]
+                                  [minus-ps minus-qs succs])
         num-acc-leaves (next-power-of-2 (count layer-2))
         first-leaf (dec num-acc-leaves)
         ;; Our compact representation has the same size as the index
         ;; of the first leaf in the mental model of the tree
         tree-size first-leaf]
-    (loop [graph graph
-           tree (vec (repeat tree-size (AccumulatorNode. 0 #{} false)))
+    (loop [tree (vec (repeat tree-size (AccumulatorNode. 0 #{} false)))
            crossings 0
+           marked #{}
            order (sorted-edge-order layer-1 layer-2 edges)]
       (if (empty? order)
-        [graph crossings]
+        [crossings marked]
         (let [[ord edge] (first order)
               index (+ first-leaf ord)
-              [g t c] (single-edge-super-crossings graph tree index edge)]
-          (recur g t (+ crossings c) (rest order)))))))
+              [t c m] (single-edge-super-crossings tree index edge)]
+          (recur t (+ crossings c) (set/union marked m) (rest order)))))))
 
 
 (defn single-edge-sub-crossings
@@ -439,22 +407,18 @@
 (defn count-sub-crossings-single-node
   "Counts sub-crossings for a node; short circuits if there are fewer
   than two successor nodes"
-  [graph node next-layer]
-  (let [succs (-> graph
-                  :succs
-                  (get node)
+  [node succs measures]
+  (let [dests (-> (get succs node)
                   (->> (map #(:dest %))))
-        num-succs (count succs)]
-    (if (< num-succs 2)
+        num-dests (count dests)]
+    (if (< num-dests 2)
       0
-      (let [measures (:measures next-layer)
-            order-map (->> (sort-by #(get measures %) succs)
+      (let [order-map (->> (sort-by #(get measures %) dests)
                            (map-indexed (fn [idx n]
                                           (map #(-> [% idx])
                                                (:characters n))))
-                           (apply concat)
-                           (into {}))
-            num-acc-leaves (next-power-of-2 num-succs)
+                           (reduce into {}))
+            num-acc-leaves (next-power-of-2 num-dests)
             first-leaf (dec num-acc-leaves)
             tree-size first-leaf]
         (loop [tree (vec (repeat tree-size 0))
@@ -477,17 +441,17 @@
   that is not detected by the coarser-grained node-by-node cross
   counting. We apply the same methodology here, but without needing
   to deal with crossing segments, or with edge weight"
-  [graph layer next-layer]
-  (loop [nodes (filter #(instance? Node %) (:minus-ps layer))
+  [minus-ps succs measures]
+  (loop [nodes (filter #(instance? Node %) minus-ps)
          crossings 0]
     (if (empty? nodes)
       crossings
       (let [node (first nodes)
-            c (count-sub-crossings-single-node graph node next-layer)]
+            c (count-sub-crossings-single-node node succs measures)]
         (recur (rest nodes) (+ crossings c))))))
 
 
-(defn count-crossings
+(defn count-and-mark-crossings
   "Step 5 of ESK, counts the number of crossings that result from a
   bi-layer ordering. Implements the algorithm found in Bilayer Cross
   Counting, by Wilhelm Barth, Petra Mutzel and Michael Jünger
@@ -517,10 +481,10 @@
     compact representation is the same as the index of the first leaf in the
     expanded tree, and the index of a right sibling in the compact
     representation is the same as that node's parent in the expanded tree"
-  [graph layer next-layer]
-  (let [[g sup-crossings] (count-super-crossings graph layer next-layer)
-        sub-crossings (count-sub-crossings graph layer next-layer)]
-    [g (+ sup-crossings sub-crossings)]))
+  [minus-ps minus-qs preds succs measures]
+  (let [[sup-crossings marked] (count-and-mark-super-crossings minus-ps minus-qs preds succs)
+        sub-crossings (count-sub-crossings minus-ps succs measures)]
+    [(+ sup-crossings sub-crossings) marked]))
 
 
 (defn reverse-graph
@@ -544,80 +508,51 @@
     :aboves (:belows graph)
     :belows (:aboves graph)
     :top-idxs (:bot-idxs graph)
-    :bot-idxs (:top-idxs graph)
-    :node-orders (:rev-node-orders graph)
-    :rev-node-orders (:node-orders graph)))
+    :bot-idxs (:top-idxs graph)))
 
 
-(defn neighborify
-  "Maps things in a layer (nodes and edges) to the things that are directly
-  above or below"
-  [graph layer]
-  (let [layer-id (:id layer)]
-    (loop [grph graph
-           o (-> layer :flat first)
-           os (-> layer :flat rest)]
-      (if (empty? os)
-        grph
-        (let [next-o (first os)
-              g (-> grph
-                    (assoc-in [:belows layer-id o] next-o)
-                    (assoc-in [:aboves layer-id next-o] o))]
-          (recur g next-o (rest os)))))))
-
-
-(defn indexify
-  "Indexes each layer by Node and Edge, from the top and bottom"
-  [graph layer]
-  (let [layer-id (:id layer)
-        flat (:flat layer)
-        len (count flat)
-        [top bot] (->> (map-indexed #(-> [[%2 %1] [%2 (- len %1 1)]]) flat)
-                       (apply map vector)
-                       (map #(into {} %)))
-        ord (remove vector? (:ordered layer))]
-    (-> graph
-        (assoc-in [:top-idxs layer-id] top)
-        (assoc-in [:bot-idxs layer-id] bot)
-        (assoc-in [:node-orders layer-id] ord)
-        (assoc-in [:rev-node-orders layer-id] (reverse ord)))))
+(defn order-sparse-layer
+  [layer prev-layer ps qs succs preds]
+  (let [minus-ps (replace-ps (:items prev-layer) ps succs)
+        positions (set-positions minus-ps)
+        [qs non-qs] (map set
+                         ((juxt filter remove) #(contains? qs %)
+                          (:nodes layer)))
+        measures (set-measures non-qs preds positions)
+        minus-qs (merge-layer minus-ps positions non-qs measures)
+        items (add-qs minus-qs qs)
+        [crossings marked] (count-and-mark-crossings minus-ps minus-qs preds succs measures)]
+    [(OrderedLayer. (:id layer) (:duration layer) items)
+     crossings
+     marked]))
 
 
 (defn order-graph-once
   "Performs one layer-by-layer sweep of the graph using ESK's algorithm"
   [sparse-graph]
-  (loop [graph sparse-graph
-         layer (-> graph :layers first)
-         layers (-> graph :layers rest)]
-    (if (empty? layers)
-      graph
-      (let [l (-> (replace-ps graph layer)
-                  set-positions)
-            next-l (->> (first layers)
-                        (set-qs-non-qs graph)
-                        (set-measures graph l)
-                        (order-next-layer l)
-                        add-qs)
-            [marked-graph crossings] (count-crossings graph l next-l)
-            g (-> marked-graph
-                  (update-in [:crossings] + crossings)
-                  (update-in [:layers] assoc (:id l) l)
-                  (update-in [:layers] assoc (:id next-l) next-l)
-                  (neighborify next-l)
-                  (indexify next-l))]
-        (recur g next-l (rest layers))))))
-
-
-(defn seed-graph
-  "Set up the attributes the first layer in a sweep needs in order to serve
-  as a basis for ordering the following layer"
-  [graph seed-order]
-  (let [layer (-> graph :layers
-                  (get 0)
-                  (assoc :flat seed-order :ordered seed-order))]
-    (-> (assoc-in graph [:layers 0] layer)
-        (neighborify layer)
-        (indexify layer))))
+  (let [first-sparse-layer (-> sparse-graph :layers first)]
+    (loop [prev-layer (map->OrderedLayer (-> first-sparse-layer
+                                             (dissoc :nodes)
+                                             (assoc :items (:nodes first-sparse-layer))))
+           ordered-graph (OrderedGraph. [prev-layer]
+                                        (:succs sparse-graph)
+                                        (:preds sparse-graph)
+                                        0
+                                        #{})
+           layers (-> sparse-graph :layers rest)]
+      (if (empty? layers)
+        ordered-graph
+        (let [[o-layer crossings marked] (order-sparse-layer (first layers)
+                                                             prev-layer
+                                                             (:ps sparse-graph)
+                                                             (:qs sparse-graph)
+                                                             (:succs sparse-graph)
+                                                             (:preds sparse-graph))
+              g (-> ordered-graph
+                    (update-in [:layers] conj o-layer)
+                    (update-in [:crossings] + crossings)
+                    (update-in [:marked] set/union marked))]
+          (recur o-layer g (rest layers)))))))
 
 
 (defn order-graph
@@ -630,8 +565,7 @@
   - Added weights to nodes and edges"
   [sparse-graph]
   ;; seed the first layer with initial ordered layer
-  (loop [seed-order (-> sparse-graph :layers first :nodes)
-         orderings []]
+  (loop [orderings []]
     (let [c (count orderings)]
       (if (= c 20)
         orderings
@@ -639,10 +573,8 @@
               ordered-graph (-> (if reverse?
                                   (reverse-graph sparse-graph)
                                   sparse-graph)
-                                (seed-graph seed-order)
                                 order-graph-once)]
-          (recur (-> ordered-graph :layers peek :ordered)
-                 (conj orderings (if reverse? (reverse-graph ordered-graph) ordered-graph))))))))
+          (recur (conj orderings (if reverse? (reverse-graph ordered-graph) ordered-graph))))))))
 
 
 (defn check-alignment
