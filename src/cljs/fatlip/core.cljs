@@ -22,7 +22,7 @@
   (map->Segment (assoc edge :layer-id layer-id)))
 
 
-(defn- add-edge [graph last-node node characters]
+(defn add-edge [graph last-node node characters]
   "Creates an edge and adds it to the graph as a whole and to each participating node"
   (let [weight (count characters)
         forward-edge (Edge. node characters weight)
@@ -40,7 +40,7 @@
         (update-in [:preds node] (fnil conj #{}) edge-2))))
 
 
-(defn- make-node [graph layer-id input]
+(defn make-node [graph layer-id input]
   "Utility function that was abstracted to avoid mutually recursing back to add-node
   when creating helper (p, q, and r) nodes. In particular, helper nodes don't require
   character group processing or bookkeeping metadata"
@@ -52,7 +52,7 @@
     [g node]))
 
 
-(defn- add-p-q-nodes [graph last-node node characters]
+(defn add-p-q-nodes [graph last-node node characters]
   "When an edge would span more than 2 layers, two helper nodes are created. P nodes
   are placed on the layer following last-node's layer, and q nodes are placed on the
   layer preceding node's layer. Edges are then drawn from last-node -> p node and from
@@ -70,7 +70,7 @@
     [g q-node]))
 
 
-(defn- add-r-node [graph last-node node characters]
+(defn add-r-node [graph last-node node characters]
   "R nodes are created to assist in drawing the graph, when an edge skips over a layer.
   In that case, the r node is placed in the intervening layer, and an edge is created
   from last-node to r node"
@@ -81,7 +81,7 @@
     [g r-node]))
 
 
-(defn- process-edge-characters [graph last-node node characters]
+(defn process-edge-characters [graph last-node node characters]
   "Create edges and possibly new helper nodes for a set of characters that
   remain together from last-node to node"
   (let [span (- (:layer-id node) (:layer-id last-node))
@@ -92,7 +92,7 @@
     (add-edge g last-n node characters)))
 
 
-(defn- process-characters
+(defn process-characters
   "Process each set of characters, where a set is defined as those characters
   present in the current node that also share their last node (ie. they define
   an edge in the graph)"
@@ -192,7 +192,7 @@
                [])))
 
 
-(defn- set-positions
+(defn set-positions
   "Step 2a of ESK. Positions in an ordered layer are used to calculate the order of the
   next layer. ESK's description of the position algorithm is almost willfully circuitous
   and obtuse, so here's a simplified description: An item's position in an ordered layer
@@ -214,7 +214,7 @@
         (recur (rest m-ps) c-p (assoc positions item (inc current-position)))))))
 
 
-(defn- get-measure
+(defn get-measure
   "Calculate the average weighted position of a node's predecessors"
   [node preds pred-positions]
   (if (empty? preds)
@@ -285,7 +285,7 @@
                [])))
 
 
-(defn- sorted-edge-order
+(defn sorted-edge-order
   "Sorts edges between two ordered layers first by their index in the source
   layer, and then by their index in the destination layer. Then, returns seq
   of [order edge] pairs of the edge targets in the destination layer, using
@@ -311,7 +311,7 @@
          (map #(-> [(get next-order-map (:dest %)) %])))))
 
 
-(defn- next-power-of-2
+(defn next-power-of-2
   "A helper for cross counting; the number of leaf nodes in the accumulator tree
   needs to be the first power of 2 greater than the number of nodes in one layer.
   This function sets all the bits to the right of the first bit set in a 32 bit
@@ -326,7 +326,7 @@
                (inc exp))))))
 
 
-(defn- single-edge-super-crossings
+(defn single-edge-super-crossings
   "Counts the number of crossings that result from adding an edge, in order,
   to the accumulator tree. If the index is even, meaning it's a right
   child of its parent, we increment its value. If the index is
