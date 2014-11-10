@@ -607,25 +607,35 @@
          (map #(into {} %)))))
 
 
-(defn ordered->flat-pred
+(defn ordered->flat-edge
   [src edge]
   (let [dest (:dest edge)
         src-id (:layer-id src)
         dest-id (:layer-id dest)
-        span (- dest-id src-id)]
-    (let [segs (map #(Edge->Segment edge %)
-                    (range (inc dest-id) src-id))
-          srcs (conj (vec segs) src)
-          dests (into [dest] segs)]
-      (map vector srcs dests))))
+        [srcs dests] (if (> src-id dest-id)
+                       (let [segs (map (partial Edge->Segment edge)
+                                       (range (inc dest-id) src-id))]
+                         [(conj (vec segs) src)
+                          (into [dest] segs)])
+                       (let [segs (map (partial Edge->Segment edge)
+                                       (range (inc src-id) dest-id))]
+                         [(into [src] segs)
+                          (conj (vec segs) dest)]))]
+    (map vector srcs dests)))
 
 
-(defn ordered->flat-preds
+(defn ordered->flat-src
   [[src edges]]
-  (->> (mapcat #(ordered->flat-pred src %) edges)
+  (->> (mapcat (partial ordered->flat-edge src) edges)
        (reduce (fn [preds [src dest]]
                  (update-in preds [src] (fnil conj #{}) dest))
                {})))
+
+
+(defn ordered->flat-edges
+  [edges]
+  (->> (map ordered->flat-src edges)
+       (apply merge)))
 
 
 (defn OrderedLayer->FlatLayer
@@ -643,9 +653,8 @@
         [aboves belows] (apply map merge (map neighborify layers))
         [top-idxs bot-idxs] (apply map merge (map indexify layers))]
     (map->FlatGraph {:layers layers
-                     :preds (->> (:preds ordered-graph)
-                                 (map ordered->flat-preds)
-                                 (apply merge))
+                     :succs (ordered->flat-edges (:succs ordered-graph))
+                     :preds (ordered->flat-edges (:preds ordered-graph))
                      :aboves aboves
                      :belows belows
                      :top-idxs top-idxs

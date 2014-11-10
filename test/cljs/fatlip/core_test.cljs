@@ -382,44 +382,103 @@
         "Mapping nodes and edges to indexes from the top and bottom of the layer")))
 
 
-(deftest test-ordered->flat-pred
+(deftest test-ordered->flat-edge
   (let [src (f/Node. :14-3 14 [:a] 1)
         dest (f/Node. :13-3 13 [:a] 1)
         edge (f/Edge. dest [:a] 1)]
-    (is (= (f/ordered->flat-pred src edge)
+    (is (= (f/ordered->flat-edge src edge)
            [[src dest]])
-        "Short edges are converted to [src dest] pairs"))
+        "Short preds are converted to [src dest] pairs"))
+  (let [src (f/Node. :13-3 13 [:a] 1)
+        dest (f/Node. :14-3 14 [:a] 1)
+        edge (f/Edge. dest [:a] 1)]
+    (is (= (f/ordered->flat-edge src edge)
+           [[src dest]])
+        "Short succs are converted to [src dest] pairs"))
   (let [src (f/Node. :14-3 14 [:a] 1)
         dest (f/Node. :11-2 11 [:a] 1)
         edge (f/Edge. dest [:a] 1)
         seg-1 (f/Edge->Segment edge 13)
         seg-2 (f/Edge->Segment edge 12)]
-    (is (= (f/ordered->flat-pred src edge)
+    (is (= (f/ordered->flat-edge src edge)
            [[seg-2 dest]
             [seg-1 seg-2]
             [src seg-1]])
-        "Long edges are converted into a series of [src seg] [seg seg] ... [seg dest] pairs")))
+        "Long preds are converted into a series of [src seg] [seg seg] ... [seg dest] pairs"))
+  (let [src (f/Node. :11-2 11 [:a] 1)
+        dest (f/Node. :14-3 14 [:a] 1)
+        edge (f/Edge. dest [:a] 1)
+        seg-1 (f/Edge->Segment edge 12)
+        seg-2 (f/Edge->Segment edge 13)]
+    (is (= (f/ordered->flat-edge src edge)
+           [[src seg-1]
+            [seg-1 seg-2]
+            [seg-2 dest]])
+        "Long succs are converted into a series of [src seg] [seg seg] ... [seg dest] pairs")))
 
 
-(deftest test-ordered->flat-preds
-  (let [src (f/Node. :14-3 14 [:a :b] 1)
+(deftest test-ordered->flat-src
+  (let [src (f/Node. :14-3 14 [:a :b] 2)
         dest-1 (f/Node. :13-3 13 [:a] 1)
         dest-2 (f/Node. :13-2 13 [:b] 1)
         edge-1 (f/Edge. dest-1 [:a] 1)
-        edge-2 (f/Edge. dest-2 [:a] 1)]
-    (is (= (f/ordered->flat-preds [src #{edge-1 edge-2}])
+        edge-2 (f/Edge. dest-2 [:b] 1)]
+    (is (= (f/ordered->flat-src [src #{edge-1 edge-2}])
            {src #{dest-1 dest-2}})
-        "Multiple short edges are collapsed into their destinations, mapped to the same source"))
+        "Multiple short preds are collapsed into their destinations, mapped to the same source"))
+  (let [src (f/Node. :13-3 13 [:a :b] 2)
+        dest-1 (f/Node. :14-3 14 [:a] 1)
+        dest-2 (f/Node. :14-2 14 [:b] 1)
+        edge-1 (f/Edge. dest-1 [:a] 1)
+        edge-2 (f/Edge. dest-2 [:b] 1)]
+    (is (= (f/ordered->flat-src [src #{edge-1 edge-2}])
+           {src #{dest-1 dest-2}})
+        "Multiple short succs are collapsed into their destinations, mapped to the same source"))
   (let [src (f/Node. :14-3 14 [:a] 1)
         dest (f/Node. :11-2 11 [:a] 1)
         edge (f/Edge. dest [:a] 1)
         seg-1 (f/Edge->Segment edge 13)
         seg-2 (f/Edge->Segment edge 12)]
-    (is (= (f/ordered->flat-preds [src #{edge}])
+    (is (= (f/ordered->flat-src [src #{edge}])
            {src #{seg-1}
             seg-1 #{seg-2}
             seg-2 #{dest}})
-        "Long edges are converted into a series of [src seg] [seg seg] ... [seg dest] pairs")))
+        "Long preds are converted into a series of [src seg] [seg seg] ... [seg dest] pairs"))
+  (let [src (f/Node. :11-3 11 [:a] 1)
+        dest (f/Node. :14-2 14 [:a] 1)
+        edge (f/Edge. dest [:a] 1)
+        seg-1 (f/Edge->Segment edge 12)
+        seg-2 (f/Edge->Segment edge 13)]
+    (is (= (f/ordered->flat-src [src #{edge}])
+           {src #{seg-1}
+            seg-1 #{seg-2}
+            seg-2 #{dest}})
+        "Long succs are converted into a series of [src seg] [seg seg] ... [seg dest] pairs")))
+
+
+(deftest test-ordered->flat-edges
+  (let [src-1 (f/Node. :11-12 11 [:a] 1)
+        src-2 (f/Node. :2-24 2 [:b] 1)
+        dest-1 (f/Node. :10-11 10 [:a] 1)
+        dest-2 (f/Node. :1-1 1 [:b] 1)
+        edge-1 (f/Edge. dest-1 [:a] 1)
+        edge-2 (f/Edge. dest-2 [:b] 1)]
+    (is (= (f/ordered->flat-edges {src-1 #{edge-1}
+                                   src-2 #{edge-2}})
+           {src-1 #{dest-1}
+            src-2 #{dest-2}})
+        "Multiple src preds do right things"))
+  (let [src-1 (f/Node. :11-12 11 [:a] 1)
+        src-2 (f/Node. :2-24 2 [:b] 1)
+        dest-1 (f/Node. :12-11 12 [:a] 1)
+        dest-2 (f/Node. :3-1 3 [:b] 1)
+        edge-1 (f/Edge. dest-1 [:a] 1)
+        edge-2 (f/Edge. dest-2 [:b] 1)]
+    (is (= (f/ordered->flat-edges {src-1 #{edge-1}
+                                   src-2 #{edge-2}})
+           {src-1 #{dest-1}
+            src-2 #{dest-2}})
+        "Multiple src succs do right things")))
 
 
 (deftest test-OrderedLayer->FlatLayer
@@ -445,41 +504,53 @@
         node-2-0 (f/Node. :2-0 2 [:a] 1)
         node-2-1 (f/Node. :2-1 2 [:b] 1)
         node-2-2 (f/Node. :2-2 2 [:c] 1)
-        edge (f/Edge. node-0-1 [:b] 1)
+        succ (f/Edge. node-2-1 [:b] 1)
+        pred (f/Edge. node-0-1 [:b] 1)
+        succs {node-0-0 #{(f/Edge. node-1-0 [:a] 1)}
+               node-0-1 #{succ}
+               node-0-2 #{(f/Edge. node-1-0 [:c] 1)}
+               node-1-0 #{(f/Edge. node-2-0 [:a] 1)
+                          (f/Edge. node-2-2 [:c] 1)}}
         preds {node-1-0 #{(f/Edge. node-0-0 [:a] 1)
                           (f/Edge. node-0-2 [:c] 1)}
                node-2-0 #{(f/Edge. node-1-0 [:a] 1)}
-               node-2-1 #{edge}
+               node-2-1 #{pred}
                node-2-2 #{(f/Edge. node-1-0 [:c] 1)}}
         layers [(f/OrderedLayer. 0 0 [node-0-0 node-0-1 node-0-2])
-                (f/OrderedLayer. 1 0 [node-1-0 [edge]])
+                (f/OrderedLayer. 1 0 [node-1-0 [succ]])
                 (f/OrderedLayer. 2 0 [node-2-0 node-2-1 node-2-2])]
-        ordered-graph (f/OrderedGraph. layers {} preds 0 #{})
-        seg (f/Edge->Segment edge 1)]
+        ordered-graph (f/OrderedGraph. layers succs preds 0 #{})
+        succ-seg (f/Edge->Segment succ 1)
+        pred-seg (f/Edge->Segment pred 1)]
     (is (= (f/OrderedGraph->FlatGraph ordered-graph)
            (f/map->FlatGraph {:layers [(f/FlatLayer. 0 0 [node-0-0 node-0-1 node-0-2])
-                                       (f/FlatLayer. 1 0 [node-1-0 seg])
+                                       (f/FlatLayer. 1 0 [node-1-0 succ-seg])
                                        (f/FlatLayer. 2 0 [node-2-0 node-2-1 node-2-2])]
+                              :succs {node-0-0 #{node-1-0}
+                                      node-0-1 #{succ-seg}
+                                      succ-seg #{node-2-1}
+                                      node-0-2 #{node-1-0}
+                                      node-1-0 #{node-2-0 node-2-2}}
                               :preds {node-1-0 #{node-0-0 node-0-2}
                                       node-2-0 #{node-1-0}
-                                      node-2-1 #{seg}
-                                      seg #{node-0-1}
+                                      node-2-1 #{pred-seg}
+                                      pred-seg #{node-0-1}
                                       node-2-2 #{node-1-0}}
                               :aboves {node-0-1 node-0-0
                                        node-0-2 node-0-1
-                                       seg node-1-0
+                                       succ-seg node-1-0
                                        node-2-1 node-2-0
                                        node-2-2 node-2-1}
                               :belows {node-0-0 node-0-1
                                        node-0-1 node-0-2
-                                       node-1-0 seg
+                                       node-1-0 succ-seg
                                        node-2-0 node-2-1
                                        node-2-1 node-2-2}
                               :top-idxs {node-0-0 0
                                          node-0-1 1
                                          node-0-2 2
                                          node-1-0 0
-                                         seg 1
+                                         succ-seg 1
                                          node-2-0 0
                                          node-2-1 1
                                          node-2-2 2}
@@ -487,7 +558,7 @@
                                          node-0-1 1
                                          node-0-2 0
                                          node-1-0 1
-                                         seg 0
+                                         succ-seg 0
                                          node-2-0 2
                                          node-2-1 1
                                          node-2-2 0}}))
