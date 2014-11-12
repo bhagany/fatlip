@@ -49,7 +49,7 @@
         "Number of edges")
 
     ;; ESK ordering
-    (is (= (count (:marked ordered-graph)) 1) "Number of marked edges")
+    (is (= (count (:marked ordered-graph)) 2) "Number of marked edges")
     (is (= (:crossings ordered-graph) 9) "Number of crossings")
     (is (empty? (->> (:layers ordered-graph)
                      (mapcat #(:minus-ps %))
@@ -64,28 +64,28 @@
 ;; Fine-grained ESK
 (deftest test-replace-ps
   (let [p (f/Node. :0-0 0 [:a] 1)
-        p-edge (f/Edge. (f/Node. :1-0 0 [:a] 1) [:a] 1)
+        p-edge (f/Edge. p (f/Node. :1-0 0 [:a] 1) [:a] 1)
         not-p (f/Node. :0-1 0 [:b] 1)
-        seg-c-edge (f/Edge. (f/Node. :3-99 3 [:c] 1) [:c] 1)
+        seg-c-edge (f/Edge. not-p (f/Node. :3-99 3 [:c] 1) [:c] 1)
         seg-c [seg-c-edge]
         items [p seg-c not-p]
         ps #{p}
-        succs {p #{p-edge}, not-p #{(f/Edge. (f/Node. :1-0 0 [:b] 1) [:b] 1)}}]
+        succs {p #{p-edge}, not-p #{(f/Edge. not-p (f/Node. :1-0 0 [:b] 1) [:b] 1)}}]
     (is (= (f/replace-ps items ps succs)
            [[p-edge seg-c-edge] not-p])
         "P nodes get replaced by segment containers, and joined with adjacent segment containers")))
 
 
 (deftest test-set-positions
-  (let [seg-1 [(f/Edge. "dest" [] 0)
-               (f/Edge. "dest" [] 0)]
+  (let [seg-1 [(f/Edge. "src" "dest" [] 0)
+               (f/Edge. "src" "dest" [] 0)]
         node-1 (f/Node. :0-0 0 [] 0)
         node-2 (f/Node. :0-1 0 [] 0)
-        seg-2 [(f/Edge. "dest" [] 0)
-               (f/Edge. "dest" [] 0)
-               (f/Edge. "dest" [] 0)]
+        seg-2 [(f/Edge. "src" "dest" [] 0)
+               (f/Edge. "src" "dest" [] 0)
+               (f/Edge. "src" "dest" [] 0)]
         node-3 (f/Node. :0-2 0 [] 0)
-        seg-3 [(f/Edge. "dest" [] 0)]
+        seg-3 [(f/Edge. "src" "dest" [] 0)]
         node-4 (f/Node. :0-2 0 [] 0)
         minus-ps [seg-1 node-1 node-2 seg-2 node-3 seg-3 node-4]]
     (is (= (f/set-positions minus-ps) {seg-1 0, node-1 2, node-2 3
@@ -98,8 +98,8 @@
   (let [node (f/Node. :1-0 1 [:a :b :c] 3)
         pr-node-1 (f/Node. :0-0 0 [:a :b] 2)
         pr-node-2 (f/Node. :0-1 0 [:c] 1)
-        edge-1 (f/Edge. pr-node-1 [:a :b] 2)
-        edge-2 (f/Edge. pr-node-2 [:c] 1)
+        edge-1 (f/Edge. node pr-node-1 [:a :b] 2)
+        edge-2 (f/Edge. node pr-node-2 [:c] 1)
         preds #{edge-1 edge-2}
         pred-positions {pr-node-1 1, pr-node-2 2}]
     (is (= (f/get-measure node preds pred-positions) (/ 4 3))
@@ -114,11 +114,11 @@
         nl-node-2 (f/Node. :1-1 1 [:b :e] 2)
         nl-node-3 (f/Node. :1-2 1 [:a] 1)
         nl-node-4 (f/Node. :1-3 1 [:d] 1)
-        edge-1 (f/Edge. l-node-1 [:c] 1)
-        edge-2 (f/Edge. l-node-1 [:b] 1)
-        edge-3 (f/Edge. l-node-3 [:e] 1)
-        edge-4 (f/Edge. l-node-1 [:a] 1)
-        edge-5 (f/Edge. l-node-2 [:d] 1)
+        edge-1 (f/Edge. nl-node-1 l-node-1 [:c] 1)
+        edge-2 (f/Edge. nl-node-2 l-node-1 [:b] 1)
+        edge-3 (f/Edge. nl-node-2 l-node-3 [:e] 1)
+        edge-4 (f/Edge. nl-node-3 l-node-1 [:a] 1)
+        edge-5 (f/Edge. nl-node-4 l-node-2 [:d] 1)
         non-qs [nl-node-1 nl-node-2 nl-node-3 nl-node-4]
         preds {nl-node-1 #{edge-1}
                nl-node-2 #{edge-2 edge-3}
@@ -144,14 +144,9 @@
         nl-node-3 (f/Node. :1-2 1 [:a] 1)
         nl-node-4 (f/Node. :1-3 1 [:d] 1)
         nl-node-5 (f/Node. :1-4 1 [:f :g] 2)
-        l-seg-1 [(f/Edge. "somewhere else" [:x] 1)]
-        l-seg-2 [(f/Edge. "elsewhere" [:y] 1)
-                 (f/Edge. nl-node-5 [:f :g] 2)]
-        edge-1 (f/Edge. l-node-1 [:c] 1)
-        edge-2 (f/Edge. l-node-1 [:b] 1)
-        edge-3 (f/Edge. l-node-3 [:e] 1)
-        edge-4 (f/Edge. l-node-1 [:a] 1)
-        edge-5 (f/Edge. l-node-2 [:d] 1)
+        l-seg-1 [(f/Edge. "meh" "somewhere else" [:x] 1)]
+        l-seg-2 [(f/Edge. "bleh" "elsewhere" [:y] 1)
+                 (f/Edge. "geh" nl-node-5 [:f :g] 2)]
         minus-ps [l-node-1 l-seg-1 l-node-2 l-seg-2 l-node-3]
         positions {l-node-1 0
                    l-seg-1 1
@@ -172,10 +167,10 @@
   (let [node-1 (f/Node. :0-0 0 [:a :b :c] 3)
         node-2 (f/Node. :0-1 0 [:d] 1)
         node-3 (f/Node. :0-2 0 [:e] 1)
-        edge-1 (f/Edge. "somewhere else" [:x] 1)
-        edge-2 (f/Edge. "elsewhere" [:y] 1)
-        edge-3 (f/Edge. node-2 [:f :g] 2)
-        edge-4 (f/Edge. "matter" [:m] 1)
+        edge-1 (f/Edge. "meh"  "somewhere else" [:x] 1)
+        edge-2 (f/Edge. "bleh" "elsewhere" [:y] 1)
+        edge-3 (f/Edge. "feh" node-2 [:f :g] 2)
+        edge-4 (f/Edge. "doesn't" "matter" [:m] 1)
         seg-c-1 [edge-1]
         seg-c-2 [edge-2 edge-3 edge-4]
         minus-qs [node-1 seg-c-1 node-3 seg-c-2]
@@ -191,15 +186,15 @@
         nl-node-1 (f/Node. :1-0 1 [:a :c] 2)
         nl-node-2 (f/Node. :1-1 1 [:d :g] 2)
         nl-node-3 (f/Node. :1-1 1 [:e] 1)
-        seg [(f/Edge. "hmm" [:b :f] 1)]
+        seg [(f/Edge. "mmm" "hmm" [:b :f] 1)]
         ordered [node-1 seg node-2]
         next-ordered [nl-node-1 seg nl-node-2 nl-node-3]
-        edge-1 (f/Edge. nl-node-1 [:a] 1)
-        edge-2 (f/Edge. nl-node-2 [:d] 1)
-        edge-3 (f/Edge. nl-node-3 [:e] 1)
-        edge-4 (f/Edge. seg [:b :f] 2)
-        edge-5 (f/Edge. nl-node-1 [:c] 1)
-        edge-6 (f/Edge. nl-node-2 [:g] 1)
+        edge-1 (f/Edge. node-1 nl-node-1 [:a] 1)
+        edge-2 (f/Edge. node-1 nl-node-2 [:d] 1)
+        edge-3 (f/Edge. node-1 nl-node-3 [:e] 1)
+        edge-4 (f/Edge. seg seg [:b :f] 2)
+        edge-5 (f/Edge. node-2 nl-node-1 [:c] 1)
+        edge-6 (f/Edge. node-2 nl-node-2 [:g] 1)
         edges {node-1 #{edge-1 edge-2 edge-3}
                node-2 #{edge-5 edge-6}}]
     (is (= (f/sorted-edge-order ordered next-ordered edges)
@@ -221,29 +216,34 @@
   ;; add edge that doesn't cross segment x
   ;; add segment that crosses edge
   (let [graph {:marked #{}}
-        fedge (f/Edge. (f/Node. :1-3 1 [:b] 1)
-                       [:b] 1)
-        edge (with-meta fedge {:forward-edge fedge})
-        seg [(f/Edge. "hmm" [:b :h] 2)]
-        sedge (f/Edge. seg [:b :h] 2)
-        crossed-edge (f/Edge. (f/Node. :1-2 1 [:f] 1)
+        edge (f/Edge. (f/Node. :0-0 0 [:b] 1)
+                      (f/Node. :1-3 1 [:b] 1)
+                      [:b] 1)
+        seg [(f/Edge. "mmm" "hmm" [:b :h] 2)]
+        sedge (f/Edge. seg seg [:b :h] 2)
+        crossed-edge (f/Edge. (f/Node. :0-1 1 [:f] 1)
+                              (f/Node. :1-2 1 [:f] 1)
                               [:f] 1)
+        edge-1 (f/Edge. (f/Node. :0-2 0 [:a :d :e] 3)
+                        (f/Node. :1-0 1 [:a :d :e] 3)
+                        [:a :d :e] 3)
+        edge-2 (f/Edge. (f/Node. :0-3 0 [:c :g] 2)
+                        (f/Node. :1-1 1 [:c :g] 2)
+                        [:c :g] 2)
         tree [(f/AccumulatorNode. 2
-                                  #{(f/Edge. (f/Node. :1-0 1 [:a :d :e] 3)
-                                             [:a :d :e] 3)
-                                    (f/Edge. (f/Node. :1-1 1 [:c :g] 2)
-                                             [:c :g] 2)}
+                                  #{edge-1 (f/rev edge-1)
+                                    edge-2 (f/rev edge-2)}
                                   false)
               (f/AccumulatorNode. 1 #{} true)
               (f/AccumulatorNode. 1
-                                  #{crossed-edge}
+                                  #{crossed-edge (f/rev crossed-edge)}
                                   false)]]
     (is (= (f/single-edge-super-crossings tree 3 edge)
-           [tree 3 #{fedge}])
+           [tree 3 #{edge (f/rev edge)}])
         "Correctly sum up and mark an edge that crosses a segment")
     (is (= (f/single-edge-super-crossings tree 5 edge)
            [(-> tree
-                (update-in [0 :node-edges] conj fedge)
+                (update-in [0 :node-edges] conj edge (f/rev edge))
                 (update-in [0 :weight] inc))
             1 #{}])
         "Correctly sum up and don't mark and edge that crosses a segment")
@@ -252,7 +252,7 @@
                 (assoc-in [0 :is-seg-c] true)
                 (update-in [0 :weight] + 2))
             2
-            #{crossed-edge}])
+            #{crossed-edge (f/rev crossed-edge)}])
         "Correctly sum up crossings and markings when adding a segment")))
 
 
@@ -265,19 +265,14 @@
         nl-node-3 (f/Node. :1-2 1 [:a] 1)
         nl-node-4 (f/Node. :1-3 1 [:d] 1)
         nl-node-5 (f/Node. :1-4 1 [:f :g] 2)
-        l-seg-1 [(f/Edge. "somewhere else" [:x] 1)]
-        l-seg-2 [(f/Edge. "elsewhere" [:y] 1)
-                 (f/Edge. nl-node-5 [:f :g] 2)]
-        fedge-1 (f/Edge. l-node-1 [:c] 1)
-        fedge-2 (f/Edge. l-node-1 [:b] 1)
-        fedge-3 (f/Edge. l-node-3 [:e] 1)
-        fedge-4 (f/Edge. l-node-1 [:a] 1)
-        fedge-5 (f/Edge. l-node-2 [:d] 1)
-        edge-1 (with-meta fedge-1 {:forward-edge fedge-1})
-        edge-2 (with-meta fedge-2 {:forward-edge fedge-2})
-        edge-3 (with-meta fedge-3 {:forward-edge fedge-3})
-        edge-4 (with-meta fedge-4 {:forward-edge fedge-4})
-        edge-5 (with-meta fedge-5 {:forward-edge fedge-5})
+        l-seg-1 [(f/Edge. "bleh" "somewhere else" [:x] 1)]
+        l-seg-2 [(f/Edge. "meh" "elsewhere" [:y] 1)
+                 (f/Edge. "geh" nl-node-5 [:f :g] 2)]
+        edge-1 (f/Edge. nl-node-1 l-node-1 [:c] 1)
+        edge-2 (f/Edge. nl-node-2 l-node-1 [:b] 1)
+        edge-3 (f/Edge. nl-node-2 l-node-3 [:e] 1)
+        edge-4 (f/Edge. nl-node-3 l-node-1  [:a] 1)
+        edge-5 (f/Edge. nl-node-4 l-node-2 [:d] 1)
         minus-ps [l-node-1 l-seg-1 l-node-2 l-seg-2 l-node-3]
         minus-qs [nl-node-1 nl-node-3 l-seg-1 nl-node-4 nl-node-2 l-seg-2]
         preds {nl-node-1 #{edge-1}
@@ -285,7 +280,7 @@
                nl-node-3 #{edge-4}
                nl-node-4 #{edge-5}}]
     (is (= (f/count-and-mark-super-crossings minus-ps minus-qs preds {})
-           [5 #{fedge-2 fedge-3}])
+           [5 #{edge-2 (f/rev edge-2) edge-3 (f/rev edge-3)}])
         "Super crossings are counted correctly")))
 
 
@@ -309,14 +304,14 @@
         "A node with 0 successors has 0 sub-crossings"))
   (let [node (f/Node. :0-0 0 [:a] 1)
         s-node (f/Node. :1-0 1 [:a] 1)
-        succs {node #{(f/Edge. s-node [:a] 1)}}
+        succs {node #{(f/Edge. node s-node [:a] 1)}}
         measures {s-node 1}]
     (is (= (f/count-sub-crossings-single-node node succs measures) 0)
         "A node with 1 successor has 0 sub-crossings"))
   (let [node (f/Node. :0-0 0 [:a :b] 2)
         succ-1 (f/Node. :1-0 1 [:a] 1)
         succ-2 (f/Node. :1-1 1 [:b] 1)
-        succs {node (set (map #(f/Edge. % (:characters %) 1)
+        succs {node (set (map #(f/Edge. node % (:characters %) 1)
                               [succ-1 succ-2]))}
         measures {succ-2 0 succ-1 1}]
     (is (= (f/count-sub-crossings-single-node node succs measures) 1)
@@ -334,9 +329,9 @@
         minus-ps [l-node-1 l-node-2 l-node-3]
         measures {nl-node-1 0, nl-node-2 1,
                   nl-node-3 2, nl-node-4 3}
-        succs {l-node-1 (set (map #(f/Edge. % (:characters %) (:weight %))
+        succs {l-node-1 (set (map #(f/Edge. l-node-1 % (:characters %) (:weight %))
                                   [nl-node-1 nl-node-2 nl-node-3]))
-               l-node-2 (set (map #(f/Edge. % (:characters %) (:weight %))
+               l-node-2 (set (map #(f/Edge. l-node-2 % (:characters %) (:weight %))
                                   [nl-node-4]))}]
     (is (= (f/count-sub-crossings minus-ps succs measures) 3)
         "Sub crossings are counted correctly")))
@@ -385,19 +380,19 @@
 (deftest test-ordered->flat-edge
   (let [src (f/Node. :14-3 14 [:a] 1)
         dest (f/Node. :13-3 13 [:a] 1)
-        edge (f/Edge. dest [:a] 1)]
+        edge (f/Edge. src dest [:a] 1)]
     (is (= (f/ordered->flat-edge src edge)
            [[src dest]])
         "Short preds are converted to [src dest] pairs"))
   (let [src (f/Node. :13-3 13 [:a] 1)
         dest (f/Node. :14-3 14 [:a] 1)
-        edge (f/Edge. dest [:a] 1)]
+        edge (f/Edge. src dest [:a] 1)]
     (is (= (f/ordered->flat-edge src edge)
            [[src dest]])
         "Short succs are converted to [src dest] pairs"))
   (let [src (f/Node. :14-3 14 [:a] 1)
         dest (f/Node. :11-2 11 [:a] 1)
-        edge (f/Edge. dest [:a] 1)
+        edge (f/Edge. src dest [:a] 1)
         seg-1 (f/Edge->Segment edge 13)
         seg-2 (f/Edge->Segment edge 12)]
     (is (= (f/ordered->flat-edge src edge)
@@ -407,7 +402,7 @@
         "Long preds are converted into a series of [src seg] [seg seg] ... [seg dest] pairs"))
   (let [src (f/Node. :11-2 11 [:a] 1)
         dest (f/Node. :14-3 14 [:a] 1)
-        edge (f/Edge. dest [:a] 1)
+        edge (f/Edge. src dest [:a] 1)
         seg-1 (f/Edge->Segment edge 12)
         seg-2 (f/Edge->Segment edge 13)]
     (is (= (f/ordered->flat-edge src edge)
@@ -421,22 +416,22 @@
   (let [src (f/Node. :14-3 14 [:a :b] 2)
         dest-1 (f/Node. :13-3 13 [:a] 1)
         dest-2 (f/Node. :13-2 13 [:b] 1)
-        edge-1 (f/Edge. dest-1 [:a] 1)
-        edge-2 (f/Edge. dest-2 [:b] 1)]
+        edge-1 (f/Edge. src dest-1 [:a] 1)
+        edge-2 (f/Edge. src dest-2 [:b] 1)]
     (is (= (f/ordered->flat-src [src #{edge-1 edge-2}])
            {src #{dest-1 dest-2}})
         "Multiple short preds are collapsed into their destinations, mapped to the same source"))
   (let [src (f/Node. :13-3 13 [:a :b] 2)
         dest-1 (f/Node. :14-3 14 [:a] 1)
         dest-2 (f/Node. :14-2 14 [:b] 1)
-        edge-1 (f/Edge. dest-1 [:a] 1)
-        edge-2 (f/Edge. dest-2 [:b] 1)]
+        edge-1 (f/Edge. src dest-1 [:a] 1)
+        edge-2 (f/Edge. src dest-2 [:b] 1)]
     (is (= (f/ordered->flat-src [src #{edge-1 edge-2}])
            {src #{dest-1 dest-2}})
         "Multiple short succs are collapsed into their destinations, mapped to the same source"))
   (let [src (f/Node. :14-3 14 [:a] 1)
         dest (f/Node. :11-2 11 [:a] 1)
-        edge (f/Edge. dest [:a] 1)
+        edge (f/Edge. src dest [:a] 1)
         seg-1 (f/Edge->Segment edge 13)
         seg-2 (f/Edge->Segment edge 12)]
     (is (= (f/ordered->flat-src [src #{edge}])
@@ -446,7 +441,7 @@
         "Long preds are converted into a series of [src seg] [seg seg] ... [seg dest] pairs"))
   (let [src (f/Node. :11-3 11 [:a] 1)
         dest (f/Node. :14-2 14 [:a] 1)
-        edge (f/Edge. dest [:a] 1)
+        edge (f/Edge. src dest [:a] 1)
         seg-1 (f/Edge->Segment edge 12)
         seg-2 (f/Edge->Segment edge 13)]
     (is (= (f/ordered->flat-src [src #{edge}])
@@ -461,8 +456,8 @@
         src-2 (f/Node. :2-24 2 [:b] 1)
         dest-1 (f/Node. :10-11 10 [:a] 1)
         dest-2 (f/Node. :1-1 1 [:b] 1)
-        edge-1 (f/Edge. dest-1 [:a] 1)
-        edge-2 (f/Edge. dest-2 [:b] 1)]
+        edge-1 (f/Edge. src-1 dest-1 [:a] 1)
+        edge-2 (f/Edge. src-2 dest-2 [:b] 1)]
     (is (= (f/ordered->flat-edges {src-1 #{edge-1}
                                    src-2 #{edge-2}})
            {src-1 #{dest-1}
@@ -472,8 +467,8 @@
         src-2 (f/Node. :2-24 2 [:b] 1)
         dest-1 (f/Node. :12-11 12 [:a] 1)
         dest-2 (f/Node. :3-1 3 [:b] 1)
-        edge-1 (f/Edge. dest-1 [:a] 1)
-        edge-2 (f/Edge. dest-2 [:b] 1)]
+        edge-1 (f/Edge. src-1 dest-1 [:a] 1)
+        edge-2 (f/Edge. src-2 dest-2 [:b] 1)]
     (is (= (f/ordered->flat-edges {src-1 #{edge-1}
                                    src-2 #{edge-2}})
            {src-1 #{dest-1}
@@ -484,8 +479,8 @@
 (deftest test-OrderedLayer->FlatLayer
   (let [node-1 (f/Node. :0-0 0 [:a] 1)
         node-2 (f/Node. :0-1 0 [:b] 1)
-        edge-1 (f/Edge. "meh" [:c] 1)
-        edge-2 (f/Edge. "bleh" [:d] 1)
+        edge-1 (f/Edge. node-1 "meh" [:c] 1)
+        edge-2 (f/Edge. node-2 "bleh" [:d] 1)
         seg-c [edge-1 edge-2]
         ordered-layer (f/OrderedLayer. 0 0 [node-1 seg-c node-2])]
     (is (= (f/OrderedLayer->FlatLayer ordered-layer)
@@ -504,18 +499,18 @@
         node-2-0 (f/Node. :2-0 2 [:a] 1)
         node-2-1 (f/Node. :2-1 2 [:b] 1)
         node-2-2 (f/Node. :2-2 2 [:c] 1)
-        succ (f/Edge. node-2-1 [:b] 1)
-        pred (f/Edge. node-0-1 [:b] 1)
-        succs {node-0-0 #{(f/Edge. node-1-0 [:a] 1)}
+        succ (f/Edge. node-0-1 node-2-1 [:b] 1)
+        pred (f/Edge. node-2-1 node-0-1 [:b] 1)
+        succs {node-0-0 #{(f/Edge. node-0-0 node-1-0 [:a] 1)}
                node-0-1 #{succ}
-               node-0-2 #{(f/Edge. node-1-0 [:c] 1)}
-               node-1-0 #{(f/Edge. node-2-0 [:a] 1)
-                          (f/Edge. node-2-2 [:c] 1)}}
-        preds {node-1-0 #{(f/Edge. node-0-0 [:a] 1)
-                          (f/Edge. node-0-2 [:c] 1)}
-               node-2-0 #{(f/Edge. node-1-0 [:a] 1)}
+               node-0-2 #{(f/Edge. node-0-2 node-1-0 [:c] 1)}
+               node-1-0 #{(f/Edge. node-1-0 node-2-0 [:a] 1)
+                          (f/Edge. node-1-0 node-2-2 [:c] 1)}}
+        preds {node-1-0 #{(f/Edge. node-1-0 node-0-0 [:a] 1)
+                          (f/Edge. node-1-0 node-0-2 [:c] 1)}
+               node-2-0 #{(f/Edge. node-2-0 node-1-0 [:a] 1)}
                node-2-1 #{pred}
-               node-2-2 #{(f/Edge. node-1-0 [:c] 1)}}
+               node-2-2 #{(f/Edge. node-2-2 node-1-0 [:c] 1)}}
         layers [(f/OrderedLayer. 0 0 [node-0-0 node-0-1 node-0-2])
                 (f/OrderedLayer. 1 0 [node-1-0 [succ]])
                 (f/OrderedLayer. 2 0 [node-2-0 node-2-1 node-2-2])]
@@ -566,7 +561,7 @@
 
 
 (deftest test-check-alignment
-  (let [pred-edge (f/Edge. nil [:a] 1)
+  (let [pred-edge (f/Edge. nil nil [:a] 1)
         pred {:idx 2 :edge pred-edge :item nil}
         marked {:marked #{pred-edge}}
         unmarked {:marked #{}}]

@@ -4,9 +4,20 @@
             [clojure.string :as s]))
 
 
+(defprotocol Reversible
+  (rev [item] "It... reverses"))
+
+
 (defrecord Node [id layer-id characters weight])
-(defrecord Edge [dest characters weight])
-(defrecord Segment [dest layer-id characters weight])
+
+(defrecord Edge [src dest characters weight]
+  Reversible
+  (rev [this]
+    (assoc this
+      :src dest
+      :dest src)))
+
+(defrecord Segment [endpoints layer-id characters weight])
 (defrecord SparseGraph [layers succs preds ps qs rs])
 (defrecord SparseLayer [id duration nodes])
 (defrecord OrderedGraph [layers succs preds crossings marked])
@@ -19,25 +30,18 @@
 
 (defn Edge->Segment
   [edge layer-id]
-  (map->Segment (assoc edge :layer-id layer-id)))
+  (map->Segment (assoc edge
+                  :layer-id layer-id
+                  :endpoints #{(:src edge) (:dest edge)})))
 
 
 (defn add-edge [graph last-node node characters]
   "Creates an edge and adds it to the graph as a whole and to each participating node"
   (let [weight (count characters)
-        forward-edge (Edge. node characters weight)
-        ;; We record the "true" forward edge here, for marking edges that
-        ;; cross segment containers. The ordering algorithm works through
-        ;; the graph backwards on every second pass, and the cross counting
-        ;; algorithm switches the order of the layers depending on which
-        ;; is smaller, but we always layout and draw the graph forward, so the
-        ;; marked edges need to be the forward ones.
-        edge-1 (with-meta forward-edge {:forward-edge forward-edge})
-        edge-2 (with-meta (Edge. last-node characters weight)
-                 {:forward-edge forward-edge})]
+        edge (Edge. last-node node characters weight)]
     (-> graph
-        (update-in [:succs last-node] (fnil conj #{}) edge-1)
-        (update-in [:preds node] (fnil conj #{}) edge-2))))
+        (update-in [:succs last-node] (fnil conj #{}) edge)
+        (update-in [:preds node] (fnil conj #{}) (rev edge)))))
 
 
 (defn make-node [graph layer-id input]
@@ -301,7 +305,7 @@
                    (map (juxt identity
                               (partial mapcat #(-> % :characters))))
                    (map (fn [[seg-c characters]]
-                          [seg-c #{(Edge. seg-c characters (count characters))}]))
+                          [seg-c #{(Edge. seg-c seg-c characters (count characters))}]))
                    (into {})
                    (merge graph-edges))]
     (->> ordered
@@ -359,14 +363,17 @@
                   m (if is-seg-c
                       (:node-edges right-sib)
                       (if (:is-seg-c right-sib)
-                        #{(-> edge meta :forward-edge)}
+                        ;; Add this edge and its reverse to marked, because
+                        ;; we can go in either direction during later
+                        ;; blockification
+                        #{edge (rev edge)}
                         #{}))]
               (recur tree c (set/union marked m) parent-index))
             (let [t (-> (update-in tree [real-right-index :weight] + weight)
                         (cond->
                          is-seg-c (assoc-in [real-right-index :is-seg-c] true)
                          (not is-seg-c) (update-in [real-right-index :node-edges]
-                                                   conj (-> edge meta :forward-edge))))]
+                                                   conj edge (rev edge))))]
               (recur t crossings marked parent-index))))))))
 
 
