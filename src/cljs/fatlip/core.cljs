@@ -621,38 +621,9 @@
          (map #(into {} %)))))
 
 
-(defn ordered->flat-edge
-  [src edge]
-  (let [dest (:dest edge)
-        src-id (:layer-id src)
-        dest-id (:layer-id dest)
-        [srcs dests] (if (> src-id dest-id)
-                       (let [segs (map (partial Edge->Segment edge)
-                                       (range (inc dest-id) src-id))]
-                         [(conj (vec segs) src)
-                          (into [dest] segs)])
-                       (let [segs (map (partial Edge->Segment edge)
-                                       (range (inc src-id) dest-id))]
-                         [(into [src] segs)
-                          (conj (vec segs) dest)]))]
-    (map vector srcs dests)))
-
-
-(defn ordered->flat-src
-  [[src edges]]
-  (->> (mapcat (partial ordered->flat-edge src) edges)
-       (reduce (fn [preds [src dest]]
-                 (update-in preds [src] (fnil conj #{}) dest))
-               {})))
-
-
-(defn ordered->flat-edges
-  [edges]
-  (->> (map ordered->flat-src edges)
-       (apply merge)))
-
-
 (defn OrderedLayer->FlatLayer
+  "An OrderedLayer is composed of Nodes and vectors of Edges. This function
+  transforms an OrderedLayer into a FlatLayer composed of Nodes and Segments"
   [ordered-layer]
   (map->FlatLayer (assoc ordered-layer
                     :items (map #(if (instance? Edge %)
@@ -662,13 +633,17 @@
 
 
 (defn OrderedGraph->FlatGraph
+  "Transforms each OrderedLayer into a FlatLayer, and calculates attributes
+  that are useful for organizing Nodes and Segments into horizontally-
+  aligned blocks"
   [ordered-graph]
   (let [layers (into [] (map OrderedLayer->FlatLayer (:layers ordered-graph)))
         [aboves belows] (apply map merge (map neighborify layers))
         [top-idxs bot-idxs] (apply map merge (map indexify layers))]
     (map->FlatGraph {:layers layers
-                     :succs (ordered->flat-edges (:succs ordered-graph))
-                     :preds (ordered->flat-edges (:preds ordered-graph))
+                     :succs (:succs ordered-graph)
+                     :preds (:preds ordered-graph)
+                     :marked (:marked ordered-graph)
                      :aboves aboves
                      :belows belows
                      :top-idxs top-idxs
