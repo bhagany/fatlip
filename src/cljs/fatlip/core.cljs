@@ -652,65 +652,83 @@
 
 (defn check-alignment
   "Checks whether a predecessor is a valid alignment candidate"
-  [graph pred last-idx]
+  [pred last-idx marked]
   (if (and (< last-idx (:idx pred))
-           (not (contains? (:marked graph) (:edge pred))))
+           (not (contains? marked (:edge pred))))
     pred))
+
+
+(defn pred->segs+src
+  "Takes a predecessor Edge and returns a vector of Segments, one for each layer
+  this Edge crosses, plus the source Node"
+  [pred]
+  (let [src (:src pred)
+        dest (:dest pred)
+        src-layer (:layer-id src)
+        dest-layer (:layer-id dest)
+        segs (if (> src-layer dest-layer)
+               (map (partial Edge->Segment pred)
+                    (range (inc dest-layer) src-layer))
+               (map (partial Edge->Segment pred)
+                    (range (dec dest-layer) src-layer -1)))]
+    (conj (into [] segs) src)))
 
 
 (defn blockify-layer
   "Assign every node in a layer to an already-existing block, or begin a new
   block with it"
-  [graph layer]
-  (loop [grph graph
-         ;; TODO this needs work - we need nodes in sorted order for this particular alignment
-         nodes (-> graph :node-orders (get (:id layer)))
-         last-idx -1]
-    (if (empty? nodes)
-      grph
-      (let [node (first nodes)
-            layer-id (-> node :layer-id dec)
-            preds (->> (-> grph :preds (get node))
-                       (map #(if (= layer-id (-> % :dest :layer-id))
-                               {:edge % :item (:dest %)}
-                               {:edge % :item %}))
-                       (map #(assoc % :idx (get-in grph [:top-idxs layer-id (:item %)])))
-                       (sort-by :idx)
-                       (mapcat #(repeat (-> % :edge :weight) %)))
-            num-preds (count preds)
-            median (quot (dec num-preds) 2)
-            aligned (or (check-alignment grph (nth preds median) last-idx)
-                        ;; If we kind of have two medians because there are an even number
-                        ;; of predecessors, then we allow the "second" median to be used
-                        ;; if the first isn't available
-                        (and (even? num-preds)
-                             (check-alignment grph (nth preds (inc median)) last-idx)))
-            g (if (not aligned)
-                ;; No aligned nodes means it's a new block root
-                (-> (assoc-in grph [:roots node] node)
-                    (assoc-in [:blocks node] [node]))
-                ;; If we have an alignment, then we have the same root, and add this
-                ;; node to that root's block
-                (let [a (:item aligned)
-                      dest (if (instance? Edge a)
-                             (:dest a)
-                             a)
-                      root (-> grph :roots (get dest))]
-                  (-> (assoc-in grph [:roots node] root)
-                      (update-in [:blocks root] conj node))))]
-        (recur g (rest nodes) last-idx)))))
+  [layer pred-layer roots blocks preds top-idxs marked]
+  (let [pred-layer-id (:id pred-layer)]
+    (loop [nodes (filter #(instance? Node %) (:items layer))
+           last-idx -1
+           roots roots
+           blocks blocks]
+      (if (empty? nodes)
+        [roots blocks]
+        (let [node (first nodes)
+              preds (->> (get preds node)
+                         (map #(if (= pred-layer-id (-> % :dest :layer-id))
+                                 {:edge % :item (:dest %)}
+                                 {:edge % :item (Edge->Segment % pred-layer-id)}))
+                         (map #(assoc % :idx (get top-idxs (:item %))))
+                         (sort-by :idx)
+                         (mapcat #(repeat (-> % :edge :weight) %)))
+              num-preds (count preds)
+              median (quot (dec num-preds) 2)
+              aligned (and (pos? num-preds)
+                           (or (check-alignment (nth preds median) last-idx marked)
+                               ;; If we kind of have two medians because there are an even number
+                               ;; of predecessors, then we allow the "second" median to be used
+                               ;; if the first isn't available
+                               (and (even? num-preds)
+                                    (check-alignment (nth preds (inc median)) last-idx marked))))
+              [root items idx] (if aligned
+                                 ;; If we have an alignment, then we have the same root, and add this
+                                 ;; node to that root's block
+                                 [(get roots (-> aligned :edge :dest))
+                                  (pred->segs+src (:edge aligned))
+                                  (:idx aligned)]
+                                 ;; No aligned nodes means it's a new block root
+                                 [node [node] last-idx])
+              rs (reduce #(assoc-in %1 [%2] root) roots items)
+              bs (update-in blocks [root] (fnil rrb/catvec []) items)]
+          (recur (rest nodes) idx rs bs))))))
 
 
 (defn blockify
   "Associate nodes with their median-ly positioned parent if it exists, hasn't been
-  aligned with by another node, and we haven't aligned with nodes of higher index
+  aligned with by another node, and we haven't aligned with nodes of greater index
   in the past. Continue finding these alignments until we've assigned every node
   into a horizontally aligned block"
-  [ordered-graph]
-  (loop [graph ordered-graph
-         ;; We align based on predecessors, and the first layer doesn't have any
-         layers (-> graph :layers rest)]
+  [flat-graph]
+  (loop [pred-layer nil
+         layers (:layers flat-graph)
+         roots {}
+         blocks {}]
     (if (empty? layers)
-      graph
-      (recur (blockify-layer graph (first layers))
-             (rest layers)))))
+      [roots blocks]
+      (let [layer (first layers)
+            [rs bs] (blockify-layer layer pred-layer roots blocks
+                                    (:preds flat-graph) (:top-idxs flat-graph)
+                                    (:marked flat-graph))]
+        (recur layer (rest layers) rs bs)))))

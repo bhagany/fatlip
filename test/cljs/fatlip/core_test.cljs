@@ -460,23 +460,44 @@
 (deftest test-check-alignment
   (let [pred-edge (f/Edge. nil nil [:a] 1)
         pred {:idx 2 :edge pred-edge :item nil}
-        marked {:marked #{pred-edge}}
-        unmarked {:marked #{}}]
-    (is (nil? (f/check-alignment marked pred 1))
+        marked #{pred-edge}
+        unmarked #{}]
+    (is (nil? (f/check-alignment pred 1 marked))
         "Marked edge returns nil with last-idx < idx")
-    (is (nil? (f/check-alignment marked pred 2))
+    (is (nil? (f/check-alignment pred 2 marked))
         "Marked edge returns nil with last-idx = idx")
-    (is (nil? (f/check-alignment marked pred 3))
+    (is (nil? (f/check-alignment pred 3 marked))
         "Marked edge returns nil with last-idx > idx")
-    (is (= (f/check-alignment unmarked pred 1) pred)
+    (is (= (f/check-alignment pred 1 unmarked) pred)
         "Unmarked edge returns the pred with last-idx < idx")
-    (is (nil? (f/check-alignment unmarked pred 2))
+    (is (nil? (f/check-alignment pred 2 unmarked))
         "Unmarked edge returns nil with last-idx = idx")
-    (is (nil? (f/check-alignment unmarked pred 3))
+    (is (nil? (f/check-alignment pred 3 unmarked))
         "Unmarked edge returns nil with last-idx > idx")))
 
 
-#_(deftest test-blockify
+(deftest test-pred->segs+src
+  (let [node-1 (f/Node. :5-0 5 [:a] 1)
+        node-2 (f/Node. :0-0 0 [:a] 1)
+        pred (f/Edge. node-1 node-2 [:a] 1)
+        rev-pred (f/Edge. node-2 node-1 [:a] 1)]
+    (is (= (f/pred->segs+src pred)
+           [(f/Segment. #{node-1 node-2} 1 [:a] 1)
+            (f/Segment. #{node-1 node-2} 2 [:a] 1)
+            (f/Segment. #{node-1 node-2} 3 [:a] 1)
+            (f/Segment. #{node-1 node-2} 4 [:a] 1)
+            node-1])
+        "Predecessors are processed correctly when layers are increasing")
+    (is (= (f/pred->segs+src rev-pred)
+           [(f/Segment. #{node-1 node-2} 4 [:a] 1)
+            (f/Segment. #{node-1 node-2} 3 [:a] 1)
+            (f/Segment. #{node-1 node-2} 2 [:a] 1)
+            (f/Segment. #{node-1 node-2} 1 [:a] 1)
+            node-2])
+        "Predecessors are processed correctly when layers are decreasing")))
+
+
+(deftest test-blockify
   (let [;; Even predecessors
         node-1 (f/Node. :0-0 0 [:a] 1)
         node-2 (f/Node. :0-1 0 [:b] 1)
@@ -500,80 +521,81 @@
         edge-6 (f/Edge. node-11 node-6 [:f :g :h :i] 4)
         edge-7 (f/Edge. node-11 node-7 [:j] 1)
         edge-8 (f/Edge. node-11 node-8 [:k] 1)
-        layer-1 (f/Layer. 0 0 [node-1 node-2 node-3 node-4 node-5 node-6 node-7 node-8])
-        layer-2 (f/Layer. 1 0 [node-9 node-10 node-11])
-        graph {:layers [layer-1 layer-2]
-               :preds {node-9 #{edge-1 edge-2}
-                       node-10 #{edge-3 edge-4 edge-5}
-                       node-11 #{edge-6 edge-7 edge-8}}
-               :top-idxs {0 {node-1 0
-                             node-2 1
-                             node-3 2
-                             node-4 3
-                             node-5 4
-                             node-6 5
-                             node-7 6
-                             node-8 7}}
-               :roots {node-1 node-1
-                       node-2 node-2
-                       node-3 node-3
-                       node-4 node-4
-                       node-5 node-5
-                       node-6 node-6
-                       node-7 node-7
-                       node-8 node-8}
-               :blocks {node-1 [node-1]
-                        node-2 [node-2]
-                        node-3 [node-3]
-                        node-4 [node-4]
-                        node-5 [node-5]
-                        node-6 [node-6]
-                        node-7 [node-7]
-                        node-8 [node-8]}
-               :node-orders {0 [node-1 node-2 node-3 node-4
-                                node-5 node-6 node-7 node-8]
-                             1 [node-9 node-10 node-11]}}]
+        layer-1 (f/FlatLayer. 0 0 [node-1 node-2 node-3 node-4 node-5 node-6 node-7 node-8])
+        layer-2 (f/FlatLayer. 1 0 [node-9 node-10 node-11])
+        graph (f/map->FlatGraph {:layers [layer-1 layer-2]
+                                 :succs {}
+                                 :preds {node-9 #{edge-1 edge-2}
+                                         node-10 #{edge-3 edge-4 edge-5}
+                                         node-11 #{edge-6 edge-7 edge-8}}
+                                 :aboves {}
+                                 :belows {}
+                                 :top-idxs {node-1 0
+                                            node-2 1
+                                            node-3 2
+                                            node-4 3
+                                            node-5 4
+                                            node-6 5
+                                            node-7 6
+                                            node-8 7}
+                                 :bot-idxs {}})
+        base-roots {node-1 node-1
+                    node-2 node-2
+                    node-3 node-3
+                    node-4 node-4
+                    node-5 node-5
+                    node-6 node-6
+                    node-7 node-7
+                    node-8 node-8}
+        base-blocks {node-1 [node-1]
+                     node-2 [node-2]
+                     node-3 [node-3]
+                     node-4 [node-4]
+                     node-5 [node-5]
+                     node-6 [node-6]
+                     node-7 [node-7]
+                     node-8 [node-8]}]
     (is (= (f/blockify graph)
-           (-> graph
-               (update-in [:roots] assoc
-                          node-9 node-1
-                          node-10 node-4
-                          node-11 node-6)
-               (update-in [:blocks node-1] conj node-9)
-               (update-in [:blocks node-4] conj node-10)
-               (update-in [:blocks node-6] conj node-11)))
+           [(assoc base-roots
+               node-9 node-1
+               node-10 node-4
+               node-11 node-6)
+            (-> base-blocks
+                (update-in [node-1] conj node-9)
+                (update-in [node-4] conj node-10)
+                (update-in [node-6] conj node-11))])
         "Base case for even preds, odd preds, and weighted edges work right")
     (let [g (assoc graph :marked #{edge-1})]
       (is (= (f/blockify g)
-             (-> g
-                 (update-in [:roots] assoc
-                            node-9 node-2
-                            node-10 node-4
-                            node-11 node-6)
-                 (update-in [:blocks node-2] conj node-9)
-                 (update-in [:blocks node-4] conj node-10)
-                 (update-in [:blocks node-6] conj node-11)))
+             [(assoc base-roots
+                node-9 node-2
+                node-10 node-4
+                node-11 node-6)
+              (-> base-blocks
+                  (update-in [node-2] conj node-9)
+                  (update-in [node-4] conj node-10)
+                  (update-in [node-6] conj node-11))])
           "Marked first medians are skipped"))
-    (let [g (-> (assoc-in graph [:top-idxs 0 node-1] 1)
-                (assoc-in [:top-idxs 0 node-2] 0))]
+    (let [g (-> (assoc-in graph [:top-idxs node-1] 1)
+                (assoc-in [:top-idxs node-2] 0))]
       (is (= (f/blockify g)
-             (-> g
-                 (update-in [:roots] assoc
-                            node-9 node-2
-                            node-10 node-4
-                            node-11 node-6)
-                 (update-in [:blocks node-2] conj node-9)
-                 (update-in [:blocks node-4] conj node-10)
-                 (update-in [:blocks node-6] conj node-11)))
+             [(assoc base-roots
+                 node-9 node-2
+                 node-10 node-4
+                 node-11 node-6)
+              (-> base-blocks
+                  (update-in [node-2] conj node-9)
+                  (update-in [node-4] conj node-10)
+                  (update-in [node-6] conj node-11))])
           "First medians that have already been crossed are skipped"))
     (let [g (assoc graph :marked #{edge-1 edge-2 edge-3 edge-4 edge-5})]
       (is (= (f/blockify g)
-             (-> g
-                 (update-in [:roots] assoc
-                            node-9 node-9
-                            node-10 node-10
-                            node-11 node-6)
-                 (assoc-in [:blocks node-9] [node-9])
-                 (assoc-in [:blocks node-10] [node-10])
-                 (update-in [:blocks node-6] conj node-11)))
+             [(assoc base-roots
+                 node-9 node-9
+                 node-10 node-10
+                 node-11 node-6)
+              (-> base-blocks
+                  (assoc-in [node-9] [node-9])
+                  (assoc-in [node-10] [node-10])
+                  (update-in [node-6] conj node-11))])
           "Nodes without valid medians start their own blocks"))))
