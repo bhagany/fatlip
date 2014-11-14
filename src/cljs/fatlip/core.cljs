@@ -425,16 +425,14 @@
 (defn count-sub-crossings-single-node
   "Counts sub-crossings for a node; short circuits if there are fewer
   than two successor nodes"
-  [node succs measures]
-  (let [dests (-> (get succs node)
-                  (->> (map #(:dest %))))
-        num-dests (count dests)]
+  [node dests]
+  (let [num-dests (count dests)]
     (if (< num-dests 2)
       0
-      (let [order-map (->> (sort-by #(get measures %) dests)
-                           (map-indexed (fn [idx n]
+      (let [order-map (->> (map-indexed (fn [idx n]
                                           (map #(-> [% idx])
-                                               (:characters n))))
+                                               (:characters n)))
+                                        dests)
                            (reduce into {}))
             num-acc-leaves (next-power-of-2 num-dests)
             first-leaf (dec num-acc-leaves)
@@ -459,13 +457,15 @@
   that is not detected by the coarser-grained node-by-node cross
   counting. We apply the same methodology here, but without needing
   to deal with crossing segments, or with edge weight"
-  [minus-ps succs measures]
+  [minus-ps minus-qs succs]
   (loop [nodes (filter #(instance? Node %) minus-ps)
          crossings 0]
     (if (empty? nodes)
       crossings
       (let [node (first nodes)
-            c (count-sub-crossings-single-node node succs measures)]
+            dest-set (into #{} (map :dest (get succs node)))
+            dests (filter #(contains? dest-set %) minus-qs)
+            c (count-sub-crossings-single-node node dests)]
         (recur (rest nodes) (+ crossings c))))))
 
 
@@ -499,9 +499,9 @@
     compact representation is the same as the index of the first leaf in the
     expanded tree, and the index of a right sibling in the compact
     representation is the same as that node's parent in the expanded tree"
-  [minus-ps minus-qs preds succs measures]
+  [minus-ps minus-qs preds succs]
   (let [[sup-crossings marked] (count-and-mark-super-crossings minus-ps minus-qs preds succs)
-        sub-crossings (count-sub-crossings minus-ps succs measures)]
+        sub-crossings (count-sub-crossings minus-ps minus-qs succs)]
     [(+ sup-crossings sub-crossings) marked]))
 
 
@@ -539,7 +539,7 @@
         measures (set-measures non-qs preds positions)
         minus-qs (merge-layer minus-ps positions non-qs measures)
         items (add-qs minus-qs qs)
-        [crossings marked] (count-and-mark-crossings minus-ps minus-qs preds succs measures)]
+        [crossings marked] (count-and-mark-crossings minus-ps minus-qs preds succs)]
     [(OrderedLayer. (:id layer) (:duration layer) items)
      crossings
      marked]))

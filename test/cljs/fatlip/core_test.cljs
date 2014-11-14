@@ -298,23 +298,17 @@
 
 (deftest test-count-sub-crossings-single-node
   (let [node (f/Node. :0-0 0 [:a] 1)
-        succs {}
-        measures {}]
-    (is (= (f/count-sub-crossings-single-node node succs measures) 0)
+        dests #{}]
+    (is (= (f/count-sub-crossings-single-node node dests) 0)
         "A node with 0 successors has 0 sub-crossings"))
   (let [node (f/Node. :0-0 0 [:a] 1)
-        s-node (f/Node. :1-0 1 [:a] 1)
-        succs {node #{(f/Edge. node s-node [:a] 1)}}
-        measures {s-node 1}]
-    (is (= (f/count-sub-crossings-single-node node succs measures) 0)
+        dests #{(f/Node. :1-0 1 [:a] 1)}]
+    (is (= (f/count-sub-crossings-single-node node dests) 0)
         "A node with 1 successor has 0 sub-crossings"))
   (let [node (f/Node. :0-0 0 [:a :b] 2)
-        succ-1 (f/Node. :1-0 1 [:a] 1)
-        succ-2 (f/Node. :1-1 1 [:b] 1)
-        succs {node (set (map #(f/Edge. node % (:characters %) 1)
-                              [succ-1 succ-2]))}
-        measures {succ-2 0 succ-1 1}]
-    (is (= (f/count-sub-crossings-single-node node succs measures) 1)
+        dests #{(f/Node. :1-0 1 [:a] 1)
+                (f/Node. :1-1 1 [:b] 1)}]
+    (is (= (f/count-sub-crossings-single-node node dests) 1)
         "A node with multiple successors has its sub-crossings counted")))
 
 
@@ -327,13 +321,12 @@
         nl-node-3 (f/Node. :1-2 1 [:a] 1)
         nl-node-4 (f/Node. :1-3 1 [:d] 1)
         minus-ps [l-node-1 l-node-2 l-node-3]
-        measures {nl-node-1 0, nl-node-2 1,
-                  nl-node-3 2, nl-node-4 3}
+        minus-qs [nl-node-1 nl-node-2 nl-node-3 nl-node-4]
         succs {l-node-1 (set (map #(f/Edge. l-node-1 % (:characters %) (:weight %))
                                   [nl-node-1 nl-node-2 nl-node-3]))
                l-node-2 (set (map #(f/Edge. l-node-2 % (:characters %) (:weight %))
                                   [nl-node-4]))}]
-    (is (= (f/count-sub-crossings minus-ps succs measures) 3)
+    (is (= (f/count-sub-crossings minus-ps minus-qs succs) 3)
         "Sub crossings are counted correctly")))
 
 
