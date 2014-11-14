@@ -547,30 +547,27 @@
 
 (defn SparseGraph->OrderedGraph
   "Performs one layer-by-layer sweep of the graph using ESK's algorithm"
-  [sparse-graph]
-  (let [first-sparse-layer (-> sparse-graph :layers first)]
-    (loop [prev-layer (map->OrderedLayer (-> first-sparse-layer
-                                             (dissoc :nodes)
-                                             (assoc :items (:nodes first-sparse-layer))))
-           ordered-graph (map->OrderedGraph {:layers [prev-layer]
-                                             :succs (:succs sparse-graph)
-                                             :preds (:preds sparse-graph)
-                                             :crossings 0
-                                             :marked #{}})
-           layers (-> sparse-graph :layers rest)]
-      (if (empty? layers)
-        ordered-graph
-        (let [[o-layer crossings marked] (order-sparse-layer (first layers)
-                                                             prev-layer
-                                                             (:ps sparse-graph)
-                                                             (:qs sparse-graph)
-                                                             (:succs sparse-graph)
-                                                             (:preds sparse-graph))
-              g (-> ordered-graph
-                    (update-in [:layers] conj o-layer)
-                    (update-in [:crossings] + crossings)
-                    (update-in [:marked] set/union marked))]
-          (recur o-layer g (rest layers)))))))
+  [sparse-graph first-layer]
+  (loop [ordered-graph (map->OrderedGraph {:layers [first-layer]
+                                           :succs (:succs sparse-graph)
+                                           :preds (:preds sparse-graph)
+                                           :crossings 0
+                                           :marked #{}})
+         prev-layer first-layer
+         layers (-> sparse-graph :layers rest)]
+    (if (empty? layers)
+      ordered-graph
+      (let [[o-layer crossings marked] (order-sparse-layer (first layers)
+                                                           prev-layer
+                                                           (:ps sparse-graph)
+                                                           (:qs sparse-graph)
+                                                           (:succs sparse-graph)
+                                                           (:preds sparse-graph))
+            g (-> ordered-graph
+                  (update-in [:layers] conj o-layer)
+                  (update-in [:crossings] + crossings)
+                  (update-in [:marked] set/union marked))]
+        (recur g o-layer (rest layers))))))
 
 
 (defn orderings
@@ -582,17 +579,29 @@
   - Removed the concept of alternating layers, which don't help much, and hurt a bit
   - Added weights to nodes and edges"
   [sparse-graph]
-  ;; seed the first layer with initial ordered layer
-  (loop [orderings []]
-    (let [c (count orderings)]
-      (if (= c 20)
-        orderings
-        (let [reverse? (odd? c)
-              ordered-graph (-> (if reverse?
-                                  (reverse-graph sparse-graph)
-                                  sparse-graph)
-                                SparseGraph->OrderedGraph)]
-          (recur (conj orderings (if reverse? (reverse-graph ordered-graph) ordered-graph))))))))
+  (let [first-sparse-layer (-> sparse-graph :layers first)]
+    (loop [orderings []
+           ;; seed the first layer with initial ordered layer
+           first-layer (map->OrderedLayer
+                        (-> first-sparse-layer
+                            (dissoc :nodes)
+                            (assoc :items (:nodes first-sparse-layer))))
+           first-layers #{first-layer}]
+      (let [c (count orderings)]
+        (if (= c 20)
+          orderings
+          (let [reverse? (odd? c)
+                ordered-graph (-> (if reverse?
+                                    (reverse-graph sparse-graph)
+                                    sparse-graph)
+                                  (SparseGraph->OrderedGraph first-layer))
+                ords (conj orderings (if reverse?
+                                       (reverse-graph ordered-graph)
+                                       ordered-graph))
+                layers (:layers ordered-graph)
+                last-layer (layers (dec (count layers)))]
+            ;; The last layer of the current ordering is the first layer of the next
+            (recur ords last-layer (conj first-layers last-layer))))))))
 
 
 (defn neighborify
