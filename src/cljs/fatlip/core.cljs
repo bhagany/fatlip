@@ -586,9 +586,12 @@
                         (-> first-sparse-layer
                             (dissoc :nodes)
                             (assoc :items (:nodes first-sparse-layer))))
-           first-layers #{first-layer}]
+           first-layers #{}]
       (let [c (count orderings)]
-        (if (= c 20)
+        ;; Graph orderings are determined by the first layer. If we've seen this
+        ;; first layer before, then we can be sure that we're about to enter
+        ;; a cycle, and can thus short circuit
+        (if (or (= c 20) (contains? first-layers first-layer))
           orderings
           (let [reverse? (odd? c)
                 ordered-graph (-> (if reverse?
@@ -601,7 +604,7 @@
                 layers (:layers ordered-graph)
                 last-layer (layers (dec (count layers)))]
             ;; The last layer of the current ordering is the first layer of the next
-            (recur ords last-layer (conj first-layers last-layer))))))))
+            (recur ords last-layer (conj first-layers first-layer))))))))
 
 
 (defn neighborify
