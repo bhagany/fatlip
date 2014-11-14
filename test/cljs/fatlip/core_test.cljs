@@ -599,3 +599,162 @@
                   (assoc-in [node-10] [node-10])
                   (update-in [node-6] conj node-11))])
           "Nodes without valid medians start their own blocks"))))
+
+
+(let [node-0-0 (f/Node. :0-0 0 [:a :b :c :d :e :f
+                                :g :h :i :j :k] 11)
+      node-1-0 (f/Node. :1-0 1 [:a :b :c :d :e] 5)
+      node-1-1 (f/Node. :1-1 1 [:f :g :h :i :j :k] 6)
+      node-2-0 (f/Node. :2-0 2 [:a :b :c :d] 4)
+      node-2-1 (f/Node. :2-1 2 [:f :g :h] 3)
+      node-2-2 (f/Node. :2-2 2 [:i :j] 2)
+      node-2-3 (f/Node. :2-3 2 [:k] 1)
+      node-3-0 (f/Node. :3-0 3 [:l :m :n :o :p :q :r :s] 8)
+      node-3-1 (f/Node. :3-1 3 [:f :g :h] 3)
+      node-3-2 (f/Node. :3-2 3 [:k] 1)
+      node-4-0 (f/Node. :4-0 4 [:l :m :n :o :p :q :r :s] 8)
+      node-4-1 (f/Node. :4-1 4 [:t :u :v :w :x] 5)
+      node-4-2 (f/Node. :4-2 4 [:i :j] 2)
+      node-5-0 (f/Node. :5-0 5 [:t :u :v :w :x] 5)
+      node-6-0 (f/Node. :6-0 6 [:y :z] 2)
+      node-6-1 (f/Node. :6-1 6 [:t :u :v :w :x] 5)
+      node-7-0 (f/Node. :7-0 7 [:1 :2 :3] 3)
+      node-7-1 (f/Node. :7-1 7 [:y :z] 2)
+      node-8-0 (f/Node. :8-0 8 [:1 :2 :3] 3)
+      pred-1 (f/Edge. node-1-0 node-0-0 [:a :b :c :d :e] 5)
+      pred-2 (f/Edge. node-1-1 node-0-0 [:f :g :h :i :j :k] 6)
+      pred-3 (f/Edge. node-2-0 node-1-0 [:a :b :c :d] 4)
+      pred-4 (f/Edge. node-2-1 node-1-1 [:f :g :h] 3)
+      pred-5 (f/Edge. node-2-2 node-1-1 [:i :j] 2)
+      pred-6 (f/Edge. node-2-3 node-1-1 [:k] 1)
+      pred-7 (f/Edge. node-3-1 node-2-1 [:f :g :h] 3)
+      pred-8 (f/Edge. node-4-2 node-2-2 [:i :j] 2)
+      pred-9 (f/Edge. node-3-2 node-2-3 [:k] 1)
+      pred-10 (f/Edge. node-4-0 node-3-0 [:l :m :n :o :p :q :r :s] 8)
+      pred-11 (f/Edge. node-5-0 node-4-1 [:t :u :v :w :x] 5)
+      pred-12 (f/Edge. node-6-1 node-5-0 [:t :u :v :w :x] 5)
+      pred-13 (f/Edge. node-7-1 node-6-0 [:y :z] 2)
+      pred-14 (f/Edge. node-8-0 node-7-0 [:1 :2 :3] 3)
+      layer-0 (f/FlatLayer. 0 0 [node-0-0])
+      layer-1 (f/FlatLayer. 1 0 [node-1-0 node-1-1])
+      layer-2 (f/FlatLayer. 2 0 [node-2-0 node-2-1 node-2-2 node-2-3])
+      layer-3 (f/FlatLayer. 3 0 [node-3-0 node-3-1 node-3-2])
+      layer-4 (f/FlatLayer. 4 0 [node-4-0 node-4-1 node-4-2])
+      layer-5 (f/FlatLayer. 5 0 [node-5-0])
+      layer-6 (f/FlatLayer. 6 0 [node-6-0 node-6-1])
+      layer-7 (f/FlatLayer. 7 0 [node-7-0 node-7-1])
+      layer-8 (f/FlatLayer. 8 0 [node-8-0])
+      seg (f/Segment. #{node-2-2 node-4-2} 3 [:i :j] 2)
+      graph (f/map->FlatGraph {:layers [layer-0 layer-1 layer-2 layer-3 layer-4
+                                        layer-5 layer-6 layer-7 layer-8]
+                               :succs {}
+                               :preds {node-1-0 #{pred-1}
+                                       node-1-1 #{pred-2}
+                                       node-2-0 #{pred-3}
+                                       node-2-1 #{pred-4}
+                                       node-2-2 #{pred-5}
+                                       node-2-3 #{pred-6}
+                                       node-3-1 #{pred-7}
+                                       node-4-2 #{pred-8}
+                                       node-3-2 #{pred-9}
+                                       node-4-0 #{pred-10}
+                                       node-5-0 #{pred-11}
+                                       node-6-1 #{pred-12}
+                                       node-7-1 #{pred-13}
+                                       node-8-0 #{pred-14}}
+                               :aboves {node-1-1 node-1-0
+                                        node-2-1 node-2-0
+                                        node-2-2 node-2-1
+                                        node-2-3 node-2-2
+                                        node-3-1 node-3-0
+                                        seg node-3-1
+                                        node-3-2 seg
+                                        node-4-1 node-4-0
+                                        node-4-2 node-4-1
+                                        node-6-1 node-6-0
+                                        node-7-1 node-7-0}
+                               :belows {}
+                               :top-idxs {node-0-0 0
+                                          node-1-0 0
+                                          node-1-1 1
+                                          node-2-0 0
+                                          node-2-1 1
+                                          node-2-2 2
+                                          node-2-3 3
+                                          node-3-0 0
+                                          node-3-1 1
+                                          seg 2
+                                          node-3-2 3
+                                          node-4-0 0
+                                          node-4-1 1
+                                          node-4-2 2
+                                          node-5-0 0
+                                          node-6-0 0
+                                          node-6-1 1
+                                          node-7-0 0
+                                          node-7-1 1
+                                          node-8-0 0}
+                               :bot-idxs {}})
+      block-1 [node-0-0 node-1-0 node-2-0]
+      block-2 [node-1-1 node-2-1 node-3-1]
+      block-3 [node-2-2 seg node-4-2]
+      block-4 [node-2-3 node-3-2]
+      block-5 [node-3-0 node-4-0]
+      block-6 [node-4-1 node-5-0 node-6-1]
+      block-7 [node-6-0 node-7-1]
+      block-8 [node-7-0 node-8-0]
+      block-succs {block-1 #{(f/BlockEdge. block-1 block-2 5)}
+                   block-2 #{(f/BlockEdge. block-2 block-3 3)}
+                   block-3 #{(f/BlockEdge. block-3 block-4 2)}
+                   block-5 #{(f/BlockEdge. block-5 block-2 8)
+                             (f/BlockEdge. block-5 block-6 8)}
+                   block-6 #{(f/BlockEdge. block-6 block-3 5)}
+                   block-7 #{(f/BlockEdge. block-7 block-6 2)}
+                   block-8 #{(f/BlockEdge. block-8 block-7 3)}}
+      block-graph (f/map->BlockGraph {:roots {node-0-0 node-0-0
+                                              node-1-0 node-0-0
+                                              node-1-1 node-1-1
+                                              node-2-0 node-0-0
+                                              node-2-1 node-1-1
+                                              node-2-2 node-2-2
+                                              node-2-3 node-2-3
+                                              node-3-0 node-3-0
+                                              node-3-1 node-1-1
+                                              seg node-2-2
+                                              node-3-2 node-2-3
+                                              node-4-0 node-3-0
+                                              node-4-1 node-4-1
+                                              node-4-2 node-2-2
+                                              node-5-0 node-4-1
+                                              node-6-0 node-6-0
+                                              node-6-1 node-4-1
+                                              node-7-0 node-7-0
+                                              node-7-1 node-6-0
+                                              node-8-0 node-7-0}
+                                      :blocks {node-0-0 block-1
+                                               node-1-1 block-2
+                                               node-2-2 block-3
+                                               node-2-3 block-4
+                                               node-3-0 block-5
+                                               node-4-1 block-6
+                                               node-6-0 block-7
+                                               node-7-0 block-8}
+                                      :succs block-succs
+                                      :sources [block-1 block-5 block-8]})
+      class-roots {block-1 node-0-0
+                   block-2 node-0-0
+                   block-3 node-0-0
+                   block-4 node-0-0
+                   block-5 node-3-0
+                   block-6 node-3-0
+                   block-7 node-7-0
+                   block-8 node-7-0}
+      class-1 #{block-1 block-2 block-3 block-4}
+      class-2 #{block-5 block-6}
+      class-3 #{block-7 block-8}
+      classes {node-0-0 class-1
+               node-3-0 class-2
+               node-7-0 class-3}]
+  (deftest test-FlatGraph->BlockGraph
+    (is (= (f/FlatGraph->BlockGraph graph) block-graph)
+        "FlatGraphs translate to BlockGraphs")))

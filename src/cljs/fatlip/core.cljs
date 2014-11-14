@@ -732,3 +732,43 @@
                                     (:preds flat-graph) (:top-idxs flat-graph)
                                     (:marked flat-graph))]
         (recur layer (rest layers) rs bs)))))
+
+
+(defn FlatGraph->BlockGraph
+  "Organizes all of the Nodes and Segments in a FlatGraph into horizontally-
+  aligned blocks. These blocks are then organized into a graph of their own,
+  where the nodes are blocks and the edges are determined by adjacency
+  between their constituent Nodes and Segments in each FlatLayer"
+  [flat-graph]
+  (let [[roots blocks] (blockify flat-graph)]
+    (loop [bs blocks
+           graph-map {:roots roots :blocks blocks :succs {}}]
+      (if (empty? bs)
+        (let [block-set (into #{} (-> graph-map :blocks vals))
+              all-succs (into #{} (->> (reduce set/union
+                                               (-> graph-map :succs vals))
+                                       (map :dest)))
+              long-block (first (filter #(> (count %) 1) block-set))
+              layer-id-compare (if (< (-> long-block first :layer-id)
+                                      (-> long-block second :layer-id))
+                                 < >)
+              sources (->> (set/difference block-set all-succs)
+                           (sort-by #(:layer-id (get % 0))
+                                    layer-id-compare))]
+          (map->BlockGraph (assoc graph-map :sources sources)))
+        (let [block (-> bs first second)  ; we want the value in the map
+              succs (->> (map #(get-in flat-graph [:aboves %]) block)
+                         (remove nil?)
+                         (group-by #(get roots %))
+                         (map (fn [[above-root above-nodes]]
+                                (BlockEdge.
+                                 (-> graph-map :blocks (get above-root))
+                                 block
+                                 (apply max (map :weight above-nodes))))))
+              bg (reduce #(update-in %1
+                                     [:succs (:src %2)]
+                                     (fnil conj #{})
+                                     %2)
+                         graph-map
+                         succs)]
+          (recur (rest bs) bg))))))
