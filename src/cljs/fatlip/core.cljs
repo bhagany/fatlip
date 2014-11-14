@@ -809,7 +809,7 @@
       (let [root-block (first sources)
             root (first root-block)
             proto-class (classify-source root-block (:succs block-graph))
-            class (apply (partial set/difference proto-class) (vals classes))]
+            class (apply set/difference proto-class (vals classes))]
         (recur (rest sources)
                (reduce #(assoc-in %1 [%2] root) roots class)
                (assoc classes root class))))))
