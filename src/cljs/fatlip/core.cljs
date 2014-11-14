@@ -772,3 +772,54 @@
                          graph-map
                          succs)]
           (recur (rest bs) bg))))))
+
+
+(defn classify-source
+  "Given a class that is a source in a ClassGraph, returns a set containing
+  that class and all of its descendants"
+  [source succs]
+  (set/union #{source}
+             (apply set/union
+                    (map #(classify-source (:dest %) succs)
+                         (get succs source)))))
+
+
+(defn classify
+  "Given a BlockGraph, organizes the blocks into classes that are defined as
+  all blocks that are reachable from a block that is a source in its BlockGraph,
+  with preference given to the left-most sources"
+  [block-graph]
+  (loop [sources (:sources block-graph)
+         roots {}
+         classes {}]
+    (if (empty? sources)
+      [roots classes]
+      (let [root-block (first sources)
+            root (first root-block)
+            proto-class (classify-source root-block (:succs block-graph))
+            class (apply (partial set/difference proto-class) (vals classes))]
+        (recur (rest sources)
+               (reduce #(assoc-in %1 [%2] root) roots class)
+               (assoc classes root class))))))
+
+
+(defn BlockGraph->ClassGraph
+  "Given a BlockGraph, organizes the blocks into classes and then constructs a
+  ClassGraph, where the nodes are classes and the edges are BlockEdges that span
+  classes. This means there can be multiple edges per class pair."
+  [block-graph]
+  (let [[roots classes] (classify block-graph)]
+    (loop [cs (vals classes)
+           graph-map {:roots roots :classes classes :succs {}}]
+      (if (empty? cs)
+        (let [class-set (into #{} (-> graph-map :classes vals))
+              all-succs (into #{} (->> (reduce set/union (-> graph-map :succs vals))
+                                       (map #(get-in graph-map [:roots (:dest %)]))
+                                       (map #(get-in graph-map [:classes %]))))
+              sources (set/difference class-set all-succs)]
+          (map->ClassGraph (assoc graph-map :sources sources)))
+        (let [class (first cs)
+              succs (->> (mapcat #(-> block-graph :succs (get %)) class)
+                         (remove #(contains? class (:dest %)))
+                         (into #{}))]
+          (recur (rest cs) (assoc-in graph-map [:succs class] succs)))))))

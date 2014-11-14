@@ -757,4 +757,20 @@
                node-7-0 class-3}]
   (deftest test-FlatGraph->BlockGraph
     (is (= (f/FlatGraph->BlockGraph graph) block-graph)
-        "FlatGraphs translate to BlockGraphs")))
+        "FlatGraphs translate to BlockGraphs"))
+  (deftest test-classify-source
+    (is (= (f/classify-source block-1 block-succs) class-1)
+        "Descendents of a source block are correctly categorized"))
+  (deftest test-classify
+    (is (= (f/classify block-graph) [class-roots classes])
+        "Classes are calculated from BlockGraphs"))
+  (deftest test-BlockGraph->ClassGraph
+    (is (= (f/BlockGraph->ClassGraph block-graph)
+           (f/map->ClassGraph {:roots class-roots
+                               :classes classes
+                               :succs {class-1 #{}
+                                       class-2 #{(f/BlockEdge. block-5 block-2 8)
+                                                 (f/BlockEdge. block-6 block-3 5)}
+                                       class-3 #{(f/BlockEdge. block-7 block-6 2)}}
+                               :sources #{class-3}}))
+        "ClassGraphs are derived from Blockgraphs")))
