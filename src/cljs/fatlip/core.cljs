@@ -22,17 +22,22 @@
 (defrecord SparseLayer [id duration nodes])
 (defrecord OrderedGraph [layers succs preds crossings marked])
 (defrecord OrderedLayer [id duration items])
-(defrecord FlatGraph [layers preds aboves belows top-idxs bot-idxs])
+(defrecord FlatGraph [layers succs preds aboves belows top-idxs bot-idxs])
 (defrecord FlatLayer [id duration items])
-(defrecord BlockEdge [dest weight])
+(defrecord BlockGraph [blocks roots succs sources])
+(defrecord BlockEdge [src dest weight])
+(defrecord ClassGraph [classes roots succs sources])
 (defrecord AccumulatorNode [weight node-edges is-seg-c])
 
 
 (defn Edge->Segment
+  "Does what it says on the tin; Segments represent the portion of an Edge that
+  crosses a particular layer"
   [edge layer-id]
-  (map->Segment (assoc edge
-                  :layer-id layer-id
-                  :endpoints #{(:src edge) (:dest edge)})))
+  (map->Segment {:endpoints #{(:src edge) (:dest edge)}
+                 :layer-id layer-id
+                 :characters (:characters edge)
+                 :weight (:weight edge)}))
 
 
 (defn add-edge [graph last-node node characters]
