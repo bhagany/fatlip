@@ -174,7 +174,9 @@
                                   :rs #{}})
          inp input]
     (if (empty? inp)
-      graph
+      (if (empty? (:succs graph))
+        (throw (js/Error. "At least one character must appear twice"))
+        graph)
       (let [i (first inp)
             dup-character (->> (mapcat #(:characters %) (:groups i))
                                frequencies
