@@ -188,13 +188,13 @@
           (recur (add-layer graph i) (rest inp)))))))
 
 
-(defn replace-ps
+(defn replace-nodes-with-edges
   "Step 1 of ESK - replace all p nodes with edges and merge segment containers"
-  [items ps succs]
+  [items nodes edges]
   (->> items
-       (map #(if (contains? ps %)
+       (map #(if (contains? nodes %)
                ;; p nodes always have only one successor
-               [(-> succs (get %) first)]
+               [(-> edges (get %) first)]
                %))
        (reduce #(if (and (vector? (peek %1))
                          (vector? %2))
@@ -531,7 +531,7 @@
 
 (defn order-sparse-layer
   [layer prev-layer ps qs succs preds]
-  (let [minus-ps (replace-ps (:items prev-layer) ps succs)
+  (let [minus-ps (replace-nodes-with-edges (:items prev-layer) ps succs)
         positions (set-positions minus-ps)
         [qs non-qs] (map set
                          ((juxt filter remove) #(contains? qs %)

@@ -62,7 +62,7 @@
 
 
 ;; Fine-grained ESK
-(deftest test-replace-ps
+(deftest test-replace-nodes-with-edges
   (let [p (f/Node. :0-0 0 [:a] 1)
         p-edge (f/Edge. p (f/Node. :1-0 0 [:a] 1) [:a] 1)
         not-p (f/Node. :0-1 0 [:b] 1)
@@ -71,7 +71,7 @@
         items [p seg-c not-p]
         ps #{p}
         succs {p #{p-edge}, not-p #{(f/Edge. not-p (f/Node. :1-0 0 [:b] 1) [:b] 1)}}]
-    (is (= (f/replace-ps items ps succs)
+    (is (= (f/replace-nodes-with-edges items ps succs)
            [[p-edge seg-c-edge] not-p])
         "P nodes get replaced by segment containers, and joined with adjacent segment containers")))
 
