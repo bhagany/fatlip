@@ -21,23 +21,24 @@
                {:duration 10
                 :groups [{:characters [:e :f :x]}]}]
         graph (f/inp->SparseGraph input)
-        orderings (f/orderings graph)
-        ordered-graph (get orderings 0)]
-    (is (= (count (:layers graph)) (count (:layers ordered-graph)) 4) "Number of layers")
+        cm-graph (-> graph
+                     f/SparseGraph->ordered-graphs
+                     f/best-ordering)]
+    (is (= (count (:layers graph)) (count (:layers cm-graph)) 4) "Number of layers")
     (is (= (count (-> graph :layers (get 0) :nodes))
-           (count (-> ordered-graph :layers (get 0) :items))
+           (count (-> cm-graph :layers (get 0) :items))
            3)
         "Number of nodes in layer 0")
     (is (= (count (-> graph :layers (get 1) :nodes))
-           (count (-> ordered-graph :layers (get 1) :items))
+           (count (-> cm-graph :layers (get 1) :items))
            6)
         "Number of nodes in layer 1")
     (is (= (count (-> graph :layers (get 2) :nodes))
-           (count (-> ordered-graph :layers (get 2) :items))
+           (count (-> cm-graph :layers (get 2) :items))
            3)
         "Number of nodes in layer 2")
     (is (= (count (-> graph :layers (get 3) :nodes))
-           (count (-> ordered-graph :layers (get 3) :items))
+           (count (-> cm-graph :layers (get 3) :items))
            1)
         "Number of nodes in layer 3")
     (is (= (count (:ps graph)) 2) "Number of p nodes")
@@ -49,20 +50,20 @@
         "Number of edges")
 
     ;; ESK ordering
-    (is (= (count (:marked ordered-graph)) 2) "Number of marked edges")
-    (is (= (:crossings ordered-graph) 9) "Number of crossings")
-    (is (empty? (->> (:layers ordered-graph)
+    (is (= (count (:marked cm-graph)) 2) "Number of marked edges")
+    (is (= (:crossings cm-graph) 9) "Number of crossings")
+    (is (empty? (->> (:layers cm-graph)
                      (mapcat #(:minus-ps %))
-                     (filter #(contains? (:ps ordered-graph) %))))
+                     (filter #(contains? (:ps cm-graph) %))))
         "No p nodes in :minus-ps")
-    (is (empty? (->> (:layers ordered-graph)
+    (is (empty? (->> (:layers cm-graph)
                      (mapcat #(:minus-qs %))
-                     (filter #(contains? (:qs ordered-graph) %))))
+                     (filter #(contains? (:qs cm-graph) %))))
         "No q nodes in :minus-qs")))
 
 
 ;; Fine-grained ESK
-(deftest test-replace-nodes-with-edges
+(deftest test-replace-ps
   (let [p (f/Node. :0-0 0 [:a] 1)
         p-edge (f/Edge. p (f/Node. :1-0 0 [:a] 1) [:a] 1)
         not-p (f/Node. :0-1 0 [:b] 1)
@@ -71,7 +72,7 @@
         items [p seg-c not-p]
         ps #{p}
         succs {p #{p-edge}, not-p #{(f/Edge. not-p (f/Node. :1-0 0 [:b] 1) [:b] 1)}}]
-    (is (= (f/replace-nodes-with-edges items ps succs)
+    (is (= (f/replace-ps items ps succs)
            [[p-edge seg-c-edge] not-p])
         "P nodes get replaced by segment containers, and joined with adjacent segment containers")))
 
@@ -385,7 +386,7 @@
         "Ordered layers get transformed into flat layers")))
 
 
-(deftest test-OrderedGraph->FlatGraph
+(deftest test-CountedAndMarkedGraph->FlatGraph
   (let [node-0-0 (f/Node. :0-0 0 [:a] 1)
         node-0-1 (f/Node. :0-1 0 [:b] 1)
         node-0-2 (f/Node. :0-2 0 [:c] 1)
@@ -411,10 +412,10 @@
         layers [(f/OrderedLayer. 0 0 [node-0-0 node-0-1 node-0-2])
                 (f/OrderedLayer. 1 0 [node-1-0 [succ]])
                 (f/OrderedLayer. 2 0 [node-2-0 node-2-1 node-2-2])]
-        ordered-graph (f/OrderedGraph. layers succs preds 0 marked)
+        cm-graph (f/CountedAndMarkedGraph. layers succs preds 0 marked)
         succ-seg (f/Edge->Segment succ 1)
         pred-seg (f/Edge->Segment pred 1)]
-    (is (= (f/OrderedGraph->FlatGraph ordered-graph)
+    (is (= (f/CountedAndMarkedGraph->FlatGraph cm-graph)
            (f/map->FlatGraph {:layers [(f/FlatLayer. 0 0 [node-0-0 node-0-1 node-0-2])
                                        (f/FlatLayer. 1 0 [node-1-0 succ-seg])
                                        (f/FlatLayer. 2 0 [node-2-0 node-2-1 node-2-2])]

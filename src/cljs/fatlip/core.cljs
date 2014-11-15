@@ -18,10 +18,30 @@
       :dest src)))
 
 (defrecord Segment [endpoints layer-id characters weight])
-(defrecord SparseGraph [layers succs preds ps qs rs])
+
+(defrecord SparseGraph [layers succs preds ps qs rs]
+  Reversible
+  (rev [this]
+  (assoc this
+    :succs (:preds this)
+    :preds (:succs this)
+    :ps (:qs this)
+    :qs (:ps this)
+    :layers (vec (rseq (:layers this))))))
+
 (defrecord SparseLayer [id duration nodes])
-(defrecord OrderedGraph [layers succs preds crossings marked])
+(defrecord OrderedGraph [layers succs preds ps qs] ; may also have :minus-ps and/or :minus-qs
+  Reversible
+  (rev [this]
+  (assoc this
+    :succs (:preds this)
+    :preds (:succs this)
+    :ps (:qs this)
+    :qs (:ps this)
+    :layers (vec (rseq (:layers this))))))
+
 (defrecord OrderedLayer [id duration items])
+(defrecord CountedAndMarkedGraph [layers succs preds crossings marked]) ; still has OrderedLayers
 (defrecord FlatGraph [layers succs preds aboves belows top-idxs bot-idxs])
 (defrecord FlatLayer [id duration items])
 (defrecord BlockGraph [blocks roots succs sources])
@@ -188,13 +208,13 @@
           (recur (add-layer graph i) (rest inp)))))))
 
 
-(defn replace-nodes-with-edges
+(defn replace-ps
   "Step 1 of ESK - replace all p nodes with edges and merge segment containers"
-  [items nodes edges]
+  [items ps succs]
   (->> items
-       (map #(if (contains? nodes %)
+       (map #(if (contains? ps %)
                ;; p nodes always have only one successor
-               [(-> edges (get %) first)]
+               [(-> succs (get %) first)]
                %))
        (reduce #(if (and (vector? (peek %1))
                          (vector? %2))
@@ -302,13 +322,12 @@
   of [order edge] pairs of the edge targets in the destination layer, using
   this edge ordering"
   [ordered next-ordered graph-edges]
-  (let [next-order-map (->> (map-indexed #(-> [%2 %1]) next-ordered)
-                            (into {}))
+  (let [next-order-map (into {} (map-indexed #(-> [%2 %1]) next-ordered))
         ;; Edges between segment containers need to be counted as well
         ;; but they change with each new ordering, so we just temporarily
         ;; merge the current segment edges with the never-changing
         ;; node -> node edges
-        edges (->> (filter vector? next-ordered)
+        edges (->> (filter vector? ordered)
                    (map (juxt identity
                               (partial mapcat #(-> % :characters))))
                    (map (fn [[seg-c characters]]
@@ -505,17 +524,6 @@
     [(+ sup-crossings sub-crossings) marked]))
 
 
-(defn reverse-graph
-  "Reverse a graph by reversing its layers and the direction of its edges"
-  [graph]
-  (assoc graph
-    :succs (:preds graph)
-    :preds (:succs graph)
-    :ps (:qs graph)
-    :qs (:ps graph)
-    :layers (vec (rseq (:layers graph)))))
-
-
 (defn flip-graph
   "Flips a graph along the axis perpendicular to the layers, so that nodes and
   edges within a layer reverse their order, more or less. This doesn't touch
@@ -529,82 +537,113 @@
     :bot-idxs (:top-idxs graph)))
 
 
-(defn order-sparse-layer
-  [layer prev-layer ps qs succs preds]
-  (let [minus-ps (replace-nodes-with-edges (:items prev-layer) ps succs)
-        positions (set-positions minus-ps)
+(defn SparseLayer->OrderedLayer
+  [layer minus-ps qs preds]
+  (let [positions (set-positions minus-ps)
         [qs non-qs] (map set
                          ((juxt filter remove) #(contains? qs %)
                           (:nodes layer)))
         measures (set-measures non-qs preds positions)
         minus-qs (merge-layer minus-ps positions non-qs measures)
         items (add-qs minus-qs qs)
-        [crossings marked] (count-and-mark-crossings minus-ps minus-qs preds succs)]
-    [(OrderedLayer. (:id layer) (:duration layer) items)
-     crossings
-     marked]))
+        ordered-layer (OrderedLayer. (:id layer) (:duration layer) items)]
+    (assoc ordered-layer :minus-qs minus-qs)))
 
 
 (defn SparseGraph->OrderedGraph
   "Performs one layer-by-layer sweep of the graph using ESK's algorithm"
   [sparse-graph first-layer]
-  (loop [ordered-graph (map->OrderedGraph {:layers [first-layer]
+  (loop [ordered-graph (map->OrderedGraph {:layers []
                                            :succs (:succs sparse-graph)
                                            :preds (:preds sparse-graph)
-                                           :crossings 0
-                                           :marked #{}})
+                                           :ps (:ps sparse-graph)
+                                           :qs (:qs sparse-graph)})
          prev-layer first-layer
          layers (-> sparse-graph :layers rest)]
     (if (empty? layers)
-      ordered-graph
-      (let [[o-layer crossings marked] (order-sparse-layer (first layers)
-                                                           prev-layer
-                                                           (:ps sparse-graph)
-                                                           (:qs sparse-graph)
-                                                           (:succs sparse-graph)
-                                                           (:preds sparse-graph))
-            g (-> ordered-graph
-                  (update-in [:layers] conj o-layer)
-                  (update-in [:crossings] + crossings)
-                  (update-in [:marked] set/union marked))]
+      (update-in ordered-graph [:layers] conj prev-layer)
+      (let [minus-ps (replace-ps (:items prev-layer) (:ps sparse-graph) (:succs sparse-graph))
+            p-layer (assoc prev-layer :minus-ps minus-ps)
+            o-layer (SparseLayer->OrderedLayer (first layers)
+                                               minus-ps
+                                               (:qs sparse-graph)
+                                               (:preds sparse-graph))
+            g (update-in ordered-graph [:layers] conj p-layer)]
         (recur g o-layer (rest layers))))))
 
 
-(defn orderings
+(defn SparseGraph->ordered-graphs
   "Implements the 2-layer crossing minimization algorithm on a sparse graph found in
   'An Efficient Implementation of Sugiyama’s Algorithm for Layered Graph Drawing',
   a paper by Markus Eiglsperger, Martin Sieberhaller, and Michael Kaufmann (ESK)
 
   I've made the following modifications:
   - Removed the concept of alternating layers, which don't help much, and hurt a bit
-  - Added weights to nodes and edges"
-  [sparse-graph]
-  (let [first-sparse-layer (-> sparse-graph :layers first)]
-    (loop [orderings []
-           ;; seed the first layer with initial ordered layer
-           first-layer (map->OrderedLayer
-                        (-> first-sparse-layer
-                            (dissoc :nodes)
-                            (assoc :items (:nodes first-sparse-layer))))
-           first-layers #{}]
-      (let [c (count orderings)]
-        ;; Graph orderings are determined by the first layer. If we've seen this
-        ;; first layer before, then we can be sure that we're about to enter
-        ;; a cycle, and can thus short circuit
-        (if (or (= c 20) (contains? first-layers first-layer))
-          orderings
-          (let [reverse? (odd? c)
-                ordered-graph (-> (if reverse?
-                                    (reverse-graph sparse-graph)
-                                    sparse-graph)
-                                  (SparseGraph->OrderedGraph first-layer))
-                ords (conj orderings (if reverse?
-                                       (reverse-graph ordered-graph)
-                                       ordered-graph))
-                layers (:layers ordered-graph)
-                last-layer (layers (dec (count layers)))]
-            ;; The last layer of the current ordering is the first layer of the next
-            (recur ords last-layer (conj first-layers first-layer))))))))
+  - Added weights to nodes and edges
+  - Added short-circuting if we've seen a seed layer before
+  - Now that cycle detection doesn't rely on crossing counts, I pulled crossings
+    and marking edges out of the ordering algorithm. This allows the counting
+    and marking to be parallelized, whereas the ordering is inherently serial."
+  ([sparse-graph]
+     (SparseGraph->ordered-graphs sparse-graph 1))
+  ([sparse-graph max-sweeps]
+     (let [layers (:layers sparse-graph)
+           first-sparse-layer (first layers)
+           last-layer-idx (dec (count layers))]
+       (loop [orderings []
+              ;; seed the first layer with initial ordered layer
+              first-layer (map->OrderedLayer
+                           (-> first-sparse-layer
+                               (dissoc :nodes)
+                               (assoc :items (:nodes first-sparse-layer))))
+              first-layers #{}]
+         (let [c (count orderings)]
+           ;; Graph orderings are determined by the first layer. If we've seen this
+           ;; first layer before, then we can be sure that we're about to enter
+           ;; a cycle, and can thus short circuit
+           (if (or (= c max-sweeps) (contains? first-layers first-layer))
+             orderings
+             (let [reverse? (odd? c)
+                   ordered-graph (-> (if reverse?
+                                       (rev sparse-graph)
+                                       sparse-graph)
+                                     (SparseGraph->OrderedGraph first-layer))
+                   ords (conj orderings (if reverse?
+                                          (rev ordered-graph)
+                                          ordered-graph))
+                   layers (:layers ordered-graph)
+                   ;; this becomes the first layer in the next ordering,
+                   ;; and it shouldn't have a :minus-qs
+                   last-layer (dissoc (layers last-layer-idx) :minus-qs)]
+               ;; The last layer of the current ordering is the first layer
+               ;; of the next
+               (recur ords last-layer (conj first-layers first-layer)))))))))
+
+
+(defn OrderedGraph->CountedAndMarkedGraph
+  "Takes an OrderedGraph, counts edge crossings and marks edges that should not
+  be drawn straight, and returns a new graph with this information"
+  [ordered-graph]
+  (let [{:keys [ps qs preds succs]} ordered-graph]
+    (loop [layer (first (:layers ordered-graph))
+           layers (rest (:layers ordered-graph))
+           crossings 0
+           marked #{}]
+      (if (empty? layers)
+        (map->CountedAndMarkedGraph (assoc ordered-graph
+                                      :crossings crossings
+                                      :marked marked))
+        (let [next-layer (first layers)
+              minus-ps (:minus-ps layer)
+              minus-qs (:minus-qs next-layer)
+              [c m] (count-and-mark-crossings minus-ps minus-qs preds succs)]
+          (recur next-layer (rest layers) (+ crossings c) (set/union marked m)))))))
+
+
+(defn best-ordering
+  "Chooses the graph with the fewest crossings from a collection of OrderedGraphs"
+  [ordered-graphs]
+  (apply min-key :crossings (map OrderedGraph->CountedAndMarkedGraph ordered-graphs)))
 
 
 (defn neighborify
@@ -644,18 +683,18 @@
                                 (-> ordered-layer :items flatten)))))
 
 
-(defn OrderedGraph->FlatGraph
+(defn CountedAndMarkedGraph->FlatGraph
   "Transforms each OrderedLayer into a FlatLayer, and calculates attributes
   that are useful for organizing Nodes and Segments into horizontally-
   aligned blocks"
-  [ordered-graph]
-  (let [layers (into [] (map OrderedLayer->FlatLayer (:layers ordered-graph)))
+  [cm-graph]
+  (let [layers (into [] (map OrderedLayer->FlatLayer (:layers cm-graph)))
         [aboves belows] (apply map merge (map neighborify layers))
         [top-idxs bot-idxs] (apply map merge (map indexify layers))]
     (map->FlatGraph {:layers layers
-                     :succs (:succs ordered-graph)
-                     :preds (:preds ordered-graph)
-                     :marked (:marked ordered-graph)
+                     :succs (:succs cm-graph)
+                     :preds (:preds cm-graph)
+                     :marked (:marked cm-graph)
                      :aboves aboves
                      :belows belows
                      :top-idxs top-idxs
