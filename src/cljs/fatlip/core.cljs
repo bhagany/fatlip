@@ -538,6 +538,7 @@
 
 
 (defn SparseLayer->OrderedLayer
+  "Implements the ESK ordering algorithm on a single layer"
   [layer minus-ps qs preds]
   (let [positions (set-positions minus-ps)
         [qs non-qs] (map set

@@ -331,6 +331,37 @@
         "Sub crossings are counted correctly")))
 
 
+(deftest SparseLayer->OrderedLayer
+  (let [l-node-1 (f/Node. :0-0 0 [:a :b :c] 3)
+        l-node-2 (f/Node. :0-1 0 [:d] 1)
+        l-node-3 (f/Node. :0-2 0 [:e] 1)
+        nl-node-1 (f/Node. :1-0 1 [:c] 1)
+        nl-node-2 (f/Node. :1-1 1 [:b :e] 2)
+        nl-node-3 (f/Node. :1-2 1 [:a] 1)
+        nl-node-4 (f/Node. :1-3 1 [:d] 1)
+        nl-node-5 (f/Node. :1-4 1 [:f :g] 2)
+        edge-1 (f/Edge. nl-node-1 l-node-1 [:c] 1)
+        edge-2 (f/Edge. nl-node-2 l-node-1 [:b] 1)
+        edge-3 (f/Edge. nl-node-2 l-node-3 [:e] 1)
+        edge-4 (f/Edge. nl-node-3 l-node-1 [:a] 1)
+        edge-5 (f/Edge. nl-node-4 l-node-2 [:d] 1)
+        q-edge (f/Edge. "geh" nl-node-5 [:f :g] 2)
+        l-seg-1 [(f/Edge. "meh" "somewhere else" [:x] 1)]
+        l-seg-2 [(f/Edge. "bleh" "elsewhere" [:y] 1)]
+        layer (f/SparseLayer. 0 0 [nl-node-1 nl-node-2 nl-node-3 nl-node-4 nl-node-5])
+        minus-ps [l-node-1 l-seg-1 l-node-2 (conj l-seg-2 q-edge) l-node-3]
+        qs #{nl-node-5}
+        preds {nl-node-1 #{edge-1}
+               nl-node-2 #{edge-2 edge-3}
+               nl-node-3 #{edge-4}
+               nl-node-4 #{edge-5}
+               nl-node-5 #{q-edge}}]
+    (is (= (f/SparseLayer->OrderedLayer layer minus-ps qs preds)
+           (assoc (f/OrderedLayer. 0 0 [nl-node-1 nl-node-3 l-seg-1 nl-node-4 nl-node-2 l-seg-2 nl-node-5])
+             :minus-qs [nl-node-1 nl-node-3 l-seg-1 nl-node-4 nl-node-2 (conj l-seg-2 q-edge)]))
+        "SparseLayers get transformed into OrderedLayers")))
+
+
 (deftest test-neighborify
   (let [node-1 (f/Node. :0-0 0 [:a] 1)
         node-2 (f/Node. :0-1 0 [:b] 1)
