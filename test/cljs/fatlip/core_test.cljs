@@ -51,15 +51,7 @@
 
     ;; ESK ordering
     (is (= (count (:marked cm-graph)) 2) "Number of marked edges")
-    (is (= (:crossings cm-graph) 9) "Number of crossings")
-    (is (empty? (->> (:layers cm-graph)
-                     (mapcat #(:minus-ps %))
-                     (filter #(contains? (:ps cm-graph) %))))
-        "No p nodes in :minus-ps")
-    (is (empty? (->> (:layers cm-graph)
-                     (mapcat #(:minus-qs %))
-                     (filter #(contains? (:qs cm-graph) %))))
-        "No q nodes in :minus-qs")))
+    (is (= (:crossings cm-graph) 9) "Number of crossings")))
 
 
 ;; Fine-grained ESK
