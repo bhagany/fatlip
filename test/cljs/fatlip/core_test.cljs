@@ -25,8 +25,8 @@
                      f/SparseGraph->ordered-graphs
                      f/best-ordering)]
     (is (= (count (:layers graph)) (count (:layers cm-graph)) 4) "Number of layers")
-    (is (= (count (-> graph :layers (get 0) :nodes))
-           (count (-> cm-graph :layers (get 0) :items))
+    (is (= (-> graph :layers (get 0) :nodes count)
+           (-> cm-graph :layers (get 0) :items count)
            3)
         "Number of nodes in layer 0")
     (is (= (-> graph :layers (get 1) :nodes count)
