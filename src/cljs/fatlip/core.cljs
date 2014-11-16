@@ -581,10 +581,11 @@
   I've made the following modifications:
   - Removed the concept of alternating layers, which don't help much, and hurt a bit
   - Added weights to nodes and edges
-  - Added short-circuting if we've seen a seed layer before
-  - Now that cycle detection doesn't rely on crossing counts, I pulled crossings
-    and marking edges out of the ordering algorithm. This allows the counting
-    and marking to be parallelized, whereas the ordering is inherently serial."
+  - Added short-circuiting if we've seen a seed layer before
+  - Now that short-circuiting doesn't rely on crossing counts, I pulled counting
+    crossings and marking edges out of the ordering algorithm. This allows the
+    counting and marking to be parallelized, whereas the ordering is inherently
+    serial."
   ([sparse-graph]
      (SparseGraph->ordered-graphs sparse-graph 1))
   ([sparse-graph max-sweeps]
