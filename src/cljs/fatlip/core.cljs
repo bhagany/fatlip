@@ -636,8 +636,9 @@
 (defn best-ordering
   "Chooses the graph with the fewest crossings from a collection of OrderedGraphs"
   [ordered-graphs]
-  (let [cm-graphs (map OrderedGraph->CountedAndMarkedGraph ordered-graphs)]
-    (first (sort-by #(-> [(:crossings %) (count (:marked %))]) cm-graphs))))
+  (->> (map OrderedGraph->CountedAndMarkedGraph ordered-graphs)
+       (sort-by #(-> [(:crossings %) (count (:marked %))]))
+       first))
 
 
 (defn neighborify
