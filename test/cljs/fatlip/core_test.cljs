@@ -44,8 +44,8 @@
     (is (= (count (:ps graph)) 2) "Number of p nodes")
     (is (= (count (:qs graph)) 2) "Number of q nodes")
     (is (= (count (:rs graph)) 2) "Number of r nodes")
-    (is (= (count (mapcat (fn [[_ es]] es) (:succs graph)))
-           (count (mapcat (fn [[_ es]] es) (:preds graph)))
+    (is (= (reduce + (map count (vals (:succs graph))))
+           (reduce + (map count (vals (:preds graph))))
            14)
         "Number of edges")
 
