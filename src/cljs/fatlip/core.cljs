@@ -784,7 +784,28 @@
   "Organizes all of the Nodes and Segments in a FlatGraph into horizontally-
   aligned blocks. These blocks are then organized into a graph of their own,
   where the nodes are blocks and the edges are determined by adjacency
-  between their constituent Nodes and Segments in each FlatLayer"
+  between their constituent Nodes and Segments in each FlatLayer.
+
+  This approach is very heavily based on Fast and Simple Horizontal Coordinate
+  Assignment by Ulrik Brandes and Boris Köpf (BK), even though the algorithm
+  is pretty much entirely dissimilar. I've taken BK's basic idea (which is to
+  align nodes into 'blocks' group these blocks into 'classes' and then
+  recursively position each class and block on the x axis), discarded the
+  algorithm they provided, and made my own. Their algorithm operated on blocks
+  and classes as sort of emergent properties from relationships between nodes,
+  whereas mine explicity constructs blocks and classes and organizes each into
+  graphs, which are then used for positioning. I just found my approach easier
+  to reason about.
+
+  It is also important to note that BK (and pretty much all of the academic
+  literature, for that matter), is concerned with drawing graphs vertically,
+  while we are drawing them horizontally. The practical result of this is that
+  our graphs are reflected across the upper-left-to-lower-right diagonal as
+  compared to the graphs in BK, and as a result we sometimes do things in the
+  opposite manner. The most obvious example is that while BK-style classes are
+  defined by their sinks in a block graph, ours are defined by sources in the
+  block graph. If you flip the graph though, you'll see that we're working from
+  the same block and getting the same result."
   [flat-graph]
   (let [[roots blocks] (blockify flat-graph)]
     (loop [bs blocks
