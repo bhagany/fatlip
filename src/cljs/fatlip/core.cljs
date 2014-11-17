@@ -436,7 +436,7 @@
   ([tree index crossings]
      (if (zero? index)
        [tree crossings]
-       (let [parent-index (.floor js/Math (/ (dec index) 2))
+       (let [parent-index (quot (dec index) 2)
              real-right-index parent-index]
          (if (odd? index)
            (recur tree parent-index (+ crossings (get tree real-right-index)))
