@@ -46,9 +46,9 @@
 (defrecord CountedAndMarkedGraph [layers succs preds crossings marked]) ; still has OrderedLayers
 (defrecord FlatGraph [layers succs preds aboves belows top-idxs bot-idxs])
 (defrecord FlatLayer [id duration items])
-(defrecord BlockGraph [blocks roots succs sources])
+(defrecord BlockGraph [blocks succs sources])
 (defrecord BlockEdge [src dest weight])
-(defrecord ClassGraph [classes roots succs sources])
+(defrecord ClassGraph [classes succs sources])
 (defrecord AccumulatorNode [weight node-edges is-seg-c])
 
 
@@ -809,7 +809,7 @@
   [flat-graph]
   (let [[roots blocks] (blockify flat-graph)]
     (loop [bs blocks
-           graph-map {:roots roots :blocks blocks :succs {}}]
+           graph-map {:blocks blocks :succs {}}]
       (if (empty? bs)
         (let [block-set (into #{} (-> graph-map :blocks vals))
               all-succs (into #{} (->> (reduce set/union
@@ -857,17 +857,14 @@
   with preference given to the left-most sources"
   [block-graph]
   (loop [sources (:sources block-graph)
-         roots {}
          classes {}]
     (if (empty? sources)
-      [roots classes]
+      classes
       (let [root-block (first sources)
-            root (first root-block)
             proto-class (classify-source root-block (:succs block-graph))
             class (apply set/difference proto-class (vals classes))]
         (recur (rest sources)
-               (reduce #(assoc-in %1 [%2] root) roots class)
-               (assoc classes root class))))))
+               (reduce #(assoc %1 %2 class) classes class))))))
 
 
 (defn BlockGraph->ClassGraph
@@ -875,14 +872,13 @@
   ClassGraph, where the nodes are classes and the edges are BlockEdges that span
   classes. This means there can be multiple edges per class pair."
   [block-graph]
-  (let [[roots classes] (classify block-graph)]
+  (let [classes (classify block-graph)]
     (loop [cs (vals classes)
-           graph-map {:roots roots :classes classes :succs {}}]
+           graph-map {:classes classes :succs {}}]
       (if (empty? cs)
         (let [class-set (into #{} (-> graph-map :classes vals))
               all-succs (into #{} (->> (reduce set/union (-> graph-map :succs vals))
-                                       (map #(get-in graph-map [:roots (:dest %)]))
-                                       (map #(get-in graph-map [:classes %]))))
+                                       (map #(get-in graph-map [:classes (:dest %)]))))
               sources (set/difference class-set all-succs)]
           (map->ClassGraph (assoc graph-map :sources sources)))
         (let [class (first cs)

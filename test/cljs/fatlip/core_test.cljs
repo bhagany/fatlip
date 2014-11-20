@@ -700,27 +700,7 @@
                    block-6 #{(f/BlockEdge. block-6 block-3 5)}
                    block-7 #{(f/BlockEdge. block-7 block-6 2)}
                    block-8 #{(f/BlockEdge. block-8 block-7 3)}}
-      block-graph (f/map->BlockGraph {:roots {node-0-0 node-0-0
-                                              node-1-0 node-0-0
-                                              node-1-1 node-1-1
-                                              node-2-0 node-0-0
-                                              node-2-1 node-1-1
-                                              node-2-2 node-2-2
-                                              node-2-3 node-2-3
-                                              node-3-0 node-3-0
-                                              node-3-1 node-1-1
-                                              seg node-2-2
-                                              node-3-2 node-2-3
-                                              node-4-0 node-3-0
-                                              node-4-1 node-4-1
-                                              node-4-2 node-2-2
-                                              node-5-0 node-4-1
-                                              node-6-0 node-6-0
-                                              node-6-1 node-4-1
-                                              node-7-0 node-7-0
-                                              node-7-1 node-6-0
-                                              node-8-0 node-7-0}
-                                      :blocks {node-0-0 block-1
+      block-graph (f/map->BlockGraph {:blocks {node-0-0 block-1
                                                node-1-1 block-2
                                                node-2-2 block-3
                                                node-2-3 block-4
@@ -730,20 +710,23 @@
                                                node-7-0 block-8}
                                       :succs block-succs
                                       :sources [block-1 block-5 block-8]})
-      class-roots {block-1 node-0-0
-                   block-2 node-0-0
-                   block-3 node-0-0
-                   block-4 node-0-0
-                   block-5 node-3-0
-                   block-6 node-3-0
-                   block-7 node-7-0
-                   block-8 node-7-0}
       class-1 #{block-1 block-2 block-3 block-4}
       class-2 #{block-5 block-6}
       class-3 #{block-7 block-8}
-      classes {node-0-0 class-1
-               node-3-0 class-2
-               node-7-0 class-3}]
+      classes {block-1 class-1
+               block-2 class-1
+               block-3 class-1
+               block-4 class-1
+               block-5 class-2
+               block-6 class-2
+               block-7 class-3
+               block-8 class-3}
+      class-graph (f/map->ClassGraph {:classes classes
+                                      :succs {class-1 #{}
+                                              class-2 #{(f/BlockEdge. block-5 block-2 8)
+                                                        (f/BlockEdge. block-6 block-3 5)}
+                                              class-3 #{(f/BlockEdge. block-7 block-6 2)}}
+                                      :sources #{class-3}})]
   (deftest test-FlatGraph->BlockGraph
     (is (= (f/FlatGraph->BlockGraph graph) block-graph)
         "FlatGraphs translate to BlockGraphs"))
@@ -751,15 +734,8 @@
     (is (= (f/classify-source block-1 block-succs) class-1)
         "Descendents of a source block are correctly categorized"))
   (deftest test-classify
-    (is (= (f/classify block-graph) [class-roots classes])
+    (is (= (f/classify block-graph) classes)
         "Classes are calculated from BlockGraphs"))
   (deftest test-BlockGraph->ClassGraph
-    (is (= (f/BlockGraph->ClassGraph block-graph)
-           (f/map->ClassGraph {:roots class-roots
-                               :classes classes
-                               :succs {class-1 #{}
-                                       class-2 #{(f/BlockEdge. block-5 block-2 8)
-                                                 (f/BlockEdge. block-6 block-3 5)}
-                                       class-3 #{(f/BlockEdge. block-7 block-6 2)}}
-                               :sources #{class-3}}))
+    (is (= (f/BlockGraph->ClassGraph block-graph) class-graph)
         "ClassGraphs are derived from Blockgraphs")))
