@@ -700,27 +700,28 @@
                    block-6 #{(f/BlockEdge. block-6 block-3 5)}
                    block-7 #{(f/BlockEdge. block-7 block-6 2)}
                    block-8 #{(f/BlockEdge. block-8 block-7 3)}}
-      block-graph (f/map->BlockGraph {:blocks {node-0-0 block-1
-                                               node-1-1 block-2
-                                               node-2-2 block-3
-                                               node-2-3 block-4
-                                               node-3-0 block-5
-                                               node-4-1 block-6
-                                               node-6-0 block-7
-                                               node-7-0 block-8}
+      block-graph (f/map->BlockGraph {:blocks [block-1
+                                               block-5
+                                               block-2
+                                               block-8
+                                               block-7
+                                               block-6
+                                               block-3
+                                               block-4]
                                       :succs block-succs
                                       :sources [block-1 block-5 block-8]})
       class-1 #{block-1 block-2 block-3 block-4}
       class-2 #{block-5 block-6}
       class-3 #{block-7 block-8}
-      classes {block-1 class-1
-               block-2 class-1
-               block-3 class-1
-               block-4 class-1
-               block-5 class-2
-               block-6 class-2
-               block-7 class-3
-               block-8 class-3}
+      block-classes {block-1 class-1
+                     block-2 class-1
+                     block-3 class-1
+                     block-4 class-1
+                     block-5 class-2
+                     block-6 class-2
+                     block-7 class-3
+                     block-8 class-3}
+      classes [class-3 class-2 class-1]
       class-graph (f/map->ClassGraph {:classes classes
                                       :succs {class-1 #{}
                                               class-2 #{(f/BlockEdge. block-5 block-2 8)
@@ -734,8 +735,22 @@
     (is (= (f/classify-source block-1 block-succs) class-1)
         "Descendents of a source block are correctly categorized"))
   (deftest test-classify
-    (is (= (f/classify block-graph) classes)
+    (is (= (f/classify block-graph) block-classes)
         "Classes are calculated from BlockGraphs"))
   (deftest test-BlockGraph->ClassGraph
     (is (= (f/BlockGraph->ClassGraph block-graph) class-graph)
-        "ClassGraphs are derived from Blockgraphs")))
+        "ClassGraphs are derived from Blockgraphs"))
+  (deftest test-class-topo-sort
+    (is (= (f/topo-sort [class-3]
+                        {class-3 #{class-2} class-2 #{class-1}})
+           [class-3 class-2 class-1])))
+  (deftest test-block-topo-sort
+    (is (= (f/topo-sort [block-1 block-5 block-8] {block-1 #{block-2}
+                                                   block-2 #{block-3}
+                                                   block-3 #{block-4}
+                                                   block-5 #{block-2 block-6}
+                                                   block-6 #{block-3}
+                                                   block-7 #{block-6}
+                                                   block-8 #{block-7}})
+           [block-1 block-5 block-2 block-8
+            block-7 block-6 block-3 block-4]))))

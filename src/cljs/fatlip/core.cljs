@@ -780,6 +780,24 @@
         (recur layer (rest layers) rs bs)))))
 
 
+(defn topo-sort
+  "An implementation of a Kahn topological sort, cribbed with modification from
+  https://gist.github.com/alandipert/1263783"
+  [sources succs]
+  (loop [sources sources
+         succs succs
+         sorted []]
+    (if (empty? sources)
+      sorted
+      (let [node (first sources)
+            dests (get succs node)
+            succs' (dissoc succs node)
+            all-dests (reduce set/union (vals succs'))
+            sources' (apply conj (rest sources)
+                            (set/difference dests all-dests))]
+        (recur sources' succs' (conj sorted node))))))
+
+
 (defn FlatGraph->BlockGraph
   "Organizes all of the Nodes and Segments in a FlatGraph into horizontally-
   aligned blocks. These blocks are then organized into a graph of their own,
@@ -809,41 +827,44 @@
   [flat-graph]
   (let [[roots blocks] (blockify flat-graph)]
     (loop [bs blocks
-           graph-map {:blocks blocks :succs {}}]
+           succs {}]
       (if (empty? bs)
-        (let [block-set (into #{} (-> graph-map :blocks vals))
-              all-succs (into #{} (->> (reduce set/union
-                                               (-> graph-map :succs vals))
-                                       (map :dest)))
+        (let [block-set (into #{} (vals blocks))
+              simple-succs (->> (map (fn [[src edges]]
+                                       [src (into #{} (map :dest edges))])
+                                     succs)
+                                (into {}))
+              all-succs (into #{} (reduce set/union (vals simple-succs)))
               long-block (first (filter #(> (count %) 1) block-set))
               layer-id-compare (if (< (-> long-block first :layer-id)
                                       (-> long-block second :layer-id))
                                  < >)
               sources (->> (set/difference block-set all-succs)
                            (sort-by #(:layer-id (get % 0))
-                                    layer-id-compare))]
-          (map->BlockGraph (assoc graph-map :sources sources)))
+                                    layer-id-compare))
+              topo-blocks (topo-sort sources simple-succs)]
+          (map->BlockGraph {:blocks topo-blocks :succs succs :sources sources}))
         (let [block (-> bs first second)  ; we want the value in the map
-              succs (->> (map #(get-in flat-graph [:aboves %]) block)
-                         (remove nil?)
-                         (group-by #(get roots %))
-                         (map (fn [[above-root above-nodes]]
-                                (BlockEdge.
-                                 (-> graph-map :blocks (get above-root))
-                                 block
-                                 (apply max (map :weight above-nodes))))))
-              bg (reduce #(update-in %1
-                                     [:succs (:src %2)]
+              b-succs (->> (map #(get-in flat-graph [:aboves %]) block)
+                           (remove nil?)
+                           (group-by #(get roots %))
+                           (map (fn [[above-root above-nodes]]
+                                  (BlockEdge.
+                                   (get blocks above-root)
+                                   block
+                                   (apply max (map :weight above-nodes))))))
+              ss (reduce #(update-in %1
+                                     [(:src %2)]
                                      (fnil conj #{})
                                      %2)
-                         graph-map
-                         succs)]
-          (recur (rest bs) bg))))))
+                         succs
+                         b-succs)]
+          (recur (rest bs) ss))))))
 
 
 (defn classify-source
   "Given a class that is a source in a ClassGraph, returns a set containing
-  that class and all of its descendants"
+  that source and all of its descendants"
   [source succs]
   (set/union #{source}
              (apply set/union
@@ -874,15 +895,22 @@
   [block-graph]
   (let [classes (classify block-graph)]
     (loop [cs (vals classes)
-           graph-map {:classes classes :succs {}}]
+           succs {}]
       (if (empty? cs)
-        (let [class-set (into #{} (-> graph-map :classes vals))
-              all-succs (into #{} (->> (reduce set/union (-> graph-map :succs vals))
-                                       (map #(get-in graph-map [:classes (:dest %)]))))
-              sources (set/difference class-set all-succs)]
-          (map->ClassGraph (assoc graph-map :sources sources)))
+        (let [class-set (into #{} (vals classes))
+              simple-succs (->> (map (fn [[src edges]]
+                                       [src
+                                        (into #{}
+                                              (map #(get-in classes [(:dest %)])
+                                                   edges))])
+                                     succs)
+                                (into {}))
+              all-succs (reduce set/union (vals simple-succs))
+              sources (set/difference class-set all-succs)
+              topo-classes (topo-sort sources simple-succs)]
+          (map->ClassGraph {:classes topo-classes :succs succs :sources sources}))
         (let [class (first cs)
-              succs (->> (mapcat #(-> block-graph :succs (get %)) class)
-                         (remove #(contains? class (:dest %)))
-                         (into #{}))]
-          (recur (rest cs) (assoc-in graph-map [:succs class] succs)))))))
+              block-succs (->> (mapcat #(-> block-graph :succs (get %)) class)
+                               (remove #(contains? class (:dest %)))
+                               (into #{}))]
+          (recur (rest cs) (assoc-in succs [class] block-succs)))))))
