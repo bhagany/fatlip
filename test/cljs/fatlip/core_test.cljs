@@ -416,7 +416,6 @@
                                        (f/FlatLayer. 2 0 [node-2-0 node-2-1 node-2-2])]
                               :succs succs
                               :preds preds
-                              :marked marked
                               :aboves {node-0-1 node-0-0
                                        node-0-2 node-0-1
                                        succ-seg node-1-0
@@ -442,7 +441,9 @@
                                          succ-seg 0
                                          node-2-0 2
                                          node-2-1 1
-                                         node-2-2 0}}))
+                                         node-2-2 0}
+                              :marked marked
+                              :crossings 0}))
         "Ordered graphs are converted to flat graphs")))
 
 
@@ -700,6 +701,14 @@
                    block-6 #{(f/BlockEdge. block-6 block-3 5)}
                    block-7 #{(f/BlockEdge. block-7 block-6 2)}
                    block-8 #{(f/BlockEdge. block-8 block-7 3)}}
+      block-preds {block-2 #{(f/BlockEdge. block-2 block-1 5)
+                             (f/BlockEdge. block-2 block-5 8)}
+                   block-3 #{(f/BlockEdge. block-3 block-2 3)
+                             (f/BlockEdge. block-3 block-6 5)}
+                   block-4 #{(f/BlockEdge. block-4 block-3 2)}
+                   block-6 #{(f/BlockEdge. block-6 block-5 8)
+                             (f/BlockEdge. block-6 block-7 2)}
+                   block-7 #{(f/BlockEdge. block-7 block-8 3)}}
       block-graph (f/map->BlockGraph {:blocks [block-1
                                                block-5
                                                block-2
@@ -723,10 +732,12 @@
                      block-8 class-3}
       classes [class-3 class-2 class-1]
       class-graph (f/map->ClassGraph {:classes classes
-                                      :succs {class-1 #{}
-                                              class-2 #{(f/BlockEdge. block-5 block-2 8)
+                                      :succs {class-2 #{(f/BlockEdge. block-5 block-2 8)
                                                         (f/BlockEdge. block-6 block-3 5)}
                                               class-3 #{(f/BlockEdge. block-7 block-6 2)}}
+                                      :preds {class-1 #{(f/BlockEdge. block-2 block-5 8)
+                                                        (f/BlockEdge. block-3 block-6 5)}
+                                              class-2 #{(f/BlockEdge. block-6 block-7 2)}}
                                       :sources #{class-3}})]
   (deftest test-FlatGraph->BlockGraph
     (is (= (f/FlatGraph->BlockGraph graph) block-graph)
@@ -739,7 +750,7 @@
         "Classes are calculated from BlockGraphs"))
   (deftest test-BlockGraph->ClassGraph
     (is (= (f/BlockGraph->ClassGraph block-graph) class-graph)
-        "ClassGraphs are derived from Blockgraphs"))
+        "ClassGraphs are derived from BlockGraphs"))
   (deftest test-class-topo-sort
     (is (= (f/topo-sort [class-3]
                         {class-3 #{class-2} class-2 #{class-1}})

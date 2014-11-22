@@ -63,9 +63,15 @@
       :bot-idxs top-idxs)))
 
 (defrecord FlatLayer [id duration items])
-(defrecord BlockGraph [blocks succs sources])
-(defrecord BlockEdge [src dest weight])
-(defrecord ClassGraph [classes succs sources])
+(defrecord BlockGraph [blocks succs preds sources])
+(defrecord BlockEdge [src dest weight]
+  Reversible
+  (rev [this]
+    (assoc this
+      :src dest
+      :dest src)))
+
+(defrecord ClassGraph [classes succs preds sources])
 (defrecord AccumulatorNode [weight node-edges is-seg-c])
 
 
@@ -830,9 +836,11 @@
   block graph. If you flip the graph though, you'll see that we're working from
   the same block and getting the same result."
   [flat-graph]
-  (let [[roots blocks] (blockify flat-graph)]
+  (let [[roots blocks] (blockify flat-graph)
+        edge->set #(update-in %1 [(:src %2)] (fnil conj #{}) %2)]
     (loop [bs blocks
-           succs {}]
+           succs {}
+           preds {}]
       (if (empty? bs)
         (let [block-set (into #{} (vals blocks))
               simple-succs (->> (map (fn [[src edges]]
@@ -848,7 +856,7 @@
                            (sort-by #(:layer-id (get % 0))
                                     layer-id-compare))
               topo-blocks (topo-sort sources simple-succs)]
-          (map->BlockGraph {:blocks topo-blocks :succs succs :sources sources}))
+          (map->BlockGraph {:blocks topo-blocks :succs succs :preds preds :sources sources}))
         (let [block (-> bs first second)  ; we want the value in the map
               b-succs (->> (map #(get-in flat-graph [:aboves %]) block)
                            (remove nil?)
@@ -858,13 +866,10 @@
                                    (get blocks above-root)
                                    block
                                    (apply max (map :weight above-nodes))))))
-              ss (reduce #(update-in %1
-                                     [(:src %2)]
-                                     (fnil conj #{})
-                                     %2)
-                         succs
-                         b-succs)]
-          (recur (rest bs) ss))))))
+              b-preds (map rev b-succs)
+              ss (reduce edge->set succs b-succs)
+              ps (reduce edge->set preds b-preds)]
+          (recur (rest bs) ss ps))))))
 
 
 (defn classify-source
@@ -898,24 +903,33 @@
   ClassGraph, where the nodes are classes and the edges are BlockEdges that span
   classes. This means there can be multiple edges per class pair."
   [block-graph]
-  (let [classes (classify block-graph)]
-    (loop [cs (vals classes)
-           succs {}]
+  (let [block-classes (classify block-graph)
+        classes (into #{} (vals block-classes))
+        edge->set #(update-in %1 [(get block-classes (:src %2))]
+                              (fnil conj #{}) %2)]
+    (loop [cs classes
+           succs {}
+           preds {}]
       (if (empty? cs)
-        (let [class-set (into #{} (vals classes))
-              simple-succs (->> (map (fn [[src edges]]
+        (let [simple-succs (->> (map (fn [[src edges]]
                                        [src
                                         (into #{}
-                                              (map #(get-in classes [(:dest %)])
+                                              (map #(get-in
+                                                     block-classes [(:dest %)])
                                                    edges))])
                                      succs)
                                 (into {}))
               all-succs (reduce set/union (vals simple-succs))
-              sources (set/difference class-set all-succs)
+              sources (set/difference classes all-succs)
               topo-classes (topo-sort sources simple-succs)]
-          (map->ClassGraph {:classes topo-classes :succs succs :sources sources}))
+          (map->ClassGraph {:classes topo-classes :succs succs
+                            :preds preds :sources sources}))
         (let [class (first cs)
+              class-set (into #{} class)
               block-succs (->> (mapcat #(-> block-graph :succs (get %)) class)
-                               (remove #(contains? class (:dest %)))
-                               (into #{}))]
-          (recur (rest cs) (assoc-in succs [class] block-succs)))))))
+                               (remove #(contains? class-set (:dest %)))
+                               (into #{}))
+              block-preds (map rev block-succs)
+              ss (reduce edge->set succs block-succs)
+              ps (reduce edge->set preds block-preds)]
+          (recur (rest cs) ss ps))))))
