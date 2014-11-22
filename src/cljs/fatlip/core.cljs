@@ -7,6 +7,9 @@
 (defprotocol Reversible
   (rev [item] "It... reverses"))
 
+(defprotocol Flippable
+  (flip [item] "Flips a graph along the axis perpendicular to the layers, so
+                that nodes and edges within a layer reverse their order"))
 
 (defrecord Node [id layer-id characters weight])
 
@@ -44,7 +47,21 @@
 
 (defrecord OrderedLayer [id duration items])
 (defrecord CountedAndMarkedGraph [layers succs preds crossings marked]) ; still has OrderedLayers
-(defrecord FlatGraph [layers succs preds aboves belows top-idxs bot-idxs])
+(defrecord FlatGraph [layers succs preds aboves belows top-idxs bot-idxs crossings marked]
+  Reversible
+  (rev [this]
+    (assoc this
+      :succs preds
+      :preds succs
+      :layers (vec (rseq layers))))
+  Flippable
+  (flip [this]
+    (assoc this
+      :aboves belows
+      :belows aboves
+      :top-idxs bot-idxs
+      :bot-idxs top-idxs)))
+
 (defrecord FlatLayer [id duration items])
 (defrecord BlockGraph [blocks succs sources])
 (defrecord BlockEdge [src dest weight])
@@ -526,19 +543,6 @@
     [(+ sup-crossings sub-crossings) marked]))
 
 
-(defn flip-graph
-  "Flips a graph along the axis perpendicular to the layers, so that nodes and
-  edges within a layer reverse their order, more or less. This doesn't touch
-  some of the attributes of a layer that give us an ordering, but only the maps
-  that we need to touch during coordinate assignment"
-  [graph]
-  (assoc graph
-    :aboves (:belows graph)
-    :belows (:aboves graph)
-    :top-idxs (:bot-idxs graph)
-    :bot-idxs (:top-idxs graph)))
-
-
 (defn SparseGraph->OrderedGraph
   "Performs one layer-by-layer sweep of the graph using ESK's algorithm"
   [sparse-graph first-layer]
@@ -689,11 +693,12 @@
     (map->FlatGraph {:layers layers
                      :succs (:succs cm-graph)
                      :preds (:preds cm-graph)
-                     :marked (:marked cm-graph)
                      :aboves aboves
                      :belows belows
                      :top-idxs top-idxs
-                     :bot-idxs bot-idxs})))
+                     :bot-idxs bot-idxs
+                     :marked (:marked cm-graph)
+                     :crossings (:crossings cm-graph)})))
 
 
 (defn check-alignment
