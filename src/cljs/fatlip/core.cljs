@@ -22,25 +22,25 @@
 (defrecord SparseGraph [layers succs preds ps qs rs]
   Reversible
   (rev [this]
-  (assoc this
-    :succs (:preds this)
-    :preds (:succs this)
-    :ps (:qs this)
-    :qs (:ps this)
-    :layers (vec (rseq (:layers this))))))
+    (assoc this
+      :succs preds
+      :preds succs
+      :ps qs
+      :qs ps
+      :layers (vec (rseq layers)))))
 
 (defrecord SparseLayer [id duration nodes])
 (defrecord OrderedGraph [layers succs preds ps qs minus-ps minus-qs]
   Reversible
   (rev [this]
-  (assoc this
-    :succs (:preds this)
-    :preds (:succs this)
-    :ps (:qs this)
-    :qs (:ps this)
-    :minus-ps (:minus-qs this)
-    :minus-qs (:minus-ps this)
-    :layers (vec (rseq (:layers this))))))
+    (assoc this
+      :succs preds
+      :preds succs
+      :ps qs
+      :qs ps
+      :minus-ps minus-qs
+      :minus-qs minus-ps
+      :layers (vec (rseq layers)))))
 
 (defrecord OrderedLayer [id duration items])
 (defrecord CountedAndMarkedGraph [layers succs preds crossings marked]) ; still has OrderedLayers
