@@ -893,7 +893,8 @@
       classes
       (let [root-block (first sources)
             proto-class (classify-source root-block (:succs block-graph))
-            class (apply set/difference proto-class (vals classes))]
+            class-set (apply set/difference proto-class (vals classes))
+            class (filter #(contains? class-set %) (:blocks block-graph))]
         (recur (rest sources)
                (reduce #(assoc %1 %2 class) classes class))))))
 

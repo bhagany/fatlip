@@ -718,10 +718,11 @@
                                                block-3
                                                block-4]
                                       :succs block-succs
+                                      :preds block-preds
                                       :sources [block-1 block-5 block-8]})
-      class-1 #{block-1 block-2 block-3 block-4}
-      class-2 #{block-5 block-6}
-      class-3 #{block-7 block-8}
+      class-1 [block-1 block-2 block-3 block-4]
+      class-2 [block-5 block-6]
+      class-3 [block-8 block-7]
       block-classes {block-1 class-1
                      block-2 class-1
                      block-3 class-1
@@ -743,7 +744,7 @@
     (is (= (f/FlatGraph->BlockGraph graph) block-graph)
         "FlatGraphs translate to BlockGraphs"))
   (deftest test-classify-source
-    (is (= (f/classify-source block-1 block-succs) class-1)
+    (is (= (f/classify-source block-1 block-succs) (into #{} class-1))
         "Descendents of a source block are correctly categorized"))
   (deftest test-classify
     (is (= (f/classify block-graph) block-classes)
