@@ -91,8 +91,7 @@
         edge (Edge. last-node node (set characters) weight)]
     (-> graph
         (update-in [:succs last-node] (fnil conj #{}) edge)
-        (update-in [:preds node] (fnil conj #{}) (rev edge))
-        (assoc-in [:characters edge] characters))))
+        (update-in [:preds node] (fnil conj #{}) (rev edge)))))
 
 
 (defn make-node [graph layer-id input]
