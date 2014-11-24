@@ -574,8 +574,8 @@
            layers (-> sparse-graph :layers rest)]
       (if (empty? layers)
         ordered-graph
-        (let [minus-ps (replace-ps (:items prev-layer) ps succs)
-              sparse-layer (first layers)
+        (let [sparse-layer (first layers)
+              minus-ps (replace-ps (:items prev-layer) ps succs)
               positions (set-positions minus-ps)
               [qs non-qs] (map set
                                ((juxt filter remove) #(contains? qs %)
