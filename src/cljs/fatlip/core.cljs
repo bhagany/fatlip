@@ -22,7 +22,7 @@
 
 (defrecord Segment [endpoints layer-id characters weight])
 
-(defrecord SparseGraph [layers succs preds ps qs rs]
+(defrecord SparseGraph [layers succs preds ps qs rs characters]
   Reversible
   (rev [this]
     (assoc this
@@ -33,7 +33,7 @@
       :layers (vec (rseq layers)))))
 
 (defrecord SparseLayer [id duration nodes])
-(defrecord OrderedGraph [layers succs preds ps qs minus-ps minus-qs]
+(defrecord OrderedGraph [layers succs preds ps qs minus-ps minus-qs characters]
   Reversible
   (rev [this]
     (assoc this
@@ -46,8 +46,8 @@
       :layers (vec (rseq layers)))))
 
 (defrecord OrderedLayer [id duration items])
-(defrecord CountedAndMarkedGraph [layers succs preds crossings marked]) ; still has OrderedLayers
-(defrecord FlatGraph [layers succs preds aboves belows top-idxs bot-idxs crossings marked]
+(defrecord CountedAndMarkedGraph [layers succs preds crossings marked characters]) ; still has OrderedLayers
+(defrecord FlatGraph [layers succs preds aboves belows top-idxs bot-idxs crossings marked characters]
   Reversible
   (rev [this]
     (assoc this
@@ -88,10 +88,11 @@
 (defn add-edge [graph last-node node characters]
   "Creates an edge and adds it to the graph as a whole and to each participating node"
   (let [weight (count characters)
-        edge (Edge. last-node node characters weight)]
+        edge (Edge. last-node node (set characters) weight)]
     (-> graph
         (update-in [:succs last-node] (fnil conj #{}) edge)
-        (update-in [:preds node] (fnil conj #{}) (rev edge)))))
+        (update-in [:preds node] (fnil conj #{}) (rev edge))
+        (assoc-in [:characters edge] characters))))
 
 
 (defn make-node [graph layer-id input]
@@ -101,8 +102,12 @@
   (let [node-num (count (-> graph :layers (get layer-id) :nodes))
         node-id (keyword (s/join "-" [layer-id node-num]))
         weight (-> input :characters count)
-        node (map->Node (assoc input :id node-id :layer-id layer-id :weight weight))
-        g (update-in graph [:layers layer-id :nodes] conj node)]
+        characters (:characters input)
+        node (map->Node {:id node-id :layer-id layer-id
+                         :characters (set characters) :weight weight})
+        g (-> graph
+              (update-in [:layers layer-id :nodes] conj node)
+              (assoc-in [:characters node] characters))]
     [g node]))
 
 
@@ -152,7 +157,7 @@
   an edge in the graph)"
   [graph node]
   (loop [graph graph
-         characters (set (:characters node))]
+         characters (:characters node)]
      (if (empty? characters)
        graph
        (let [character (first characters)
@@ -175,7 +180,7 @@
   [graph layer-id input]
   (let [[grph node] (make-node graph layer-id input)]
     (loop [new-g (process-characters grph node)
-           characters (:characters node)]
+           characters (-> new-g :characters (get node))]
       ;; Update node metadata for all characters in the new node
       (if (empty? characters)
         new-g
@@ -216,7 +221,8 @@
                                   :preds {}
                                   :ps #{}
                                   :qs #{}
-                                  :rs #{}})
+                                  :rs #{}
+                                  :characters {}})
          inp input]
     (if (empty? inp)
       (if (empty? (:succs graph))
@@ -354,9 +360,12 @@
         ;; node -> node edges
         edges (->> (filter vector? ordered)
                    (map (juxt identity
-                              (partial mapcat #(-> % :characters))))
-                   (map (fn [[seg-c characters]]
-                          [seg-c #{(Edge. seg-c seg-c characters (count characters))}]))
+                              (partial mapcat :characters)
+                              (partial map :weight)))
+                   (map (fn [[seg-c characters weights]]
+                          [seg-c #{(Edge. seg-c seg-c
+                                          (set characters)
+                                          (reduce + weights))}]))
                    (into {})
                    (merge graph-edges))]
     (->> ordered
@@ -469,13 +478,13 @@
 (defn count-sub-crossings-single-node
   "Counts sub-crossings for a node; short circuits if there are fewer
   than two successor nodes"
-  [node dests]
+  [node dests characters]
   (let [num-dests (count dests)]
     (if (< num-dests 2)
       0
       (let [order-map (->> (map-indexed (fn [idx n]
                                           (map #(-> [% idx])
-                                               (:characters n)))
+                                               (get characters n)))
                                         dests)
                            (reduce into {}))
             num-acc-leaves (next-power-of-2 num-dests)
@@ -483,7 +492,7 @@
             tree-size first-leaf]
         (loop [tree (vec (repeat tree-size 0))
                sub-crossings 0
-               order (map #(get order-map %) (:characters node))]
+               order (map #(get order-map %) (get characters node))]
           (if (empty? order)
             sub-crossings
             (let [ord (first order)
@@ -501,7 +510,7 @@
   that is not detected by the coarser-grained node-by-node cross
   counting. We apply the same methodology here, but without needing
   to deal with crossing segments, or with edge weight"
-  [minus-ps minus-qs succs]
+  [minus-ps minus-qs succs characters]
   (loop [nodes (filter #(instance? Node %) minus-ps)
          crossings 0]
     (if (empty? nodes)
@@ -509,7 +518,7 @@
       (let [node (first nodes)
             dest-set (into #{} (map :dest (get succs node)))
             dests (filter #(contains? dest-set %) minus-qs)
-            c (count-sub-crossings-single-node node dests)]
+            c (count-sub-crossings-single-node node dests characters)]
         (recur (rest nodes) (+ crossings c))))))
 
 
@@ -543,23 +552,25 @@
     compact representation is the same as the index of the first leaf in the
     expanded tree, and the index of a right sibling in the compact
     representation is the same as that node's parent in the expanded tree"
-  [minus-ps minus-qs preds succs]
-  (let [[sup-crossings marked] (count-and-mark-super-crossings minus-ps minus-qs preds succs)
-        sub-crossings (count-sub-crossings minus-ps minus-qs succs)]
+  [minus-ps minus-qs preds succs characters]
+  (let [[sup-crossings marked] (count-and-mark-super-crossings minus-ps minus-qs
+                                                               preds succs)
+        sub-crossings (count-sub-crossings minus-ps minus-qs succs characters)]
     [(+ sup-crossings sub-crossings) marked]))
 
 
 (defn SparseGraph->OrderedGraph
   "Performs one layer-by-layer sweep of the graph using ESK's algorithm"
   [sparse-graph first-layer]
-  (let [{:keys [ps qs preds succs]} sparse-graph]
+  (let [{:keys [ps qs preds succs characters]} sparse-graph]
     (loop [ordered-graph (map->OrderedGraph {:layers [first-layer]
                                              :succs succs
                                              :preds preds
                                              :ps ps
                                              :qs qs
                                              :minus-ps []
-                                             :minus-qs []})
+                                             :minus-qs []
+                                             :characters characters})
            prev-layer first-layer
            layers (-> sparse-graph :layers rest)]
       (if (empty? layers)
@@ -633,9 +644,9 @@
   "Takes an OrderedGraph, counts edge crossings and marks edges that should not
   be drawn straight, and returns a new graph with this information"
   [ordered-graph]
-  (let [{:keys [minus-ps minus-qs preds succs]} ordered-graph
+  (let [{:keys [minus-ps minus-qs preds succs characters]} ordered-graph
         [crossings marked] (->> (map #(count-and-mark-crossings
-                                       %1 %2 preds succs)
+                                       %1 %2 preds succs characters)
                                      minus-ps minus-qs)
                                 (apply map vector))]
     (map->CountedAndMarkedGraph (assoc ordered-graph
@@ -693,18 +704,20 @@
   that are useful for organizing Nodes and Segments into horizontally-
   aligned blocks"
   [cm-graph]
-  (let [layers (into [] (map OrderedLayer->FlatLayer (:layers cm-graph)))
-        [aboves belows] (apply map merge (map neighborify layers))
-        [top-idxs bot-idxs] (apply map merge (map indexify layers))]
-    (map->FlatGraph {:layers layers
-                     :succs (:succs cm-graph)
-                     :preds (:preds cm-graph)
+  (let [{:keys [layers succs preds marked crossings characters]} cm-graph
+        cm-layers (into [] (map OrderedLayer->FlatLayer layers))
+        [aboves belows] (apply map merge (map neighborify cm-layers))
+        [top-idxs bot-idxs] (apply map merge (map indexify cm-layers))]
+    (map->FlatGraph {:layers cm-layers
+                     :succs succs
+                     :preds preds
                      :aboves aboves
                      :belows belows
                      :top-idxs top-idxs
                      :bot-idxs bot-idxs
-                     :marked (:marked cm-graph)
-                     :crossings (:crossings cm-graph)})))
+                     :marked marked
+                     :crossings crossings
+                     :characters characters})))
 
 
 (defn check-alignment

@@ -59,30 +59,30 @@
 
 ;; Fine-grained ESK
 (deftest test-replace-ps
-  (let [p (f/Node. :0-0 0 [:a] 1)
-        p-edge (f/Edge. p (f/Node. :1-0 0 [:a] 1) [:a] 1)
-        not-p (f/Node. :0-1 0 [:b] 1)
-        seg-c-edge (f/Edge. not-p (f/Node. :3-99 3 [:c] 1) [:c] 1)
+  (let [p (f/Node. :0-0 0 #{:a} 1)
+        p-edge (f/Edge. p (f/Node. :1-0 0 #{:a} 1) #{:a} 1)
+        not-p (f/Node. :0-1 0 #{:b} 1)
+        seg-c-edge (f/Edge. not-p (f/Node. :3-99 3 #{:c} 1) #{:c} 1)
         seg-c [seg-c-edge]
         items [p seg-c not-p]
         ps #{p}
-        succs {p #{p-edge}, not-p #{(f/Edge. not-p (f/Node. :1-0 0 [:b] 1) [:b] 1)}}]
+        succs {p #{p-edge}, not-p #{(f/Edge. not-p (f/Node. :1-0 0 #{:b} 1) #{:b} 1)}}]
     (is (= (f/replace-ps items ps succs)
            [[p-edge seg-c-edge] not-p])
         "P nodes get replaced by segment containers, and joined with adjacent segment containers")))
 
 
 (deftest test-set-positions
-  (let [seg-1 [(f/Edge. "src" "dest" [] 0)
-               (f/Edge. "src" "dest" [] 0)]
-        node-1 (f/Node. :0-0 0 [] 0)
-        node-2 (f/Node. :0-1 0 [] 0)
-        seg-2 [(f/Edge. "src" "dest" [] 0)
-               (f/Edge. "src" "dest" [] 0)
-               (f/Edge. "src" "dest" [] 0)]
-        node-3 (f/Node. :0-2 0 [] 0)
-        seg-3 [(f/Edge. "src" "dest" [] 0)]
-        node-4 (f/Node. :0-2 0 [] 0)
+  (let [seg-1 [(f/Edge. "src" "dest" #{} 0)
+               (f/Edge. "src" "dest" #{} 0)]
+        node-1 (f/Node. :0-0 0 #{} 0)
+        node-2 (f/Node. :0-1 0 #{} 0)
+        seg-2 [(f/Edge. "src" "dest" #{} 0)
+               (f/Edge. "src" "dest" #{} 0)
+               (f/Edge. "src" "dest" #{} 0)]
+        node-3 (f/Node. :0-2 0 #{} 0)
+        seg-3 [(f/Edge. "src" "dest" #{} 0)]
+        node-4 (f/Node. :0-2 0 #{} 0)
         minus-ps [seg-1 node-1 node-2 seg-2 node-3 seg-3 node-4]]
     (is (= (f/set-positions minus-ps) {seg-1 0, node-1 2, node-2 3
                                        seg-2 4, node-3 7, seg-3 8
@@ -91,11 +91,11 @@
 
 
 (deftest test-get-measure
-  (let [node (f/Node. :1-0 1 [:a :b :c] 3)
-        pr-node-1 (f/Node. :0-0 0 [:a :b] 2)
-        pr-node-2 (f/Node. :0-1 0 [:c] 1)
-        edge-1 (f/Edge. node pr-node-1 [:a :b] 2)
-        edge-2 (f/Edge. node pr-node-2 [:c] 1)
+  (let [node (f/Node. :1-0 1 #{:a :b :c} 3)
+        pr-node-1 (f/Node. :0-0 0 #{:a :b} 2)
+        pr-node-2 (f/Node. :0-1 0 #{:c} 1)
+        edge-1 (f/Edge. node pr-node-1 #{:a :b} 2)
+        edge-2 (f/Edge. node pr-node-2 #{:c} 1)
         preds #{edge-1 edge-2}
         pred-positions {pr-node-1 1, pr-node-2 2}]
     (is (= (f/get-measure node preds pred-positions) (/ 4 3))
@@ -103,18 +103,18 @@
 
 
 (deftest test-set-measures
-  (let [l-node-1 (f/Node. :0-0 0 [:a :b :c] 3)
-        l-node-2 (f/Node. :0-1 0 [:d] 1)
-        l-node-3 (f/Node. :0-2 0 [:e] 1)
-        nl-node-1 (f/Node. :1-0 1 [:c] 1)
-        nl-node-2 (f/Node. :1-1 1 [:b :e] 2)
-        nl-node-3 (f/Node. :1-2 1 [:a] 1)
-        nl-node-4 (f/Node. :1-3 1 [:d] 1)
-        edge-1 (f/Edge. nl-node-1 l-node-1 [:c] 1)
-        edge-2 (f/Edge. nl-node-2 l-node-1 [:b] 1)
-        edge-3 (f/Edge. nl-node-2 l-node-3 [:e] 1)
-        edge-4 (f/Edge. nl-node-3 l-node-1 [:a] 1)
-        edge-5 (f/Edge. nl-node-4 l-node-2 [:d] 1)
+  (let [l-node-1 (f/Node. :0-0 0 #{:a :b :c} 3)
+        l-node-2 (f/Node. :0-1 0 #{:d} 1)
+        l-node-3 (f/Node. :0-2 0 #{:e} 1)
+        nl-node-1 (f/Node. :1-0 1 #{:c} 1)
+        nl-node-2 (f/Node. :1-1 1 #{:b :e} 2)
+        nl-node-3 (f/Node. :1-2 1 #{:a} 1)
+        nl-node-4 (f/Node. :1-3 1 #{:d} 1)
+        edge-1 (f/Edge. nl-node-1 l-node-1 #{:c} 1)
+        edge-2 (f/Edge. nl-node-2 l-node-1 #{:b} 1)
+        edge-3 (f/Edge. nl-node-2 l-node-3 #{:e} 1)
+        edge-4 (f/Edge. nl-node-3 l-node-1 #{:a} 1)
+        edge-5 (f/Edge. nl-node-4 l-node-2 #{:d} 1)
         non-qs [nl-node-1 nl-node-2 nl-node-3 nl-node-4]
         preds {nl-node-1 #{edge-1}
                nl-node-2 #{edge-2 edge-3}
@@ -132,17 +132,17 @@
 
 
 (deftest test-merge-layer
-  (let [l-node-1 (f/Node. :0-0 0 [:a :b :c] 3)
-        l-node-2 (f/Node. :0-1 0 [:d] 1)
-        l-node-3 (f/Node. :0-2 0 [:e] 1)
-        nl-node-1 (f/Node. :1-0 1 [:c] 1)
-        nl-node-2 (f/Node. :1-1 1 [:b :e] 2)
-        nl-node-3 (f/Node. :1-2 1 [:a] 1)
-        nl-node-4 (f/Node. :1-3 1 [:d] 1)
-        nl-node-5 (f/Node. :1-4 1 [:f :g] 2)
-        l-seg-1 [(f/Edge. "meh" "somewhere else" [:x] 1)]
-        l-seg-2 [(f/Edge. "bleh" "elsewhere" [:y] 1)
-                 (f/Edge. "geh" nl-node-5 [:f :g] 2)]
+  (let [l-node-1 (f/Node. :0-0 0 #{:a :b :c} 3)
+        l-node-2 (f/Node. :0-1 0 #{:d} 1)
+        l-node-3 (f/Node. :0-2 0 #{:e} 1)
+        nl-node-1 (f/Node. :1-0 1 #{:c} 1)
+        nl-node-2 (f/Node. :1-1 1 #{:b :e} 2)
+        nl-node-3 (f/Node. :1-2 1 #{:a} 1)
+        nl-node-4 (f/Node. :1-3 1 #{:d} 1)
+        nl-node-5 (f/Node. :1-4 1 #{:f :g} 2)
+        l-seg-1 [(f/Edge. "meh" "somewhere else" #{:x} 1)]
+        l-seg-2 [(f/Edge. "bleh" "elsewhere" #{:y} 1)
+                 (f/Edge. "geh" nl-node-5 #{:f :g} 2)]
         minus-ps [l-node-1 l-seg-1 l-node-2 l-seg-2 l-node-3]
         positions {l-node-1 0
                    l-seg-1 1
@@ -160,13 +160,13 @@
 
 
 (deftest test-add-qs
-  (let [node-1 (f/Node. :0-0 0 [:a :b :c] 3)
-        node-2 (f/Node. :0-1 0 [:d] 1)
-        node-3 (f/Node. :0-2 0 [:e] 1)
-        edge-1 (f/Edge. "meh"  "somewhere else" [:x] 1)
-        edge-2 (f/Edge. "bleh" "elsewhere" [:y] 1)
-        edge-3 (f/Edge. "feh" node-2 [:f :g] 2)
-        edge-4 (f/Edge. "doesn't" "matter" [:m] 1)
+  (let [node-1 (f/Node. :0-0 0 #{:a :b :c} 3)
+        node-2 (f/Node. :0-1 0 #{:d} 1)
+        node-3 (f/Node. :0-2 0 #{:e} 1)
+        edge-1 (f/Edge. "meh"  "somewhere else" #{:x} 1)
+        edge-2 (f/Edge. "bleh" "elsewhere" #{:y} 1)
+        edge-3 (f/Edge. "feh" node-2 #{:f :g} 2)
+        edge-4 (f/Edge. "doesn't" "matter" #{:m} 1)
         seg-c-1 [edge-1]
         seg-c-2 [edge-2 edge-3 edge-4]
         minus-qs [node-1 seg-c-1 node-3 seg-c-2]
@@ -177,20 +177,20 @@
 
 
 (deftest test-sorted-edge-order
-  (let [node-1 (f/Node. :0-0 0 [:a :d :e] 3)
-        node-2 (f/Node. :0-1 0 [:c :g] 2)
-        nl-node-1 (f/Node. :1-0 1 [:a :c] 2)
-        nl-node-2 (f/Node. :1-1 1 [:d :g] 2)
-        nl-node-3 (f/Node. :1-1 1 [:e] 1)
-        seg [(f/Edge. "mmm" "hmm" [:b :f] 1)]
+  (let [node-1 (f/Node. :0-0 0 #{:a :d :e} 3)
+        node-2 (f/Node. :0-1 0 #{:c :g} 2)
+        nl-node-1 (f/Node. :1-0 1 #{:a :c} 2)
+        nl-node-2 (f/Node. :1-1 1 #{:d :g} 2)
+        nl-node-3 (f/Node. :1-1 1 #{:e} 1)
+        seg [(f/Edge. "mmm" "hmm" #{:b :f} 2)]
         ordered [node-1 seg node-2]
         next-ordered [nl-node-1 seg nl-node-2 nl-node-3]
-        edge-1 (f/Edge. node-1 nl-node-1 [:a] 1)
-        edge-2 (f/Edge. node-1 nl-node-2 [:d] 1)
-        edge-3 (f/Edge. node-1 nl-node-3 [:e] 1)
-        edge-4 (f/Edge. seg seg [:b :f] 2)
-        edge-5 (f/Edge. node-2 nl-node-1 [:c] 1)
-        edge-6 (f/Edge. node-2 nl-node-2 [:g] 1)
+        edge-1 (f/Edge. node-1 nl-node-1 #{:a} 1)
+        edge-2 (f/Edge. node-1 nl-node-2 #{:d} 1)
+        edge-3 (f/Edge. node-1 nl-node-3 #{:e} 1)
+        edge-4 (f/Edge. seg seg #{:b :f} 2)
+        edge-5 (f/Edge. node-2 nl-node-1 #{:c} 1)
+        edge-6 (f/Edge. node-2 nl-node-2 #{:g} 1)
         edges {node-1 #{edge-1 edge-2 edge-3}
                node-2 #{edge-5 edge-6}}]
     (is (= (f/sorted-edge-order ordered next-ordered edges)
@@ -212,20 +212,20 @@
   ;; add edge that doesn't cross segment x
   ;; add segment that crosses edge
   (let [graph {:marked #{}}
-        edge (f/Edge. (f/Node. :0-0 0 [:b] 1)
-                      (f/Node. :1-3 1 [:b] 1)
-                      [:b] 1)
-        seg [(f/Edge. "mmm" "hmm" [:b :h] 2)]
-        sedge (f/Edge. seg seg [:b :h] 2)
-        crossed-edge (f/Edge. (f/Node. :0-1 1 [:f] 1)
-                              (f/Node. :1-2 1 [:f] 1)
-                              [:f] 1)
-        edge-1 (f/Edge. (f/Node. :0-2 0 [:a :d :e] 3)
-                        (f/Node. :1-0 1 [:a :d :e] 3)
-                        [:a :d :e] 3)
-        edge-2 (f/Edge. (f/Node. :0-3 0 [:c :g] 2)
-                        (f/Node. :1-1 1 [:c :g] 2)
-                        [:c :g] 2)
+        edge (f/Edge. (f/Node. :0-0 0 #{:b} 1)
+                      (f/Node. :1-3 1 #{:b} 1)
+                      #{:b} 1)
+        seg [(f/Edge. "mmm" "hmm" #{:b :h} 2)]
+        sedge (f/Edge. seg seg #{:b :h} 2)
+        crossed-edge (f/Edge. (f/Node. :0-1 1 #{:f} 1)
+                              (f/Node. :1-2 1 #{:f} 1)
+                              #{:f} 1)
+        edge-1 (f/Edge. (f/Node. :0-2 0 #{:a :d :e} 3)
+                        (f/Node. :1-0 1 #{:a :d :e} 3)
+                        #{:a :d :e} 3)
+        edge-2 (f/Edge. (f/Node. :0-3 0 #{:c :g} 2)
+                        (f/Node. :1-1 1 #{:c :g} 2)
+                        #{:c :g} 2)
         tree [(f/AccumulatorNode. 2
                                   #{edge-1 (f/rev edge-1)
                                     edge-2 (f/rev edge-2)}
@@ -253,22 +253,22 @@
 
 
 (deftest test-count-and-mark-super-crossings
-  (let [l-node-1 (f/Node. :0-0 0 [:a :b :c] 3)
-        l-node-2 (f/Node. :0-1 0 [:d] 1)
-        l-node-3 (f/Node. :0-2 0 [:e] 1)
-        nl-node-1 (f/Node. :1-0 1 [:c] 2)
-        nl-node-2 (f/Node. :1-1 1 [:b :e] 2)
-        nl-node-3 (f/Node. :1-2 1 [:a] 1)
-        nl-node-4 (f/Node. :1-3 1 [:d] 1)
-        nl-node-5 (f/Node. :1-4 1 [:f :g] 2)
-        l-seg-1 [(f/Edge. "bleh" "somewhere else" [:x] 1)]
-        l-seg-2 [(f/Edge. "meh" "elsewhere" [:y] 1)
-                 (f/Edge. "geh" nl-node-5 [:f :g] 2)]
-        edge-1 (f/Edge. nl-node-1 l-node-1 [:c] 1)
-        edge-2 (f/Edge. nl-node-2 l-node-1 [:b] 1)
-        edge-3 (f/Edge. nl-node-2 l-node-3 [:e] 1)
-        edge-4 (f/Edge. nl-node-3 l-node-1  [:a] 1)
-        edge-5 (f/Edge. nl-node-4 l-node-2 [:d] 1)
+  (let [l-node-1 (f/Node. :0-0 0 #{:a :b :c} 3)
+        l-node-2 (f/Node. :0-1 0 #{:d} 1)
+        l-node-3 (f/Node. :0-2 0 #{:e} 1)
+        nl-node-1 (f/Node. :1-0 1 #{:c} 2)
+        nl-node-2 (f/Node. :1-1 1 #{:b :e} 2)
+        nl-node-3 (f/Node. :1-2 1 #{:a} 1)
+        nl-node-4 (f/Node. :1-3 1 #{:d} 1)
+        nl-node-5 (f/Node. :1-4 1 #{:f :g} 2)
+        l-seg-1 [(f/Edge. "bleh" "somewhere else" #{:x} 1)]
+        l-seg-2 [(f/Edge. "meh" "elsewhere" #{:y} 1)
+                 (f/Edge. "geh" nl-node-5 #{:f :g} 2)]
+        edge-1 (f/Edge. nl-node-1 l-node-1 #{:c} 1)
+        edge-2 (f/Edge. nl-node-2 l-node-1 #{:b} 1)
+        edge-3 (f/Edge. nl-node-2 l-node-3 #{:e} 1)
+        edge-4 (f/Edge. nl-node-3 l-node-1  #{:a} 1)
+        edge-5 (f/Edge. nl-node-4 l-node-2 #{:d} 1)
         minus-ps [l-node-1 l-seg-1 l-node-2 l-seg-2 l-node-3]
         minus-qs [nl-node-1 nl-node-3 l-seg-1 nl-node-4 nl-node-2 l-seg-2]
         preds {nl-node-1 #{edge-1}
@@ -293,45 +293,57 @@
 
 
 (deftest test-count-sub-crossings-single-node
-  (let [node (f/Node. :0-0 0 [:a] 1)
+  (let [node (f/Node. :0-0 0 #{:a} 1)
         dests #{}]
-    (is (= (f/count-sub-crossings-single-node node dests) 0)
+    (is (= (f/count-sub-crossings-single-node node dests {}) 0)
         "A node with 0 successors has 0 sub-crossings"))
-  (let [node (f/Node. :0-0 0 [:a] 1)
-        dests #{(f/Node. :1-0 1 [:a] 1)}]
-    (is (= (f/count-sub-crossings-single-node node dests) 0)
+  (let [node (f/Node. :0-0 0 #{:a} 1)
+        dest (f/Node. :1-0 1 #{:a} 1)
+        dests #{dest}]
+    (is (= (f/count-sub-crossings-single-node node dests {dest [:a]}) 0)
         "A node with 1 successor has 0 sub-crossings"))
-  (let [node (f/Node. :0-0 0 [:a :b] 2)
-        dests #{(f/Node. :1-0 1 [:a] 1)
-                (f/Node. :1-1 1 [:b] 1)}]
-    (is (= (f/count-sub-crossings-single-node node dests) 1)
+  (let [node (f/Node. :0-0 0 #{:a :b} 2)
+        dest-1 (f/Node. :1-0 1 #{:a} 1)
+        dest-2 (f/Node. :1-1 1 #{:b} 1)
+        dests [dest-1 dest-2]
+        characters {node [:b :a]
+                    dest-1 [:a]
+                    dest-2 [:b]}]
+    (is (= (f/count-sub-crossings-single-node node dests characters) 1)
         "A node with multiple successors has its sub-crossings counted")))
 
 
 (deftest test-count-sub-crossings
-  (let [l-node-1 (f/Node. :0-0 0 [:a :b :c] 3)
-        l-node-2 (f/Node. :0-1 0 [:d] 1)
-        l-node-3 (f/Node. :0-2 0 [:e] 1)
-        nl-node-1 (f/Node. :1-0 1 [:c] 1)
-        nl-node-2 (f/Node. :1-1 1 [:b] 1)
-        nl-node-3 (f/Node. :1-2 1 [:a] 1)
-        nl-node-4 (f/Node. :1-3 1 [:d] 1)
+  (let [l-node-1 (f/Node. :0-0 0 #{:a :b :c} 3)
+        l-node-2 (f/Node. :0-1 0 #{:d} 1)
+        l-node-3 (f/Node. :0-2 0 #{:e} 1)
+        nl-node-1 (f/Node. :1-0 1 #{:c} 1)
+        nl-node-2 (f/Node. :1-1 1 #{:b} 1)
+        nl-node-3 (f/Node. :1-2 1 #{:a} 1)
+        nl-node-4 (f/Node. :1-3 1 #{:d} 1)
         minus-ps [l-node-1 l-node-2 l-node-3]
         minus-qs [nl-node-1 nl-node-2 nl-node-3 nl-node-4]
         succs {l-node-1 (set (map #(f/Edge. l-node-1 % (:characters %) (:weight %))
                                   [nl-node-1 nl-node-2 nl-node-3]))
                l-node-2 (set (map #(f/Edge. l-node-2 % (:characters %) (:weight %))
-                                  [nl-node-4]))}]
-    (is (= (f/count-sub-crossings minus-ps minus-qs succs) 3)
+                                  [nl-node-4]))}
+        characters {l-node-1 [:a :b :c]
+                    l-node-2 [:d]
+                    l-node-3 [:e]
+                    nl-node-1 [:c]
+                    nl-node-2 [:b]
+                    nl-node-3 [:a]
+                    nl-node-4 [:d]}]
+    (is (= (f/count-sub-crossings minus-ps minus-qs succs characters) 3)
         "Sub crossings are counted correctly")))
 
 
 (deftest test-neighborify
-  (let [node-1 (f/Node. :0-0 0 [:a] 1)
-        node-2 (f/Node. :0-1 0 [:b] 1)
-        node-3 (f/Node. :0-2 0 [:c] 1)
-        seg-1 (f/Segment. "bleh" 0 [:d] 1)
-        seg-2 (f/Segment. "geh" 0 [:e] 1)
+  (let [node-1 (f/Node. :0-0 0 #{:a} 1)
+        node-2 (f/Node. :0-1 0 #{:b} 1)
+        node-3 (f/Node. :0-2 0 #{:c} 1)
+        seg-1 (f/Segment. "bleh" 0 #{:d} 1)
+        seg-2 (f/Segment. "geh" 0 #{:e} 1)
         layer (f/FlatLayer. 0 0 [node-1 seg-1 node-2 seg-2 node-3])]
     (is (= (f/neighborify layer)
            [{node-3 seg-2
@@ -346,11 +358,11 @@
 
 
 (deftest test-indexify
-  (let [node-1 (f/Node. :0-0 0 [:a] 1)
-        node-2 (f/Node. :0-1 0 [:b] 1)
-        node-3 (f/Node. :0-2 0 [:c] 1)
-        seg-1 (f/Segment. "bleh" 0 [:d] 1)
-        seg-2 (f/Segment. "geh" 0 [:e] 1)
+  (let [node-1 (f/Node. :0-0 0 #{:a} 1)
+        node-2 (f/Node. :0-1 0 #{:b} 1)
+        node-3 (f/Node. :0-2 0 #{:c} 1)
+        seg-1 (f/Segment. "bleh" 0 #{:d} 1)
+        seg-2 (f/Segment. "geh" 0 #{:e} 1)
         layer (f/FlatLayer. 0 0 [node-1 seg-1 node-2 seg-2 node-3])]
     (is (= (f/indexify layer)
            [{node-1 0
@@ -367,10 +379,10 @@
 
 
 (deftest test-OrderedLayer->FlatLayer
-  (let [node-1 (f/Node. :0-0 0 [:a] 1)
-        node-2 (f/Node. :0-1 0 [:b] 1)
-        edge-1 (f/Edge. node-1 "meh" [:c] 1)
-        edge-2 (f/Edge. node-2 "bleh" [:d] 1)
+  (let [node-1 (f/Node. :0-0 0 #{:a} 1)
+        node-2 (f/Node. :0-1 0 #{:b} 1)
+        edge-1 (f/Edge. node-1 "meh" #{:c} 1)
+        edge-2 (f/Edge. node-2 "bleh" #{:d} 1)
         seg-c [edge-1 edge-2]
         ordered-layer (f/OrderedLayer. 0 0 [node-1 seg-c node-2])]
     (is (= (f/OrderedLayer->FlatLayer ordered-layer)
@@ -382,32 +394,39 @@
 
 
 (deftest test-CountedAndMarkedGraph->FlatGraph
-  (let [node-0-0 (f/Node. :0-0 0 [:a] 1)
-        node-0-1 (f/Node. :0-1 0 [:b] 1)
-        node-0-2 (f/Node. :0-2 0 [:c] 1)
-        node-1-0 (f/Node. :1-0 1 [:a :c] 2)
-        node-2-0 (f/Node. :2-0 2 [:a] 1)
-        node-2-1 (f/Node. :2-1 2 [:b] 1)
-        node-2-2 (f/Node. :2-2 2 [:c] 1)
-        succ (f/Edge. node-0-1 node-2-1 [:b] 1)
-        pred (f/Edge. node-2-1 node-0-1 [:b] 1)
-        marked-1 (f/Edge. node-0-0 node-1-0 [:a] 1)
-        marked-2 (f/Edge. node-1-0 node-0-0 [:a] 1)
+  (let [node-0-0 (f/Node. :0-0 0 #{:a} 1)
+        node-0-1 (f/Node. :0-1 0 #{:b} 1)
+        node-0-2 (f/Node. :0-2 0 #{:c} 1)
+        node-1-0 (f/Node. :1-0 1 #{:a :c} 2)
+        node-2-0 (f/Node. :2-0 2 #{:a} 1)
+        node-2-1 (f/Node. :2-1 2 #{:b} 1)
+        node-2-2 (f/Node. :2-2 2 #{:c} 1)
+        characters {node-0-0 [:a]
+                    node-0-1 [:b]
+                    node-0-2 [:c]
+                    node-1-0 [:a :c]
+                    node-2-0 [:a]
+                    node-2-1 [:b]
+                    node-2-2 [:c]}
+        succ (f/Edge. node-0-1 node-2-1 #{:b} 1)
+        pred (f/Edge. node-2-1 node-0-1 #{:b} 1)
+        marked-1 (f/Edge. node-0-0 node-1-0 #{:a} 1)
+        marked-2 (f/Edge. node-1-0 node-0-0 #{:a} 1)
         marked #{marked-1 marked-2}
         succs {node-0-0 #{marked-1}
                node-0-1 #{succ}
-               node-0-2 #{(f/Edge. node-0-2 node-1-0 [:c] 1)}
-               node-1-0 #{(f/Edge. node-1-0 node-2-0 [:a] 1)
-                          (f/Edge. node-1-0 node-2-2 [:c] 1)}}
+               node-0-2 #{(f/Edge. node-0-2 node-1-0 #{:c} 1)}
+               node-1-0 #{(f/Edge. node-1-0 node-2-0 #{:a} 1)
+                          (f/Edge. node-1-0 node-2-2 #{:c} 1)}}
         preds {node-1-0 #{marked-2
-                          (f/Edge. node-1-0 node-0-2 [:c] 1)}
-               node-2-0 #{(f/Edge. node-2-0 node-1-0 [:a] 1)}
+                          (f/Edge. node-1-0 node-0-2 #{:c} 1)}
+               node-2-0 #{(f/Edge. node-2-0 node-1-0 #{:a} 1)}
                node-2-1 #{pred}
-               node-2-2 #{(f/Edge. node-2-2 node-1-0 [:c] 1)}}
+               node-2-2 #{(f/Edge. node-2-2 node-1-0 #{:c} 1)}}
         layers [(f/OrderedLayer. 0 0 [node-0-0 node-0-1 node-0-2])
                 (f/OrderedLayer. 1 0 [node-1-0 [succ]])
                 (f/OrderedLayer. 2 0 [node-2-0 node-2-1 node-2-2])]
-        cm-graph (f/CountedAndMarkedGraph. layers succs preds 0 marked)
+        cm-graph (f/CountedAndMarkedGraph. layers succs preds 0 marked characters)
         succ-seg (f/Edge->Segment succ 1)
         pred-seg (f/Edge->Segment pred 1)]
     (is (= (f/CountedAndMarkedGraph->FlatGraph cm-graph)
@@ -443,12 +462,13 @@
                                          node-2-1 1
                                          node-2-2 0}
                               :marked marked
-                              :crossings 0}))
-        "Ordered graphs are converted to flat graphs")))
+                              :crossings 0
+                              :characters characters}))
+        "Counted and marked graphs are converted to flat graphs")))
 
 
 (deftest test-check-alignment
-  (let [pred-edge (f/Edge. nil nil [:a] 1)
+  (let [pred-edge (f/Edge. nil nil #{:a} 1)
         pred {:idx 2 :edge pred-edge :item nil}
         marked #{pred-edge}
         unmarked #{}]
@@ -467,50 +487,50 @@
 
 
 (deftest test-pred->segs+src
-  (let [node-1 (f/Node. :5-0 5 [:a] 1)
-        node-2 (f/Node. :0-0 0 [:a] 1)
-        pred (f/Edge. node-1 node-2 [:a] 1)
-        rev-pred (f/Edge. node-2 node-1 [:a] 1)]
+  (let [node-1 (f/Node. :5-0 5 #{:a} 1)
+        node-2 (f/Node. :0-0 0 #{:a} 1)
+        pred (f/Edge. node-1 node-2 #{:a} 1)
+        rev-pred (f/Edge. node-2 node-1 #{:a} 1)]
     (is (= (f/pred->segs+src pred)
-           [(f/Segment. #{node-1 node-2} 1 [:a] 1)
-            (f/Segment. #{node-1 node-2} 2 [:a] 1)
-            (f/Segment. #{node-1 node-2} 3 [:a] 1)
-            (f/Segment. #{node-1 node-2} 4 [:a] 1)
+           [(f/Segment. #{node-1 node-2} 1 #{:a} 1)
+            (f/Segment. #{node-1 node-2} 2 #{:a} 1)
+            (f/Segment. #{node-1 node-2} 3 #{:a} 1)
+            (f/Segment. #{node-1 node-2} 4 #{:a} 1)
             node-1])
         "Predecessors are processed correctly when layers are increasing")
     (is (= (f/pred->segs+src rev-pred)
-           [(f/Segment. #{node-1 node-2} 4 [:a] 1)
-            (f/Segment. #{node-1 node-2} 3 [:a] 1)
-            (f/Segment. #{node-1 node-2} 2 [:a] 1)
-            (f/Segment. #{node-1 node-2} 1 [:a] 1)
+           [(f/Segment. #{node-1 node-2} 4 #{:a} 1)
+            (f/Segment. #{node-1 node-2} 3 #{:a} 1)
+            (f/Segment. #{node-1 node-2} 2 #{:a} 1)
+            (f/Segment. #{node-1 node-2} 1 #{:a} 1)
             node-2])
         "Predecessors are processed correctly when layers are decreasing")))
 
 
 (deftest test-blockify
   (let [;; Even predecessors
-        node-1 (f/Node. :0-0 0 [:a] 1)
-        node-2 (f/Node. :0-1 0 [:b] 1)
+        node-1 (f/Node. :0-0 0 #{:a} 1)
+        node-2 (f/Node. :0-1 0 #{:b} 1)
         ;; Odd predecessors
-        node-3 (f/Node. :0-2 0 [:c] 1)
-        node-4 (f/Node. :0-3 0 [:d] 1)
-        node-5 (f/Node. :0-4 0 [:e] 1)
+        node-3 (f/Node. :0-2 0 #{:c} 1)
+        node-4 (f/Node. :0-3 0 #{:d} 1)
+        node-5 (f/Node. :0-4 0 #{:e} 1)
         ;; weighted median
-        node-6 (f/Node. :0-5 0 [:f :g :h :i] 4)
-        node-7 (f/Node. :0-6 0 [:j] 1)
-        node-8 (f/Node. :0-7 0 [:k] 1)
+        node-6 (f/Node. :0-5 0 #{:f :g :h :i} 4)
+        node-7 (f/Node. :0-6 0 #{:j} 1)
+        node-8 (f/Node. :0-7 0 #{:k} 1)
 
-        node-9 (f/Node. :1-0 1 [:a :b] 2)
-        edge-1 (f/Edge. node-9 node-1 [:a] 1)
-        edge-2 (f/Edge. node-9 node-2 [:b] 1)
-        node-10 (f/Node. :1-1 1 [:c :d :e] 1)
-        edge-3 (f/Edge. node-10 node-3 [:c] 1)
-        edge-4 (f/Edge. node-10 node-4 [:d] 1)
-        edge-5 (f/Edge. node-10 node-5 [:e] 1)
-        node-11 (f/Node. :1-2 1 [:f :g :h :i :j :k] 6)
-        edge-6 (f/Edge. node-11 node-6 [:f :g :h :i] 4)
-        edge-7 (f/Edge. node-11 node-7 [:j] 1)
-        edge-8 (f/Edge. node-11 node-8 [:k] 1)
+        node-9 (f/Node. :1-0 1 #{:a :b} 2)
+        edge-1 (f/Edge. node-9 node-1 #{:a} 1)
+        edge-2 (f/Edge. node-9 node-2 #{:b} 1)
+        node-10 (f/Node. :1-1 1 #{:c :d :e} 1)
+        edge-3 (f/Edge. node-10 node-3 #{:c} 1)
+        edge-4 (f/Edge. node-10 node-4 #{:d} 1)
+        edge-5 (f/Edge. node-10 node-5 #{:e} 1)
+        node-11 (f/Node. :1-2 1 #{:f :g :h :i :j :k} 6)
+        edge-6 (f/Edge. node-11 node-6 #{:f :g :h :i} 4)
+        edge-7 (f/Edge. node-11 node-7 #{:j} 1)
+        edge-8 (f/Edge. node-11 node-8 #{:k} 1)
         layer-1 (f/FlatLayer. 0 0 [node-1 node-2 node-3 node-4 node-5 node-6 node-7 node-8])
         layer-2 (f/FlatLayer. 1 0 [node-9 node-10 node-11])
         graph (f/map->FlatGraph {:layers [layer-1 layer-2]
@@ -591,40 +611,40 @@
           "Nodes without valid medians start their own blocks"))))
 
 
-(let [node-0-0 (f/Node. :0-0 0 [:a :b :c :d :e :f
-                                :g :h :i :j :k] 11)
-      node-1-0 (f/Node. :1-0 1 [:a :b :c :d :e] 5)
-      node-1-1 (f/Node. :1-1 1 [:f :g :h :i :j :k] 6)
-      node-2-0 (f/Node. :2-0 2 [:a :b :c :d] 4)
-      node-2-1 (f/Node. :2-1 2 [:f :g :h] 3)
-      node-2-2 (f/Node. :2-2 2 [:i :j] 2)
-      node-2-3 (f/Node. :2-3 2 [:k] 1)
-      node-3-0 (f/Node. :3-0 3 [:l :m :n :o :p :q :r :s] 8)
-      node-3-1 (f/Node. :3-1 3 [:f :g :h] 3)
-      node-3-2 (f/Node. :3-2 3 [:k] 1)
-      node-4-0 (f/Node. :4-0 4 [:l :m :n :o :p :q :r :s] 8)
-      node-4-1 (f/Node. :4-1 4 [:t :u :v :w :x] 5)
-      node-4-2 (f/Node. :4-2 4 [:i :j] 2)
-      node-5-0 (f/Node. :5-0 5 [:t :u :v :w :x] 5)
-      node-6-0 (f/Node. :6-0 6 [:y :z] 2)
-      node-6-1 (f/Node. :6-1 6 [:t :u :v :w :x] 5)
-      node-7-0 (f/Node. :7-0 7 [:1 :2 :3] 3)
-      node-7-1 (f/Node. :7-1 7 [:y :z] 2)
-      node-8-0 (f/Node. :8-0 8 [:1 :2 :3] 3)
-      pred-1 (f/Edge. node-1-0 node-0-0 [:a :b :c :d :e] 5)
-      pred-2 (f/Edge. node-1-1 node-0-0 [:f :g :h :i :j :k] 6)
-      pred-3 (f/Edge. node-2-0 node-1-0 [:a :b :c :d] 4)
-      pred-4 (f/Edge. node-2-1 node-1-1 [:f :g :h] 3)
-      pred-5 (f/Edge. node-2-2 node-1-1 [:i :j] 2)
-      pred-6 (f/Edge. node-2-3 node-1-1 [:k] 1)
-      pred-7 (f/Edge. node-3-1 node-2-1 [:f :g :h] 3)
-      pred-8 (f/Edge. node-4-2 node-2-2 [:i :j] 2)
-      pred-9 (f/Edge. node-3-2 node-2-3 [:k] 1)
-      pred-10 (f/Edge. node-4-0 node-3-0 [:l :m :n :o :p :q :r :s] 8)
-      pred-11 (f/Edge. node-5-0 node-4-1 [:t :u :v :w :x] 5)
-      pred-12 (f/Edge. node-6-1 node-5-0 [:t :u :v :w :x] 5)
-      pred-13 (f/Edge. node-7-1 node-6-0 [:y :z] 2)
-      pred-14 (f/Edge. node-8-0 node-7-0 [:1 :2 :3] 3)
+(let [node-0-0 (f/Node. :0-0 0 #{:a :b :c :d :e :f
+                                 :g :h :i :j :k} 11)
+      node-1-0 (f/Node. :1-0 1 #{:a :b :c :d :e} 5)
+      node-1-1 (f/Node. :1-1 1 #{:f :g :h :i :j :k} 6)
+      node-2-0 (f/Node. :2-0 2 #{:a :b :c :d} 4)
+      node-2-1 (f/Node. :2-1 2 #{:f :g :h} 3)
+      node-2-2 (f/Node. :2-2 2 #{:i :j} 2)
+      node-2-3 (f/Node. :2-3 2 #{:k} 1)
+      node-3-0 (f/Node. :3-0 3 #{:l :m :n :o :p :q :r :s} 8)
+      node-3-1 (f/Node. :3-1 3 #{:f :g :h} 3)
+      node-3-2 (f/Node. :3-2 3 #{:k} 1)
+      node-4-0 (f/Node. :4-0 4 #{:l :m :n :o :p :q :r :s} 8)
+      node-4-1 (f/Node. :4-1 4 #{:t :u :v :w :x} 5)
+      node-4-2 (f/Node. :4-2 4 #{:i :j} 2)
+      node-5-0 (f/Node. :5-0 5 #{:t :u :v :w :x} 5)
+      node-6-0 (f/Node. :6-0 6 #{:y :z} 2)
+      node-6-1 (f/Node. :6-1 6 #{:t :u :v :w :x} 5)
+      node-7-0 (f/Node. :7-0 7 #{:1 :2 :3} 3)
+      node-7-1 (f/Node. :7-1 7 #{:y :z} 2)
+      node-8-0 (f/Node. :8-0 8 #{:1 :2 :3} 3)
+      pred-1 (f/Edge. node-1-0 node-0-0 #{:a :b :c :d :e} 5)
+      pred-2 (f/Edge. node-1-1 node-0-0 #{:f :g :h :i :j :k} 6)
+      pred-3 (f/Edge. node-2-0 node-1-0 #{:a :b :c :d} 4)
+      pred-4 (f/Edge. node-2-1 node-1-1 #{:f :g :h} 3)
+      pred-5 (f/Edge. node-2-2 node-1-1 #{:i :j} 2)
+      pred-6 (f/Edge. node-2-3 node-1-1 #{:k} 1)
+      pred-7 (f/Edge. node-3-1 node-2-1 #{:f :g :h} 3)
+      pred-8 (f/Edge. node-4-2 node-2-2 #{:i :j} 2)
+      pred-9 (f/Edge. node-3-2 node-2-3 #{:k} 1)
+      pred-10 (f/Edge. node-4-0 node-3-0 #{:l :m :n :o :p :q :r :s} 8)
+      pred-11 (f/Edge. node-5-0 node-4-1 #{:t :u :v :w :x} 5)
+      pred-12 (f/Edge. node-6-1 node-5-0 #{:t :u :v :w :x} 5)
+      pred-13 (f/Edge. node-7-1 node-6-0 #{:y :z} 2)
+      pred-14 (f/Edge. node-8-0 node-7-0 #{:1 :2 :3} 3)
       layer-0 (f/FlatLayer. 0 0 [node-0-0])
       layer-1 (f/FlatLayer. 1 0 [node-1-0 node-1-1])
       layer-2 (f/FlatLayer. 2 0 [node-2-0 node-2-1 node-2-2 node-2-3])
@@ -634,7 +654,7 @@
       layer-6 (f/FlatLayer. 6 0 [node-6-0 node-6-1])
       layer-7 (f/FlatLayer. 7 0 [node-7-0 node-7-1])
       layer-8 (f/FlatLayer. 8 0 [node-8-0])
-      seg (f/Segment. #{node-2-2 node-4-2} 3 [:i :j] 2)
+      seg (f/Segment. #{node-2-2 node-4-2} 3 #{:i :j} 2)
       graph (f/map->FlatGraph {:layers [layer-0 layer-1 layer-2 layer-3 layer-4
                                         layer-5 layer-6 layer-7 layer-8]
                                :succs {}
