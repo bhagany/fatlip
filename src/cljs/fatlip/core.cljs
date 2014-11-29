@@ -722,8 +722,8 @@
 (defn check-alignment
   "Checks whether a predecessor is a valid alignment candidate"
   [pred last-idx marked]
-  (if (and (< last-idx (:idx pred))
-           (not (contains? marked (:edge pred))))
+  (when (and (< last-idx (:idx pred))
+             (not (contains? marked (:edge pred))))
     pred))
 
 
