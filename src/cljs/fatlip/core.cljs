@@ -657,7 +657,9 @@
   "Chooses the graph with the fewest crossings from a collection of OrderedGraphs"
   [ordered-graphs]
   (->> (map OrderedGraph->CountedAndMarkedGraph ordered-graphs)
-       (sort-by #(-> [(:crossings %) (count (:marked %))]))
+       (sort-by (fn [g]
+                  [(:crossings g)
+                   (reduce #(+ %1 (:weight %2)) 0 (:marked g))]))
        first))
 
 
