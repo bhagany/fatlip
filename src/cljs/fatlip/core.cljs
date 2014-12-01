@@ -515,7 +515,7 @@
     (if (empty? nodes)
       crossings
       (let [node (first nodes)
-            dest-set (into #{} (map :dest (get succs node)))
+            dest-set (set (map :dest (get succs node)))
             dests (filter #(contains? dest-set %) minus-qs)
             c (count-sub-crossings-single-node node dests characters)]
         (recur (rest nodes) (+ crossings c))))))
@@ -756,7 +756,7 @@
   aligned blocks"
   [cm-graph]
   (let [{:keys [layers succs preds marked crossings characters]} cm-graph
-        cm-layers (into [] (map OrderedLayer->FlatLayer layers))
+        cm-layers (vec (map OrderedLayer->FlatLayer layers))
         [aboves belows] (apply map merge (map neighborify cm-layers))
         [top-idxs bot-idxs] (apply map merge (map indexify cm-layers))]
     (map->FlatGraph {:layers cm-layers
@@ -792,7 +792,7 @@
                     (range (inc dest-layer) src-layer))
                (map (partial Edge->Segment pred)
                     (range (dec dest-layer) src-layer -1)))]
-    (conj (into [] segs) src)))
+    (conj (vec segs) src)))
 
 
 (defn blockify-layer
@@ -906,12 +906,12 @@
            succs {}
            preds {}]
       (if (empty? bs)
-        (let [block-set (into #{} (vals blocks))
+        (let [block-set (set (vals blocks))
               simple-succs (->> (map (fn [[src edges]]
-                                       [src (into #{} (map :dest edges))])
+                                       [src (set (map :dest edges))])
                                      succs)
                                 (into {}))
-              all-succs (into #{} (reduce set/union (vals simple-succs)))
+              all-succs (reduce set/union (vals simple-succs))
               long-block (first (filter #(> (count %) 1) block-set))
               layer-id-compare (if (< (-> long-block first :layer-id)
                                       (-> long-block second :layer-id))
@@ -969,7 +969,7 @@
   classes. This means there can be multiple edges per class pair."
   [block-graph]
   (let [block-classes (classify block-graph)
-        classes (into #{} (vals block-classes))
+        classes (set (vals block-classes))
         edge->set #(update-in %1 [(get block-classes (:src %2))]
                               (fnil conj #{}) %2)]
     (loop [cs classes
@@ -978,10 +978,9 @@
       (if (empty? cs)
         (let [simple-succs (->> (map (fn [[src edges]]
                                        [src
-                                        (into #{}
-                                              (map #(get-in
-                                                     block-classes [(:dest %)])
-                                                   edges))])
+                                        (set (map #(get-in
+                                                    block-classes [(:dest %)])
+                                                  edges))])
                                      succs)
                                 (into {}))
               all-succs (reduce set/union (vals simple-succs))
@@ -990,10 +989,10 @@
           (map->ClassGraph {:classes topo-classes :succs succs
                             :preds preds :sources sources}))
         (let [class (first cs)
-              class-set (into #{} class)
+              class-set (set class)
               block-succs (->> (mapcat #(-> block-graph :succs (get %)) class)
                                (remove #(contains? class-set (:dest %)))
-                               (into #{}))
+                               set)
               block-preds (map rev block-succs)
               ss (reduce edge->set succs block-succs)
               ps (reduce edge->set preds block-preds)]
