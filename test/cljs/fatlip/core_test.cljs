@@ -25,7 +25,7 @@
                       f/SparseGraph->ordered-graphs)
         cm-graph (f/best-ordering orderings)]
     (is (= (count orderings) 2) "Ordering algorithm short circuits")
-    (is (= cm-graph (f/OrderedGraph->CountedAndMarkedGraph (orderings 1)))
+    (is (= cm-graph (f/OrderedGraph->CountedAndMarkedGraph (orderings 0)))
         "The correct ordered graph is chosen")
     (is (= (count (:layers graph)) (count (:layers cm-graph)) 4) "Number of layers")
     (is (= (-> graph :layers (get 0) :nodes count)
@@ -53,8 +53,8 @@
         "Number of edges")
 
     ;; ESK ordering
-    (is (= (count (:marked cm-graph)) 0) "Number of marked edges")
-    (is (= (:crossings cm-graph) 9) "Number of crossings")))
+    (is (= (count (:marked cm-graph)) 2) "Number of marked edges")
+    (is (= (:crossings cm-graph) 5) "Number of crossings")))
 
 
 ;; Fine-grained ESK

@@ -593,6 +593,42 @@
           (recur g ordered-layer (rest layers)))))))
 
 
+(defn get-ordered
+  [node preds characters prev-l-characters]
+  (let [pred-nodes (get preds node)
+        node-characters (:characters node)
+        ordered (condp = (count pred-nodes)
+                  0 (get characters node)
+                  1 (vec (filter #(contains? node-characters %)
+                                 (get characters (:dest (first pred-nodes)))))
+                  (vec (filter #(contains? node-characters %)
+                               prev-l-characters)))]
+    (if (= (count ordered) (count node-characters))
+      ordered
+      (into ordered (set/difference node-characters (set ordered))))))
+
+
+(defn order-subnodes
+  [co-graph]
+  (let [{:keys [layers characters preds]} co-graph]
+    (loop [ls (rest layers)
+           prev-l (first layers)
+           sorted characters]
+      (if (empty? ls)
+        (assoc co-graph :characters sorted)
+        (let [layer (first ls)
+              prev-l-characters (->> (:items prev-l)
+                                     (remove vector?)
+                                     (mapcat #(get sorted %)))
+              s (merge sorted
+                       (->> (:items layer)
+                            (remove vector?)
+                            (map (fn [n]
+                                   [n (get-ordered n preds sorted prev-l-characters)]))
+                            (into {})))]
+          (recur (rest ls) layer s))))))
+
+
 (defn SparseGraph->ordered-graphs
   "Implements the 2-layer crossing minimization algorithm on a sparse graph found in
   'An Efficient Implementation of Sugiyama’s Algorithm for Layered Graph Drawing',
@@ -626,14 +662,28 @@
            (if (or (= c max-sweeps) (contains? first-layers first-layer))
              orderings
              (let [reverse? (odd? c)
-                   ordered-graph (-> (if reverse?
-                                       (rev sparse-graph)
-                                       sparse-graph)
-                                     (SparseGraph->OrderedGraph first-layer))
-                   ords (conj orderings (if reverse?
-                                          (rev ordered-graph)
-                                          ordered-graph))
-                   layers (:layers ordered-graph)]
+                   graph (-> (if reverse?
+                               (rev sparse-graph)
+                               sparse-graph)
+                             (SparseGraph->OrderedGraph first-layer))
+                   backward-graph (if reverse?
+                                    graph
+                                    (rev graph))
+                   ;; This is sort of ugly, but once we order the nodes, we
+                   ;; still have to come up with a good subnode ordering.
+                   ;; Conceptually, this belongs in SparseGraph->OrderedGraph,
+                   ;; but it's also conceptually cromulent to have
+                   ;; SparseGraph->OrderedGraph know nothing about the forward/
+                   ;; reverse dance that we do here. However, subnode ordering
+                   ;; is dependent on direction. My choice, then is to make
+                   ;; SparseGraph->OrderedGraph direction-aware, or pull the
+                   ;; subnode ordering out and put it here, where we're aware
+                   ;; of the direction. For now, I've chosen the latter.
+                   backward-subnode-pass (order-subnodes backward-graph)
+                   forward-subnode-pass (order-subnodes
+                                         (rev backward-subnode-pass))
+                   ords (conj orderings forward-subnode-pass)
+                   layers (:layers graph)]
                ;; The last layer of the current ordering is the first layer
                ;; of the next
                (recur ords (layers last-layer-idx) (conj first-layers first-layer)))))))))
