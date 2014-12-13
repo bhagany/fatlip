@@ -157,19 +157,19 @@
   [graph node]
   (loop [graph graph
          characters (:characters node)]
-     (if (empty? characters)
-       graph
-       (let [character (first characters)
-             last-node (-> graph :last-nodes-by-character character)
-             [g c] (if last-node
-                     (let [last-node-characters (-> graph
-                                                    :last-nodes-by-node
-                                                    ((:id last-node) #{}))
-                           edge-characters (vec (set/intersection last-node-characters characters))
-                           g (process-edge-characters graph last-node node edge-characters)]
-                       [g (set/difference characters last-node-characters)])
-                     [graph (disj characters character)])]
-         (recur g c)))))
+    (if (empty? characters)
+      graph
+      (let [character (first characters)
+            last-node (-> graph :last-nodes-by-character character)
+            [g c] (if last-node
+                    (let [last-node-characters (-> graph
+                                                   :last-nodes-by-node
+                                                   ((:id last-node) #{}))
+                          edge-characters (vec (set/intersection last-node-characters characters))
+                          g (process-edge-characters graph last-node node edge-characters)]
+                      [g (set/difference characters last-node-characters)])
+                    [graph (disj characters character)])]
+        (recur g c)))))
 
 
 (defn add-node
@@ -463,15 +463,15 @@
   "Counts the sub-crossings that result from adding a single sub-edge
   to the accumulator tree"
   ([tree index]
-     (single-edge-sub-crossings tree index 0))
+   (single-edge-sub-crossings tree index 0))
   ([tree index crossings]
-     (if (zero? index)
-       [tree crossings]
-       (let [parent-index (quot (dec index) 2)
-             real-right-index parent-index]
-         (if (odd? index)
-           (recur tree parent-index (+ crossings (get tree real-right-index)))
-           (recur (update-in tree [real-right-index] inc) parent-index crossings))))))
+   (if (zero? index)
+     [tree crossings]
+     (let [parent-index (quot (dec index) 2)
+           real-right-index parent-index]
+       (if (odd? index)
+         (recur tree parent-index (+ crossings (get tree real-right-index)))
+         (recur (update-in tree [real-right-index] inc) parent-index crossings))))))
 
 
 (defn count-sub-crossings-single-node
@@ -643,50 +643,50 @@
     counting and marking to be parallelized, whereas the ordering is inherently
     serial."
   ([sparse-graph]
-     (SparseGraph->ordered-graphs sparse-graph 20))
+   (SparseGraph->ordered-graphs sparse-graph 20))
   ([sparse-graph max-sweeps]
-     (let [layers (:layers sparse-graph)
-           first-sparse-layer (first layers)
-           last-layer-idx (dec (count layers))]
-       (loop [orderings []
-              ;; seed the first layer with initial ordered layer
-              first-layer (map->OrderedLayer
-                           (-> first-sparse-layer
-                               (dissoc :nodes)
-                               (assoc :items (:nodes first-sparse-layer))))
-              first-layers #{}]
-         (let [c (count orderings)]
-           ;; Graph orderings are determined by the first layer. If we've seen this
-           ;; first layer before, then we can be sure that we're about to enter
-           ;; a cycle, and can thus short circuit
-           (if (or (= c max-sweeps) (contains? first-layers first-layer))
-             orderings
-             (let [reverse? (odd? c)
-                   graph (-> (if reverse?
-                               (rev sparse-graph)
-                               sparse-graph)
-                             (SparseGraph->OrderedGraph first-layer))
-                   backward-graph (if reverse?
-                                    graph
-                                    (rev graph))
-                   ;; This is sort of ugly, but once we order the nodes, we
-                   ;; still have to come up with a good subnode ordering.
-                   ;; Conceptually, this belongs in SparseGraph->OrderedGraph,
-                   ;; but it's also conceptually cromulent to have
-                   ;; SparseGraph->OrderedGraph know nothing about the forward/
-                   ;; reverse dance that we do here. However, subnode ordering
-                   ;; is dependent on direction. My choice then, is to make
-                   ;; SparseGraph->OrderedGraph direction-aware, or pull the
-                   ;; subnode ordering out and put it here, where we're aware
-                   ;; of the direction. For now, I've chosen the latter.
-                   backward-subnode-pass (order-subnodes backward-graph)
-                   forward-subnode-pass (order-subnodes
-                                         (rev backward-subnode-pass))
-                   ords (conj orderings forward-subnode-pass)
-                   layers (:layers graph)]
-               ;; The last layer of the current ordering is the first layer
-               ;; of the next
-               (recur ords (layers last-layer-idx) (conj first-layers first-layer)))))))))
+   (let [layers (:layers sparse-graph)
+         first-sparse-layer (first layers)
+         last-layer-idx (dec (count layers))]
+     (loop [orderings []
+            ;; seed the first layer with initial ordered layer
+            first-layer (map->OrderedLayer
+                         (-> first-sparse-layer
+                             (dissoc :nodes)
+                             (assoc :items (:nodes first-sparse-layer))))
+            first-layers #{}]
+       (let [c (count orderings)]
+         ;; Graph orderings are determined by the first layer. If we've seen this
+         ;; first layer before, then we can be sure that we're about to enter
+         ;; a cycle, and can thus short circuit
+         (if (or (= c max-sweeps) (contains? first-layers first-layer))
+           orderings
+           (let [reverse? (odd? c)
+                 graph (-> (if reverse?
+                             (rev sparse-graph)
+                             sparse-graph)
+                           (SparseGraph->OrderedGraph first-layer))
+                 backward-graph (if reverse?
+                                  graph
+                                  (rev graph))
+                 ;; This is sort of ugly, but once we order the nodes, we
+                 ;; still have to come up with a good subnode ordering.
+                 ;; Conceptually, this belongs in SparseGraph->OrderedGraph,
+                 ;; but it's also conceptually cromulent to have
+                 ;; SparseGraph->OrderedGraph know nothing about the forward/
+                 ;; reverse dance that we do here. However, subnode ordering
+                 ;; is dependent on direction. My choice then, is to make
+                 ;; SparseGraph->OrderedGraph direction-aware, or pull the
+                 ;; subnode ordering out and put it here, where we're aware
+                 ;; of the direction. For now, I've chosen the latter.
+                 backward-subnode-pass (order-subnodes backward-graph)
+                 forward-subnode-pass (order-subnodes
+                                       (rev backward-subnode-pass))
+                 ords (conj orderings forward-subnode-pass)
+                 layers (:layers graph)]
+             ;; The last layer of the current ordering is the first layer
+             ;; of the next
+             (recur ords (layers last-layer-idx) (conj first-layers first-layer)))))))))
 
 
 (defn OrderedGraph->CountedAndMarkedGraph
@@ -699,8 +699,8 @@
                                      minus-ps minus-qs)
                                 (apply map vector))]
     (map->CountedAndMarkedGraph (assoc ordered-graph
-                                      :crossings (reduce + crossings)
-                                      :marked (reduce set/union marked)))))
+                                  :crossings (reduce + crossings)
+                                  :marked (reduce set/union marked)))))
 
 
 (defn best-ordering
