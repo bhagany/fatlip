@@ -17,8 +17,8 @@
   Reversible
   (rev [this]
     (assoc this
-      :src dest
-      :dest src)))
+           :src dest
+           :dest src)))
 
 (defrecord Segment [endpoints layer-id characters weight])
 
@@ -26,24 +26,24 @@
   Reversible
   (rev [this]
     (assoc this
-      :succs preds
-      :preds succs
-      :ps qs
-      :qs ps
-      :layers (vec (rseq layers)))))
+           :succs preds
+           :preds succs
+           :ps qs
+           :qs ps
+           :layers (vec (rseq layers)))))
 
 (defrecord SparseLayer [id duration nodes])
 (defrecord OrderedGraph [layers succs preds ps qs minus-ps minus-qs characters]
   Reversible
   (rev [this]
     (assoc this
-      :succs preds
-      :preds succs
-      :ps qs
-      :qs ps
-      :minus-ps minus-qs
-      :minus-qs minus-ps
-      :layers (vec (rseq layers)))))
+           :succs preds
+           :preds succs
+           :ps qs
+           :qs ps
+           :minus-ps minus-qs
+           :minus-qs minus-ps
+           :layers (vec (rseq layers)))))
 
 (defrecord OrderedLayer [id duration items])
 (defrecord CountedAndMarkedGraph [layers succs preds crossings marked characters]) ; still has OrderedLayers
@@ -51,16 +51,16 @@
   Reversible
   (rev [this]
     (assoc this
-      :succs preds
-      :preds succs
-      :layers (vec (rseq layers))))
+           :succs preds
+           :preds succs
+           :layers (vec (rseq layers))))
   Flippable
   (flip [this]
     (assoc this
-      :aboves belows
-      :belows aboves
-      :top-idxs bot-idxs
-      :bot-idxs top-idxs)))
+           :aboves belows
+           :belows aboves
+           :top-idxs bot-idxs
+           :bot-idxs top-idxs)))
 
 (defrecord FlatLayer [id duration items])
 (defrecord BlockGraph [blocks succs preds sources])
@@ -68,8 +68,8 @@
   Reversible
   (rev [this]
     (assoc this
-      :src dest
-      :dest src)))
+           :src dest
+           :dest src)))
 
 (defrecord ClassGraph [classes succs preds sources])
 (defrecord AccumulatorNode [weight node-edges is-seg-c])
@@ -144,9 +144,9 @@
   remain together from last-node to node"
   (let [span (- (:layer-id node) (:layer-id last-node))
         [g last-n] (cond
-                    (= span 2) (add-r-node graph last-node node characters)
-                    (> span 2) (add-p-q-nodes graph last-node node characters)
-                    :else [graph last-node])]
+                     (= span 2) (add-r-node graph last-node node characters)
+                     (> span 2) (add-p-q-nodes graph last-node node characters)
+                     :else [graph last-node])]
     (add-edge g last-n node characters)))
 
 
@@ -187,11 +187,11 @@
               last-node (-> new-g :last-nodes-by-character character)
               disappeared (contains? (-> node :path-mods character) :disappeared)
               g (cond-> new-g
-                        disappeared (update-in [:last-nodes-by-character] dissoc character)
-                        (not disappeared) (->
-                                           (assoc-in [:last-nodes-by-character character] node)
-                                           (update-in [:last-nodes-by-node (:id node)] (fnil conj #{}) character))
-                        last-node (update-in [:last-nodes-by-node (:id last-node)] disj character))]
+                  disappeared (update-in [:last-nodes-by-character] dissoc character)
+                  (not disappeared) (->
+                                     (assoc-in [:last-nodes-by-character character] node)
+                                     (update-in [:last-nodes-by-node (:id node)] (fnil conj #{}) character))
+                  last-node (update-in [:last-nodes-by-node (:id last-node)] disj character))]
           (recur g (rest characters)))))))
 
 
@@ -430,9 +430,9 @@
               (recur tree c (set/union marked m) parent-index))
             (let [t (-> (update-in tree [real-right-index :weight] + weight)
                         (cond->
-                         is-seg-c (assoc-in [real-right-index :is-seg-c] true)
-                         (not is-seg-c) (update-in [real-right-index :node-edges]
-                                                   conj edge (rev edge))))]
+                            is-seg-c (assoc-in [real-right-index :is-seg-c] true)
+                            (not is-seg-c) (update-in [real-right-index :node-edges]
+                                                      conj edge (rev edge))))]
               (recur t crossings marked parent-index))))))))
 
 
@@ -699,8 +699,8 @@
                                      minus-ps minus-qs)
                                 (apply map vector))]
     (map->CountedAndMarkedGraph (assoc ordered-graph
-                                  :crossings (reduce + crossings)
-                                  :marked (reduce set/union marked)))))
+                                       :crossings (reduce + crossings)
+                                       :marked (reduce set/union marked)))))
 
 
 (defn best-ordering
@@ -744,10 +744,10 @@
   transforms an OrderedLayer into a FlatLayer composed of Nodes and Segments"
   [ordered-layer]
   (map->FlatLayer (assoc ordered-layer
-                    :items (map #(if (instance? Edge %)
-                                   (Edge->Segment % (:id ordered-layer))
-                                   %)
-                                (-> ordered-layer :items flatten)))))
+                         :items (map #(if (instance? Edge %)
+                                        (Edge->Segment % (:id ordered-layer))
+                                        %)
+                                     (-> ordered-layer :items flatten)))))
 
 
 (defn CountedAndMarkedGraph->FlatGraph
