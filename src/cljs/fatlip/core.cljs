@@ -71,7 +71,7 @@
            :src dest
            :dest src)))
 
-(defrecord ClassGraph [classes succs preds sources])
+(defrecord ClassGraph [classes succs preds block-preds sources])
 (defrecord AccumulatorNode [weight node-edges is-seg-c])
 
 
@@ -920,7 +920,8 @@
                            (sort-by #(:layer-id (get % 0))
                                     layer-id-compare))
               topo-blocks (topo-sort sources simple-succs)]
-          (map->BlockGraph {:blocks topo-blocks :succs succs :preds preds :sources sources}))
+          (map->BlockGraph {:blocks topo-blocks :succs succs
+                            :preds preds :sources sources}))
         (let [block (-> bs first second)  ; we want the value in the map
               b-succs (->> (map #(get-in flat-graph [:aboves %]) block)
                            (remove nil?)
@@ -987,7 +988,8 @@
               sources (set/difference classes all-succs)
               topo-classes (topo-sort sources simple-succs)]
           (map->ClassGraph {:classes topo-classes :succs succs
-                            :preds preds :sources sources}))
+                            :preds preds :sources sources
+                            :block-preds (:preds block-graph)}))
         (let [class (first cs)
               class-set (set class)
               block-succs (->> (mapcat #(-> block-graph :succs (get %)) class)
