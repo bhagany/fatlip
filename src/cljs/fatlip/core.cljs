@@ -178,21 +178,17 @@
   character in a node for calculating future edges from this node"
   [graph layer-id input]
   (let [[grph node] (make-node graph layer-id input)]
-    (loop [new-g (process-characters grph node)
-           characters (-> new-g :characters (get node))]
-      ;; Update node metadata for all characters in the new node
-      (if (empty? characters)
-        new-g
-        (let [character (first characters)
-              last-node (-> new-g :last-nodes-by-character character)
-              disappeared (contains? (-> node :path-mods character) :disappeared)
-              g (cond-> new-g
+    (reduce (fn [g character]
+              (let [last-node (-> g :last-nodes-by-character character)
+                    disappeared (contains? (-> node :path-mods character) :disappeared)]
+                (cond-> g
                   disappeared (update-in [:last-nodes-by-character] dissoc character)
                   (not disappeared) (->
                                      (assoc-in [:last-nodes-by-character character] node)
                                      (update-in [:last-nodes-by-node (:id node)] (fnil conj #{}) character))
-                  last-node (update-in [:last-nodes-by-node (:id last-node)] disj character))]
-          (recur g (rest characters)))))))
+                  last-node (update-in [:last-nodes-by-node (:id last-node)] disj character))))
+            (process-characters grph node)
+            (-> grph :characters (get node)))))
 
 
 (defn add-layer
@@ -204,38 +200,37 @@
         layer (SparseLayer. layer-id
                             (:duration input-layer)
                             [])]
-    (loop [g (update-in graph [:layers] conj layer)
-           input-groups (input-layer :groups)]
-      (if (empty? input-groups)
-        g
-        (recur (add-node g layer-id (first input-groups))
-               (rest input-groups))))))
+    (reduce (fn [g input-group]
+              (add-node g layer-id input-group))
+            (update-in graph [:layers] conj layer)
+            (input-layer :groups))))
 
 
 (defn inp->SparseGraph
   "Creates a sparse graph, as defined in ESK"
   [input]
-  (loop [graph (map->SparseGraph {:layers []
+  (let [graph (reduce
+               (fn [g i]
+                 (let [dup (->> (mapcat #(:characters %) (:groups i))
+                                frequencies
+                                (filter (fn [[_ c]] (> c 1)))
+                                first)]
+                   (if dup
+                     (throw (js/Error.
+                             (str (get dup 0) " is specified "
+                                  (get dup 1) " times in one layer")))
+                     (add-layer g i))))
+               (map->SparseGraph {:layers []
                                   :succs {}
                                   :preds {}
                                   :ps #{}
                                   :qs #{}
                                   :rs #{}
                                   :characters {}})
-         inp input]
-    (if (empty? inp)
-      (if (empty? (:succs graph))
-        (throw (js/Error. "At least one character must appear twice"))
-        graph)
-      (let [i (first inp)
-            dup-character (->> (mapcat #(:characters %) (:groups i))
-                               frequencies
-                               (filter (fn [[_ c]] (> c 1)))
-                               first)]
-        (if dup-character
-          (throw (js/Error. (str (get dup-character 0) " is specified "
-                                 (get dup-character 1) " times in one layer")))
-          (recur (add-layer graph i) (rest inp)))))))
+               input)]
+    (if (empty? (:succs graph))
+      (throw (js/Error. "At least one character must appear twice"))
+      graph)))
 
 
 (defn replace-ps
@@ -261,18 +256,15 @@
   container is the number of edges it contains, and the size of a node is 1.
 
   Also, it doesn't really matter what seed you choose for the initial value of the sum. I
-  chose -1, which is implied by the description in ESK."
+  chose 0, which is implied by the description in ESK."
   [minus-ps]
-  (loop [m-ps minus-ps
-         current-position -1
-         positions {}]
-    (if (empty? m-ps)
-      positions
-      (let [item (first m-ps)
-            c-p (if (vector? item)
-                  (+ current-position (count item))
-                  (inc current-position))]
-        (recur (rest m-ps) c-p (assoc positions item (inc current-position)))))))
+  (into {} (reductions (fn [[last-item last-position] item]
+                         (let [position (if (vector? last-item)
+                                          (+ last-position (count last-item))
+                                          (inc last-position))]
+                           [item position]))
+                       [(first minus-ps) 0]
+                       (rest minus-ps))))
 
 
 (defn get-measure
@@ -380,13 +372,11 @@
   This function sets all the bits to the right of the first bit set in a 32 bit
   number, and then increments, which is the same thing"
   [x]
-  (loop [num x
-         exp 0]
-    (if (> exp 4)
-      (inc num)
-      (let [shifted (bit-shift-right num (.pow js/Math 2 exp))]
-        (recur (bit-or num shifted)
-               (inc exp))))))
+  (inc (reduce (fn [num exp]
+                 (let [shifted (bit-shift-right num (.pow js/Math 2 exp))]
+                   (bit-or num shifted)))
+               x
+               (range 5))))
 
 
 (defn single-edge-super-crossings
@@ -447,16 +437,14 @@
         ;; Our compact representation has the same size as the index
         ;; of the first leaf in the mental model of the tree
         tree-size first-leaf]
-    (loop [tree (vec (repeat tree-size (AccumulatorNode. 0 #{} false)))
-           crossings 0
-           marked #{}
-           order (sorted-edge-order layer-1 layer-2 edges)]
-      (if (empty? order)
-        [crossings marked]
-        (let [[ord edge] (first order)
-              index (+ first-leaf ord)
-              [t c m] (single-edge-super-crossings tree index edge)]
-          (recur t (+ crossings c) (set/union marked m) (rest order)))))))
+    (->> (sorted-edge-order layer-1 layer-2 edges)
+         (reduce (fn [[crossings marked tree] [order edge]]
+                   (let [index (+ first-leaf order)
+                         [t c m] (single-edge-super-crossings tree index edge)]
+                     [(+ crossings c) (set/union marked m) t]))
+                 [0 #{} (vec (repeat tree-size
+                                     (AccumulatorNode. 0 #{} false)))])
+         (take 2))))
 
 
 (defn single-edge-sub-crossings
@@ -489,15 +477,14 @@
             num-acc-leaves (next-power-of-2 num-dests)
             first-leaf (dec num-acc-leaves)
             tree-size first-leaf]
-        (loop [tree (vec (repeat tree-size 0))
-               sub-crossings 0
-               order (map #(get order-map %) (get characters node))]
-          (if (empty? order)
-            sub-crossings
-            (let [ord (first order)
-                  index (+ first-leaf ord)
-                  [t c] (single-edge-sub-crossings tree index)]
-              (recur t (+ sub-crossings c) (rest order)))))))))
+        (->> (get characters node)
+             (map #(get order-map %))
+             (reduce (fn [[sub-crossings tree] order]
+                       (let [index (+ first-leaf order)
+                             [t c] (single-edge-sub-crossings tree index)]
+                         [(+ sub-crossings c) t]))
+                     [0 (vec (repeat tree-size 0))])
+             first)))))
 
 
 (defn count-sub-crossings
@@ -510,15 +497,16 @@
   counting. We apply the same methodology here, but without needing
   to deal with crossing segments, or with edge weight"
   [minus-ps minus-qs succs characters]
-  (loop [nodes (filter #(instance? Node %) minus-ps)
-         crossings 0]
-    (if (empty? nodes)
-      crossings
-      (let [node (first nodes)
-            dest-set (set (map :dest (get succs node)))
-            dests (filter #(contains? dest-set %) minus-qs)
-            c (count-sub-crossings-single-node node dests characters)]
-        (recur (rest nodes) (+ crossings c))))))
+  (->> minus-ps
+       (filter #(instance? Node %))
+       (reduce (fn [crossings node]
+                 (let [dest-set (set (map :dest (get succs node)))
+                       dests (filter #(contains? dest-set %) minus-qs)
+                       c (count-sub-crossings-single-node node
+                                                          dests
+                                                          characters)]
+                   (+ crossings c)))
+               0)))
 
 
 (defn count-and-mark-crossings
@@ -561,36 +549,37 @@
 (defn SparseGraph->OrderedGraph
   "Performs one layer-by-layer sweep of the graph using ESK's algorithm"
   [sparse-graph first-layer]
-  (let [{:keys [ps qs preds succs characters]} sparse-graph]
-    (loop [ordered-graph (map->OrderedGraph {:layers [first-layer]
-                                             :succs succs
-                                             :preds preds
-                                             :ps ps
-                                             :qs qs
-                                             :minus-ps []
-                                             :minus-qs []
-                                             :characters characters})
-           prev-layer first-layer
-           layers (-> sparse-graph :layers rest)]
-      (if (empty? layers)
-        ordered-graph
-        (let [sparse-layer (first layers)
-              minus-ps (replace-ps (:items prev-layer) ps succs)
-              positions (set-positions minus-ps)
-              [qs non-qs] (map set
-                               ((juxt filter remove) #(contains? qs %)
-                                (:nodes sparse-layer)))
-              measures (set-measures non-qs preds positions)
-              minus-qs (merge-layer minus-ps positions non-qs measures)
-              items (add-qs minus-qs qs)
-              ordered-layer (OrderedLayer. (:id sparse-layer)
-                                           (:duration sparse-layer)
-                                           items)
-              g (-> ordered-graph
-                    (update-in [:layers] conj ordered-layer)
-                    (update-in [:minus-ps] conj minus-ps)
-                    (update-in [:minus-qs] conj minus-qs))]
-          (recur g ordered-layer (rest layers)))))))
+  (let [{:keys [ps qs preds succs characters layers]} sparse-graph
+        initial-graph (map->OrderedGraph {:layers [first-layer]
+                                          :succs succs
+                                          :preds preds
+                                          :ps ps
+                                          :qs qs
+                                          :minus-ps []
+                                          :minus-qs []
+                                          :characters characters})]
+    (->> (rest layers)
+         (reduce (fn [[ordered-graph prev-layer] sparse-layer]
+                   (let [minus-ps (replace-ps (:items prev-layer) ps succs)
+                         positions (set-positions minus-ps)
+                         [qs non-qs] (map set
+                                          ((juxt filter remove)
+                                           #(contains? qs %)
+                                           (:nodes sparse-layer)))
+                         measures (set-measures non-qs preds positions)
+                         minus-qs (merge-layer minus-ps positions
+                                               non-qs measures)
+                         items (add-qs minus-qs qs)
+                         ordered-layer (OrderedLayer. (:id sparse-layer)
+                                                      (:duration sparse-layer)
+                                                      items)
+                         g (-> ordered-graph
+                               (update-in [:layers] conj ordered-layer)
+                               (update-in [:minus-ps] conj minus-ps)
+                               (update-in [:minus-qs] conj minus-qs))]
+                     [g ordered-layer]))
+                 [initial-graph first-layer])
+         first)))
 
 
 (defn get-ordered
@@ -610,23 +599,26 @@
 
 (defn order-subnodes
   [co-graph]
-  (let [{:keys [layers characters preds]} co-graph]
-    (loop [ls (rest layers)
-           prev-l (first layers)
-           sorted characters]
-      (if (empty? ls)
-        (assoc co-graph :characters sorted)
-        (let [layer (first ls)
-              prev-l-characters (->> (:items prev-l)
+  (let [{:keys [layers characters preds]} co-graph
+        sorted
+        (->> (rest layers)
+             (reduce (fn [[sorted prev-l] layer]
+                       (let [prev-l-characters (->> (:items prev-l)
+                                                    (remove vector?)
+                                                    (mapcat #(get sorted %)))
+                             s (merge
+                                sorted
+                                (->> (:items layer)
                                      (remove vector?)
-                                     (mapcat #(get sorted %)))
-              s (merge sorted
-                       (->> (:items layer)
-                            (remove vector?)
-                            (map (fn [n]
-                                   [n (get-ordered n preds sorted prev-l-characters)]))
-                            (into {})))]
-          (recur (rest ls) layer s))))))
+                                     (map (fn [n]
+                                            [n (get-ordered
+                                                n preds sorted
+                                                prev-l-characters)]))
+                                     (into {})))]
+                         [s layer]))
+                     [characters (first layers)])
+             first)]
+    (assoc co-graph :characters sorted)))
 
 
 (defn SparseGraph->ordered-graphs
@@ -642,51 +634,54 @@
     crossings and marking edges out of the ordering algorithm. This allows the
     counting and marking to be parallelized, whereas the ordering is inherently
     serial."
-  ([sparse-graph]
-   (SparseGraph->ordered-graphs sparse-graph 20))
-  ([sparse-graph max-sweeps]
-   (let [layers (:layers sparse-graph)
-         first-sparse-layer (first layers)
-         last-layer-idx (dec (count layers))]
-     (loop [orderings []
-            ;; seed the first layer with initial ordered layer
-            first-layer (map->OrderedLayer
-                         (-> first-sparse-layer
-                             (dissoc :nodes)
-                             (assoc :items (:nodes first-sparse-layer))))
-            first-layers #{}]
-       (let [c (count orderings)]
-         ;; Graph orderings are determined by the first layer. If we've seen this
-         ;; first layer before, then we can be sure that we're about to enter
-         ;; a cycle, and can thus short circuit
-         (if (or (= c max-sweeps) (contains? first-layers first-layer))
-           orderings
-           (let [reverse? (odd? c)
-                 graph (-> (if reverse?
-                             (rev sparse-graph)
-                             sparse-graph)
-                           (SparseGraph->OrderedGraph first-layer))
-                 backward-graph (if reverse?
-                                  graph
-                                  (rev graph))
-                 ;; This is sort of ugly, but once we order the nodes, we
-                 ;; still have to come up with a good subnode ordering.
-                 ;; Conceptually, this belongs in SparseGraph->OrderedGraph,
-                 ;; but it's also conceptually cromulent to have
-                 ;; SparseGraph->OrderedGraph know nothing about the forward/
-                 ;; reverse dance that we do here. However, subnode ordering
-                 ;; is dependent on direction. My choice then, is to make
-                 ;; SparseGraph->OrderedGraph direction-aware, or pull the
-                 ;; subnode ordering out and put it here, where we're aware
-                 ;; of the direction. For now, I've chosen the latter.
-                 backward-subnode-pass (order-subnodes backward-graph)
-                 forward-subnode-pass (order-subnodes
-                                       (rev backward-subnode-pass))
-                 ords (conj orderings forward-subnode-pass)
-                 layers (:layers graph)]
-             ;; The last layer of the current ordering is the first layer
-             ;; of the next
-             (recur ords (layers last-layer-idx) (conj first-layers first-layer)))))))))
+  [sparse-graph & {:keys [max-sweeps] :or {max-sweeps 20}}]
+  (let [layers (:layers sparse-graph)
+        last-layer-idx (dec (count layers))
+        first-sparse-layer (first layers)
+        ;; seed the first layer with initial ordered layer
+        first-ordered-layer (map->OrderedLayer
+                             (-> first-sparse-layer
+                                 (dissoc :nodes)
+                                 (assoc :items (:nodes first-sparse-layer))))]
+    (->>
+     (range max-sweeps)
+     (reduce (fn [[orderings first-layers first-layer] c]
+               ;; Graph orderings are determined by the first layer. If we've
+               ;; seen this first layer before, then we can be sure that we're
+               ;; about to enter a cycle, and can thus short circuit
+               (if (contains? first-layers first-layer)
+                 (reduced [orderings first-layers first-layer])
+                 (let [reverse? (odd? c)
+                       graph (-> (if reverse?
+                                   (rev sparse-graph)
+                                   sparse-graph)
+                                 (SparseGraph->OrderedGraph first-layer))
+                       backward-graph (if reverse?
+                                        graph
+                                        (rev graph))
+                       ;; This is sort of ugly, but once we order the nodes,
+                       ;; we still have to come up with a good subnode
+                       ;; ordering. Conceptually, this belongs in
+                       ;; SparseGraph->OrderedGraph, but it's also
+                       ;; conceptually cromulent to have
+                       ;; SparseGraph->OrderedGraph know nothing about the
+                       ;; forward/reverse dance that we do here. However,
+                       ;; subnode ordering is dependent on direction. My
+                       ;; choice then, is to make  SparseGraph->OrderedGraph
+                       ;; direction-aware, or pull the subnode ordering out
+                       ;; and put it here, where we're aware of the direction.
+                       ;; For now, I've chosen the latter.
+                       backward-subnode-pass (order-subnodes backward-graph)
+                       forward-subnode-pass (order-subnodes
+                                             (rev backward-subnode-pass))
+                       layers (:layers graph)]
+                   ;; The last layer of the current ordering is the first layer
+                   ;; of the next
+                   [(conj orderings forward-subnode-pass)
+                    (conj first-layers first-layer)
+                    (layers last-layer-idx)])))
+             [[] #{} first-ordered-layer])
+     first)))
 
 
 (defn OrderedGraph->CountedAndMarkedGraph
@@ -717,16 +712,13 @@
   "Maps things in a layer (nodes and segments) to the things that are directly
   above or below"
   [layer]
-  (loop [aboves {}
-         belows {}
-         o (-> layer :items first)
-         os (-> layer :items rest)]
-    (if (empty? os)
-      [aboves belows]
-      (let [next-o (first os)
-            a (assoc aboves next-o o)
-            b (assoc belows o next-o)]
-        (recur a b next-o (rest os))))))
+  (->> (-> layer :items rest)
+       (reduce (fn [[aboves belows last-item] item]
+                 [(assoc aboves item last-item)
+                  (assoc belows last-item item)
+                  item])
+               [{} {} (-> layer :items first)])
+       (take 2)))
 
 
 (defn indexify
@@ -798,42 +790,48 @@
 (defn blockify-layer
   "Assign every node in a layer to an already-existing block, or begin a new
   block with it"
-  [layer pred-layer roots blocks preds top-idxs marked]
-  (let [pred-layer-id (:id pred-layer)]
-    (loop [nodes (filter #(instance? Node %) (:items layer))
-           last-idx -1
-           roots roots
-           blocks blocks]
-      (if (empty? nodes)
-        [roots blocks]
-        (let [node (first nodes)
-              preds (->> (get preds node)
-                         (map #(if (= pred-layer-id (-> % :dest :layer-id))
-                                 {:edge % :item (:dest %)}
-                                 {:edge % :item (Edge->Segment % pred-layer-id)}))
-                         (map #(assoc % :idx (get top-idxs (:item %))))
-                         (sort-by :idx)
-                         (mapcat #(repeat (-> % :edge :weight) %)))
-              num-preds (count preds)
-              median (quot (dec num-preds) 2)
-              aligned (and (pos? num-preds)
-                           (or (check-alignment (nth preds median) last-idx marked)
-                               ;; If we kind of have two medians because there are an even number
-                               ;; of predecessors, then we allow the "second" median to be used
-                               ;; if the first isn't available
-                               (and (even? num-preds)
-                                    (check-alignment (nth preds (inc median)) last-idx marked))))
-              [root items idx] (if aligned
-                                 ;; If we have an alignment, then we have the same root, and add this
-                                 ;; node to that root's block
-                                 [(get roots (-> aligned :edge :dest))
-                                  (pred->segs+src (:edge aligned))
-                                  (:idx aligned)]
-                                 ;; No aligned nodes means it's a new block root
-                                 [node [node] last-idx])
-              rs (reduce #(assoc-in %1 [%2] root) roots items)
-              bs (update-in blocks [root] (fnil rrb/catvec []) items)]
-          (recur (rest nodes) idx rs bs))))))
+  [layer pred-layer roots blocks all-preds top-idxs marked]
+  (->> (:items layer)
+       (filter #(instance? Node %))
+       (reduce
+        (fn [[roots blocks last-idx] node]
+          (let [pred-layer-id (:id pred-layer)
+                preds (->> (get all-preds node)
+                           (map #(if (= pred-layer-id (-> % :dest :layer-id))
+                                   {:edge % :item (:dest %)}
+                                   {:edge %
+                                    :item (Edge->Segment % pred-layer-id)}))
+                           (map #(assoc % :idx (get top-idxs (:item %))))
+                           (sort-by :idx)
+                           (mapcat #(repeat (-> % :edge :weight) %)))
+                num-preds (count preds)
+                median (quot (dec num-preds) 2)
+                aligned (and (pos? num-preds)
+                             (or (check-alignment (nth preds median)
+                                                  last-idx marked)
+                                 ;; If we kind of have two medians because
+                                 ;; there are an even number of predecessors,
+                                 ;; then we allow the "second" median to be
+                                 ;; used if the first isn't available
+                                 (and (even? num-preds)
+                                      (check-alignment
+                                       (nth preds (inc median))
+                                       last-idx marked))))
+                [root items idx] (if aligned
+                                   ;; If we have an alignment, then we have
+                                   ;; the same root, and add this node to that
+                                   ;; root's block
+                                   [(get roots (-> aligned :edge :dest))
+                                    (pred->segs+src (:edge aligned))
+                                    (:idx aligned)]
+                                   ;; No aligned nodes means it's a new block
+                                   ;; root
+                                   [node [node] last-idx])
+                rs (reduce #(assoc-in %1 [%2] root) roots items)
+                bs (update-in blocks [root] (fnil rrb/catvec []) items)]
+            [rs bs idx]))
+        [roots blocks -1])
+       (take 2)))
 
 
 (defn blockify
@@ -842,17 +840,14 @@
   in the past. Continue finding these alignments until we've assigned every node
   into a horizontally aligned block"
   [flat-graph]
-  (loop [pred-layer nil
-         layers (:layers flat-graph)
-         roots {}
-         blocks {}]
-    (if (empty? layers)
-      [roots blocks]
-      (let [layer (first layers)
-            [rs bs] (blockify-layer layer pred-layer roots blocks
-                                    (:preds flat-graph) (:top-idxs flat-graph)
-                                    (:marked flat-graph))]
-        (recur layer (rest layers) rs bs)))))
+  (take 2 (reduce (fn [[roots blocks pred-layer] layer]
+                    (let [[rs bs] (blockify-layer layer pred-layer roots blocks
+                                                  (:preds flat-graph)
+                                                  (:top-idxs flat-graph)
+                                                  (:marked flat-graph))]
+                      [rs bs layer]))
+                  [{} {} nil]
+                  (:layers flat-graph))))
 
 
 (defn topo-sort
@@ -877,64 +872,43 @@
   "Organizes all of the Nodes and Segments in a FlatGraph into horizontally-
   aligned blocks. These blocks are then organized into a graph of their own,
   where the nodes are blocks and the edges are determined by adjacency
-  between their constituent Nodes and Segments in each FlatLayer.
-
-  This approach is very heavily based on Fast and Simple Horizontal Coordinate
-  Assignment by Ulrik Brandes and Boris Köpf (BK), even though the algorithm
-  is pretty much entirely dissimilar. I've taken BK's basic idea (which is to
-  align nodes into 'blocks' group these blocks into 'classes' and then
-  recursively position each class and block on the x axis), discarded the
-  algorithm they provided, and made my own. Their algorithm operated on blocks
-  and classes as sort of emergent properties from relationships between nodes,
-  whereas mine explicity constructs blocks and classes and organizes each into
-  graphs, which are then used for positioning. I just found my approach easier
-  to reason about.
-
-  It is also important to note that BK (and pretty much all of the academic
-  literature, for that matter), is concerned with drawing graphs vertically,
-  while we are drawing them horizontally. The practical result of this is that
-  our graphs are reflected across the upper-left-to-lower-right diagonal as
-  compared to the graphs in BK, and as a result we sometimes do things in the
-  opposite manner. The most obvious example is that while BK-style classes are
-  defined by their sinks in a block graph, ours are defined by sources in the
-  block graph. If you flip the graph though, you'll see that we're working from
-  the same block and getting the same result."
+  between their constituent Nodes and Segments in each FlatLayer."
   [flat-graph]
   (let [[roots blocks] (blockify flat-graph)
-        edge->set #(update-in %1 [(:src %2)] (fnil conj #{}) %2)]
-    (loop [bs blocks
-           succs {}
-           preds {}]
-      (if (empty? bs)
-        (let [block-set (set (vals blocks))
-              simple-succs (->> (map (fn [[src edges]]
-                                       [src (set (map :dest edges))])
-                                     succs)
-                                (into {}))
-              all-succs (reduce set/union (vals simple-succs))
-              long-block (first (filter #(> (count %) 1) block-set))
-              layer-id-compare (if (< (-> long-block first :layer-id)
-                                      (-> long-block second :layer-id))
-                                 < >)
-              sources (->> (set/difference block-set all-succs)
-                           (sort-by #(:layer-id (get % 0))
-                                    layer-id-compare))
-              topo-blocks (topo-sort sources simple-succs)]
-          (map->BlockGraph {:blocks topo-blocks :succs succs
-                            :preds preds :sources sources}))
-        (let [block (-> bs first second)  ; we want the value in the map
-              b-succs (->> (map #(get-in flat-graph [:aboves %]) block)
-                           (remove nil?)
-                           (group-by #(get roots %))
-                           (map (fn [[above-root above-nodes]]
-                                  (BlockEdge.
-                                   (get blocks above-root)
-                                   block
-                                   (apply max (map :weight above-nodes))))))
-              b-preds (map rev b-succs)
-              ss (reduce edge->set succs b-succs)
-              ps (reduce edge->set preds b-preds)]
-          (recur (rest bs) ss ps))))))
+        edge->set #(update-in %1 [(:src %2)] (fnil conj #{}) %2)
+        [succs preds]
+        (reduce (fn [[succs preds] block-item]
+                  (let [block (second block-item) ; we want the value
+                        b-succs (->> (map #(get-in flat-graph [:aboves %])
+                                          block)
+                                     (remove nil?)
+                                     (group-by #(get roots %))
+                                     (map (fn [[above-root above-nodes]]
+                                            (BlockEdge.
+                                             (get blocks above-root)
+                                             block
+                                             (apply max (map :weight
+                                                             above-nodes))))))
+                        b-preds (map rev b-succs)]
+                    [(reduce edge->set succs b-succs)
+                     (reduce edge->set preds b-preds)]))
+                [{} {}]
+                blocks)
+        simple-succs (->> (map (fn [[src edges]]
+                                 [src (set (map :dest edges))])
+                               succs)
+                          (into {}))
+        block-set (set (vals blocks))
+        long-block (first (filter #(> (count %) 1) block-set))
+        layer-id-compare (if (< (-> long-block first :layer-id)
+                                (-> long-block second :layer-id))
+                           < >)
+        sources (->> (set/difference block-set (keys preds))
+                     (sort-by #(:layer-id (get % 0))
+                              layer-id-compare))
+        topo-blocks (topo-sort sources simple-succs)]
+    (map->BlockGraph {:blocks topo-blocks :succs succs
+                      :preds preds :sources sources})))
 
 
 (defn classify-source
@@ -952,16 +926,14 @@
   all blocks that are reachable from a block that is a source in its BlockGraph,
   with preference given to the left-most sources"
   [block-graph]
-  (loop [sources (:sources block-graph)
-         classes {}]
-    (if (empty? sources)
-      classes
-      (let [root-block (first sources)
-            proto-class (classify-source root-block (:succs block-graph))
-            class-set (apply set/difference proto-class (vals classes))
-            class (filter #(contains? class-set %) (:blocks block-graph))]
-        (recur (rest sources)
-               (reduce #(assoc %1 %2 class) classes class))))))
+  (reduce (fn [classes root-block]
+            (let [proto-class (classify-source root-block (:succs block-graph))
+                  class-set (apply set/difference proto-class (vals classes))
+                  class (vec (filter #(contains? class-set %)
+                                     (:blocks block-graph)))]
+              (reduce #(assoc %1 %2 class) classes class)))
+          {}
+          (:sources block-graph)))
 
 
 (defn BlockGraph->ClassGraph
@@ -972,30 +944,33 @@
   (let [block-classes (classify block-graph)
         classes (set (vals block-classes))
         edge->set #(update-in %1 [(get block-classes (:src %2))]
-                              (fnil conj #{}) %2)]
-    (loop [cs classes
-           succs {}
-           preds {}]
-      (if (empty? cs)
-        (let [simple-succs (->> (map (fn [[src edges]]
-                                       [src
-                                        (set (map #(get-in
-                                                    block-classes [(:dest %)])
-                                                  edges))])
-                                     succs)
-                                (into {}))
-              all-succs (reduce set/union (vals simple-succs))
-              sources (set/difference classes all-succs)
-              topo-classes (topo-sort sources simple-succs)]
-          (map->ClassGraph {:classes topo-classes :succs succs
-                            :preds preds :sources sources
-                            :block-preds (:preds block-graph)}))
-        (let [class (first cs)
-              class-set (set class)
-              block-succs (->> (mapcat #(-> block-graph :succs (get %)) class)
-                               (remove #(contains? class-set (:dest %)))
-                               set)
-              block-preds (map rev block-succs)
-              ss (reduce edge->set succs block-succs)
-              ps (reduce edge->set preds block-preds)]
-          (recur (rest cs) ss ps))))))
+                              (fnil conj #{}) %2)
+        [succs preds]
+        (reduce (fn [[succs preds] class]
+                  (let [class-set (set class)
+                        block-succs (->> class
+                                         (mapcat #(-> block-graph :succs
+                                                      (get %)))
+                                         (remove #(contains? class-set
+                                                             (:dest %)))
+                                         set)
+                        block-preds (map rev block-succs)]
+                    [(reduce edge->set succs block-succs)
+                     (reduce edge->set preds block-preds)]))
+                [{} {}]
+                classes)
+        simple-succs (->> succs
+                          (map (fn [[src edges]]
+                                 [src
+                                  (set (map #(get-in
+                                              block-classes [(:dest %)])
+                                            edges))]))
+                          (into {}))
+        sources (set/difference classes (keys preds))
+        sinks (set/difference classes (keys succs))
+        topo-classes (topo-sort sources simple-succs)]
+    (map->ClassGraph {:classes topo-classes
+                      :succs succs :preds preds
+                      :sources sources :sinks sinks
+                      :block-succs (:succs block-graph)
+                      :block-preds (:preds block-graph)})))

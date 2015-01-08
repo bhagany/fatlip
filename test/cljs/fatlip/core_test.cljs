@@ -759,8 +759,10 @@
                                       :preds {class-1 #{(f/BlockEdge. block-2 block-5 8)
                                                         (f/BlockEdge. block-3 block-6 5)}
                                               class-2 #{(f/BlockEdge. block-6 block-7 2)}}
+                                      :block-succs block-succs
                                       :block-preds block-preds
-                                      :sources #{class-3}})]
+                                      :sources #{class-3}
+                                      :sinks #{class-1}})]
   (deftest test-FlatGraph->BlockGraph
     (is (= (f/FlatGraph->BlockGraph graph) block-graph)
         "FlatGraphs translate to BlockGraphs"))
