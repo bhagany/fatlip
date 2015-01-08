@@ -550,36 +550,35 @@
   "Performs one layer-by-layer sweep of the graph using ESK's algorithm"
   [sparse-graph first-layer]
   (let [{:keys [ps qs preds succs characters layers]} sparse-graph
-        initial-graph (map->OrderedGraph {:layers [first-layer]
-                                          :succs succs
-                                          :preds preds
-                                          :ps ps
-                                          :qs qs
-                                          :minus-ps []
-                                          :minus-qs []
-                                          :characters characters})]
-    (->> (rest layers)
-         (reduce (fn [[ordered-graph prev-layer] sparse-layer]
-                   (let [minus-ps (replace-ps (:items prev-layer) ps succs)
-                         positions (set-positions minus-ps)
-                         [qs non-qs] (map set
-                                          ((juxt filter remove)
-                                           #(contains? qs %)
-                                           (:nodes sparse-layer)))
-                         measures (set-measures non-qs preds positions)
-                         minus-qs (merge-layer minus-ps positions
-                                               non-qs measures)
-                         items (add-qs minus-qs qs)
-                         ordered-layer (OrderedLayer. (:id sparse-layer)
-                                                      (:duration sparse-layer)
-                                                      items)
-                         g (-> ordered-graph
-                               (update-in [:layers] conj ordered-layer)
-                               (update-in [:minus-ps] conj minus-ps)
-                               (update-in [:minus-qs] conj minus-qs))]
-                     [g ordered-layer]))
-                 [initial-graph first-layer])
-         first)))
+        [ordered-layers minus-ps minus-qs]
+        (reduce (fn [[layers minus-ps minus-qs prev-layer] sparse-layer]
+                  (let [minus-p (replace-ps (:items prev-layer) ps succs)
+                        positions (set-positions minus-p)
+                        [qs non-qs] (map set
+                                         ((juxt filter remove)
+                                          #(contains? qs %)
+                                          (:nodes sparse-layer)))
+                        measures (set-measures non-qs preds positions)
+                        minus-q (merge-layer minus-p positions
+                                             non-qs measures)
+                        items (add-qs minus-q qs)
+                        ordered-layer (OrderedLayer. (:id sparse-layer)
+                                                     (:duration sparse-layer)
+                                                     items)]
+                    [(conj layers ordered-layer)
+                     (conj minus-ps minus-p)
+                     (conj minus-qs minus-q)
+                     ordered-layer]))
+                [[first-layer] [] [] first-layer]
+                (rest layers))]
+    (map->OrderedGraph {:layers ordered-layers
+                        :minus-ps minus-ps
+                        :minus-qs minus-qs
+                        :succs succs
+                        :preds preds
+                        :ps ps
+                        :qs qs
+                        :characters characters})))
 
 
 (defn get-ordered
