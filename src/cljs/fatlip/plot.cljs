@@ -3,7 +3,7 @@
             [clojure.core.rrb-vector :as rrb]
             [clojure.set :as set]
             [fatlip.order :as fo]
-            [fatlip.core :as fc]))
+            [fatlip.core :refer [Reversible Node Edge->Segment rev]]))
 
 
 (defprotocol YPlotted
@@ -16,14 +16,14 @@
 (defrecord BlockGraph [blocks succs preds sources])
 
 (defrecord BlockEdge [src dest weight]
-  fc/Reversible
+  Reversible
   (rev [this]
     (assoc this
            :src dest
            :dest src)))
 
 (defrecord ClassGraph [classes succs preds block-succs block-preds sources sinks]
-  fc/Reversible
+  Reversible
   (rev [this]
     (assoc this
            :classes (vec (reverse (map #(vec (reverse %)) classes)))
@@ -52,7 +52,6 @@
                                ys)))))
 
 
-
 (defn check-alignment
   "Checks whether a predecessor is a valid alignment candidate"
   [pred last-idx marked]
@@ -70,9 +69,9 @@
         src-layer (:layer-id src)
         dest-layer (:layer-id dest)
         segs (if (> src-layer dest-layer)
-               (map (partial fc/Edge->Segment pred)
+               (map (partial Edge->Segment pred)
                     (range (inc dest-layer) src-layer))
-               (map (partial fc/Edge->Segment pred)
+               (map (partial Edge->Segment pred)
                     (range (dec dest-layer) src-layer -1)))]
     (conj (vec segs) src)))
 
@@ -82,7 +81,7 @@
   block with it"
   [layer pred-layer roots blocks all-preds top-idxs marked]
   (->> (:items layer)
-       (filter #(instance? fc/Node %))
+       (filter #(instance? Node %))
        (reduce
         (fn [[roots blocks last-idx] node]
           (let [pred-layer-id (:id pred-layer)
@@ -90,7 +89,7 @@
                            (map #(if (= pred-layer-id (-> % :dest :layer-id))
                                    {:edge % :item (:dest %)}
                                    {:edge %
-                                    :item (fc/Edge->Segment % pred-layer-id)}))
+                                    :item (Edge->Segment % pred-layer-id)}))
                            (map #(assoc % :idx (get top-idxs (:item %))))
                            (sort-by :idx)
                            (mapcat #(repeat (-> % :edge :weight) %)))
@@ -179,7 +178,7 @@
                                              block
                                              (apply max (map :weight
                                                              above-nodes))))))
-                        b-preds (map fc/rev b-succs)]
+                        b-preds (map rev b-succs)]
                     [(reduce edge->set succs b-succs)
                      (reduce edge->set preds b-preds)]))
                 [{} {}]
@@ -244,7 +243,7 @@
                                          (remove #(contains? class-set
                                                              (:dest %)))
                                          set)
-                        block-preds (map fc/rev block-succs)]
+                        block-preds (map rev block-succs)]
                     [(reduce edge->set succs block-succs)
                      (reduce edge->set preds block-preds)]))
                 [{} {}]
@@ -327,7 +326,7 @@
                         [block (+ rel-y (get block-shift-ys block))])
                       rel-ys)
         ys (into {} (mapcat (fn [[block y]]
-                              (->> (filter #(instance? fc/Node %) block)
+                              (->> (filter #(instance? Node %) block)
                                    (map #(-> [% y]))))
                             block-ys))]
     (map->YPlottedClassGraph {:ys ys
@@ -346,11 +345,11 @@
   variations, and returns them"
   [flat-graph node-sep char-sep]
   (let [flipped (fo/flip flat-graph)
-        reversed (fc/rev flat-graph)
+        reversed (rev flat-graph)
         flipped-reversed (fo/flip reversed)]
     (->> [flat-graph flipped reversed flipped-reversed]
          (map FlatGraph->ClassGraph)
-         (map-indexed #(if (odd? %1) (fc/rev %2) %2))
+         (map-indexed #(if (odd? %1) (rev %2) %2))
          (map #(ClassGraph->YPlottedClassGraph % node-sep char-sep)))))
 
 

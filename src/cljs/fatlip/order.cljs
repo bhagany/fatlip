@@ -2,7 +2,8 @@
   (:require [clojure.core.rrb-vector :as rrb]
             [clojure.set :as set]
             [clojure.string :as s]
-            [fatlip.core :as fc]))
+            [fatlip.core :as fc :refer [Reversible Node Edge
+                                        Edge->Segment rev]]))
 
 
 (defprotocol Flippable
@@ -13,7 +14,7 @@
   (nodes [this] "Returns constituent nodes as close to ordered as possible"))
 
 (defrecord OrderedGraph [layers succs preds ps qs minus-ps minus-qs characters]
-  fc/Reversible
+  Reversible
   (rev [this]
     (assoc this
            :succs preds
@@ -32,7 +33,7 @@
 
 (defrecord FlatGraph [layers succs preds aboves belows top-idxs bot-idxs
                       crossings marked characters]
-  fc/Reversible
+  Reversible
   (rev [this]
     (assoc this
            :succs preds
@@ -48,7 +49,7 @@
   Nodey
   (nodes [this]
     (mapcat (fn [layer]
-              (filter #(instance? fc/Node %) (:items layer)))
+              (filter #(instance? Node %) (:items layer)))
             layers)))
 
 (defrecord FlatLayer [id duration items])
@@ -156,8 +157,8 @@
                (:dest %)
                %)
             (flatten minus-qs))
-       (partition-by (partial instance? fc/Node))
-       (reduce #(if (instance? fc/Node (first %2))
+       (partition-by (partial instance? Node))
+       (reduce #(if (instance? Node (first %2))
                   (into %1 %2)
                   (conj %1 (vec %2)))
                [])))
@@ -178,9 +179,9 @@
                               (partial mapcat :characters)
                               (partial map :weight)))
                    (map (fn [[seg-c characters weights]]
-                          [seg-c #{(fc/Edge. seg-c seg-c
-                                             (set characters)
-                                             (reduce + weights))}]))
+                          [seg-c #{(Edge. seg-c seg-c
+                                          (set characters)
+                                          (reduce + weights))}]))
                    (into {})
                    (merge graph-edges))]
     (->> ordered
@@ -239,7 +240,7 @@
                         ;; Add this edge and its reverse to marked, because
                         ;; we can go in either direction during later
                         ;; blockification
-                        #{edge (fc/rev edge)}
+                        #{edge (rev edge)}
                         #{}))]
               (recur tree c (set/union marked m) parent-index))
             (let [t (-> (update-in tree [real-right-index :weight] + weight)
@@ -249,7 +250,7 @@
                                       true)
                             (not is-seg-c) (update-in
                                             [real-right-index :node-edges]
-                                            conj edge (fc/rev edge))))]
+                                            conj edge (rev edge))))]
               (recur t crossings marked parent-index))))))))
 
 
@@ -324,7 +325,7 @@
   with crossing segments, or with edge weight"
   [minus-ps minus-qs succs characters]
   (->> minus-ps
-       (filter #(instance? fc/Node %))
+       (filter #(instance? Node %))
        (reduce (fn [crossings node]
                  (let [dest-set (set (map :dest (get succs node)))
                        dests (filter #(contains? dest-set %) minus-qs)
@@ -575,8 +576,8 @@
   transforms an OrderedLayer into a FlatLayer composed of Nodes and Segments"
   [ordered-layer]
   (map->FlatLayer (assoc ordered-layer
-                         :items (map #(if (instance? fc/Edge %)
-                                        (fc/Edge->Segment % (:id ordered-layer))
+                         :items (map #(if (instance? Edge %)
+                                        (Edge->Segment % (:id ordered-layer))
                                         %)
                                      (-> ordered-layer :items flatten)))))
 
