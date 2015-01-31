@@ -1,13 +1,14 @@
 (ns fatlip.plot-test
   (:require-macros [cemerick.cljs.test :refer (is deftest are testing)])
   (:require [cemerick.cljs.test :as test]
+            [fatlip.protocols :refer [Node Edge Segment Edge->Segment]]
             [fatlip.core :as fc]
             [fatlip.order :as fo]
             [fatlip.plot :as f]))
 
 
 (deftest test-check-alignment
-  (let [pred-edge (fc/Edge. nil nil #{:a} 1)
+  (let [pred-edge (Edge. nil nil #{:a} 1)
         pred {:idx 2 :edge pred-edge :item nil}
         marked #{pred-edge}
         unmarked #{}]
@@ -26,50 +27,50 @@
 
 
 (deftest test-pred->segs+src
-  (let [node-1 (fc/Node. :5-0 5 #{:a} 1)
-        node-2 (fc/Node. :0-0 0 #{:a} 1)
-        pred (fc/Edge. node-1 node-2 #{:a} 1)
-        rev-pred (fc/Edge. node-2 node-1 #{:a} 1)]
+  (let [node-1 (Node. :5-0 5 #{:a} 1)
+        node-2 (Node. :0-0 0 #{:a} 1)
+        pred (Edge. node-1 node-2 #{:a} 1)
+        rev-pred (Edge. node-2 node-1 #{:a} 1)]
     (is (= (f/pred->segs+src pred)
-           [(fc/Segment. #{node-1 node-2} 1 #{:a} 1)
-            (fc/Segment. #{node-1 node-2} 2 #{:a} 1)
-            (fc/Segment. #{node-1 node-2} 3 #{:a} 1)
-            (fc/Segment. #{node-1 node-2} 4 #{:a} 1)
+           [(Segment. #{node-1 node-2} 1 #{:a} 1)
+            (Segment. #{node-1 node-2} 2 #{:a} 1)
+            (Segment. #{node-1 node-2} 3 #{:a} 1)
+            (Segment. #{node-1 node-2} 4 #{:a} 1)
             node-1])
         "Predecessors are processed correctly when layers are increasing")
     (is (= (f/pred->segs+src rev-pred)
-           [(fc/Segment. #{node-1 node-2} 4 #{:a} 1)
-            (fc/Segment. #{node-1 node-2} 3 #{:a} 1)
-            (fc/Segment. #{node-1 node-2} 2 #{:a} 1)
-            (fc/Segment. #{node-1 node-2} 1 #{:a} 1)
+           [(Segment. #{node-1 node-2} 4 #{:a} 1)
+            (Segment. #{node-1 node-2} 3 #{:a} 1)
+            (Segment. #{node-1 node-2} 2 #{:a} 1)
+            (Segment. #{node-1 node-2} 1 #{:a} 1)
             node-2])
         "Predecessors are processed correctly when layers are decreasing")))
 
 
 (deftest test-blockify
   (let [;; Even predecessors
-        node-1 (fc/Node. :0-0 0 #{:a} 1)
-        node-2 (fc/Node. :0-1 0 #{:b} 1)
+        node-1 (Node. :0-0 0 #{:a} 1)
+        node-2 (Node. :0-1 0 #{:b} 1)
         ;; Odd predecessors
-        node-3 (fc/Node. :0-2 0 #{:c} 1)
-        node-4 (fc/Node. :0-3 0 #{:d} 1)
-        node-5 (fc/Node. :0-4 0 #{:e} 1)
+        node-3 (Node. :0-2 0 #{:c} 1)
+        node-4 (Node. :0-3 0 #{:d} 1)
+        node-5 (Node. :0-4 0 #{:e} 1)
         ;; weighted median
-        node-6 (fc/Node. :0-5 0 #{:f :g :h :i} 4)
-        node-7 (fc/Node. :0-6 0 #{:j} 1)
-        node-8 (fc/Node. :0-7 0 #{:k} 1)
+        node-6 (Node. :0-5 0 #{:f :g :h :i} 4)
+        node-7 (Node. :0-6 0 #{:j} 1)
+        node-8 (Node. :0-7 0 #{:k} 1)
 
-        node-9 (fc/Node. :1-0 1 #{:a :b} 2)
-        edge-1 (fc/Edge. node-9 node-1 #{:a} 1)
-        edge-2 (fc/Edge. node-9 node-2 #{:b} 1)
-        node-10 (fc/Node. :1-1 1 #{:c :d :e} 1)
-        edge-3 (fc/Edge. node-10 node-3 #{:c} 1)
-        edge-4 (fc/Edge. node-10 node-4 #{:d} 1)
-        edge-5 (fc/Edge. node-10 node-5 #{:e} 1)
-        node-11 (fc/Node. :1-2 1 #{:f :g :h :i :j :k} 6)
-        edge-6 (fc/Edge. node-11 node-6 #{:f :g :h :i} 4)
-        edge-7 (fc/Edge. node-11 node-7 #{:j} 1)
-        edge-8 (fc/Edge. node-11 node-8 #{:k} 1)
+        node-9 (Node. :1-0 1 #{:a :b} 2)
+        edge-1 (Edge. node-9 node-1 #{:a} 1)
+        edge-2 (Edge. node-9 node-2 #{:b} 1)
+        node-10 (Node. :1-1 1 #{:c :d :e} 1)
+        edge-3 (Edge. node-10 node-3 #{:c} 1)
+        edge-4 (Edge. node-10 node-4 #{:d} 1)
+        edge-5 (Edge. node-10 node-5 #{:e} 1)
+        node-11 (Node. :1-2 1 #{:f :g :h :i :j :k} 6)
+        edge-6 (Edge. node-11 node-6 #{:f :g :h :i} 4)
+        edge-7 (Edge. node-11 node-7 #{:j} 1)
+        edge-8 (Edge. node-11 node-8 #{:k} 1)
         layer-1 (fo/FlatLayer. 0 0 [node-1 node-2 node-3 node-4 node-5 node-6 node-7 node-8])
         layer-2 (fo/FlatLayer. 1 0 [node-9 node-10 node-11])
         graph (fo/map->FlatGraph {:layers [layer-1 layer-2]
@@ -150,40 +151,40 @@
           "Nodes without valid medians start their own blocks"))))
 
 
-(let [node-0-0 (fc/Node. :0-0 0 #{:a :b :c :d :e :f
+(let [node-0-0 (Node. :0-0 0 #{:a :b :c :d :e :f
                                  :g :h :i :j :k} 11)
-      node-1-0 (fc/Node. :1-0 1 #{:a :b :c :d :e} 5)
-      node-1-1 (fc/Node. :1-1 1 #{:f :g :h :i :j :k} 6)
-      node-2-0 (fc/Node. :2-0 2 #{:a :b :c :d} 4)
-      node-2-1 (fc/Node. :2-1 2 #{:f :g :h} 3)
-      node-2-2 (fc/Node. :2-2 2 #{:i :j} 2)
-      node-2-3 (fc/Node. :2-3 2 #{:k} 1)
-      node-3-0 (fc/Node. :3-0 3 #{:l :m :n :o :p :q :r :s} 8)
-      node-3-1 (fc/Node. :3-1 3 #{:f :g :h} 3)
-      node-3-2 (fc/Node. :3-2 3 #{:k} 1)
-      node-4-0 (fc/Node. :4-0 4 #{:l :m :n :o :p :q :r :s} 8)
-      node-4-1 (fc/Node. :4-1 4 #{:t :u :v :w :x} 5)
-      node-4-2 (fc/Node. :4-2 4 #{:i :j} 2)
-      node-5-0 (fc/Node. :5-0 5 #{:t :u :v :w :x} 5)
-      node-6-0 (fc/Node. :6-0 6 #{:y :z} 2)
-      node-6-1 (fc/Node. :6-1 6 #{:t :u :v :w :x} 5)
-      node-7-0 (fc/Node. :7-0 7 #{:1 :2 :3} 3)
-      node-7-1 (fc/Node. :7-1 7 #{:y :z} 2)
-      node-8-0 (fc/Node. :8-0 8 #{:1 :2 :3} 3)
-      pred-1 (fc/Edge. node-1-0 node-0-0 #{:a :b :c :d :e} 5)
-      pred-2 (fc/Edge. node-1-1 node-0-0 #{:f :g :h :i :j :k} 6)
-      pred-3 (fc/Edge. node-2-0 node-1-0 #{:a :b :c :d} 4)
-      pred-4 (fc/Edge. node-2-1 node-1-1 #{:f :g :h} 3)
-      pred-5 (fc/Edge. node-2-2 node-1-1 #{:i :j} 2)
-      pred-6 (fc/Edge. node-2-3 node-1-1 #{:k} 1)
-      pred-7 (fc/Edge. node-3-1 node-2-1 #{:f :g :h} 3)
-      pred-8 (fc/Edge. node-4-2 node-2-2 #{:i :j} 2)
-      pred-9 (fc/Edge. node-3-2 node-2-3 #{:k} 1)
-      pred-10 (fc/Edge. node-4-0 node-3-0 #{:l :m :n :o :p :q :r :s} 8)
-      pred-11 (fc/Edge. node-5-0 node-4-1 #{:t :u :v :w :x} 5)
-      pred-12 (fc/Edge. node-6-1 node-5-0 #{:t :u :v :w :x} 5)
-      pred-13 (fc/Edge. node-7-1 node-6-0 #{:y :z} 2)
-      pred-14 (fc/Edge. node-8-0 node-7-0 #{:1 :2 :3} 3)
+      node-1-0 (Node. :1-0 1 #{:a :b :c :d :e} 5)
+      node-1-1 (Node. :1-1 1 #{:f :g :h :i :j :k} 6)
+      node-2-0 (Node. :2-0 2 #{:a :b :c :d} 4)
+      node-2-1 (Node. :2-1 2 #{:f :g :h} 3)
+      node-2-2 (Node. :2-2 2 #{:i :j} 2)
+      node-2-3 (Node. :2-3 2 #{:k} 1)
+      node-3-0 (Node. :3-0 3 #{:l :m :n :o :p :q :r :s} 8)
+      node-3-1 (Node. :3-1 3 #{:f :g :h} 3)
+      node-3-2 (Node. :3-2 3 #{:k} 1)
+      node-4-0 (Node. :4-0 4 #{:l :m :n :o :p :q :r :s} 8)
+      node-4-1 (Node. :4-1 4 #{:t :u :v :w :x} 5)
+      node-4-2 (Node. :4-2 4 #{:i :j} 2)
+      node-5-0 (Node. :5-0 5 #{:t :u :v :w :x} 5)
+      node-6-0 (Node. :6-0 6 #{:y :z} 2)
+      node-6-1 (Node. :6-1 6 #{:t :u :v :w :x} 5)
+      node-7-0 (Node. :7-0 7 #{:1 :2 :3} 3)
+      node-7-1 (Node. :7-1 7 #{:y :z} 2)
+      node-8-0 (Node. :8-0 8 #{:1 :2 :3} 3)
+      pred-1 (Edge. node-1-0 node-0-0 #{:a :b :c :d :e} 5)
+      pred-2 (Edge. node-1-1 node-0-0 #{:f :g :h :i :j :k} 6)
+      pred-3 (Edge. node-2-0 node-1-0 #{:a :b :c :d} 4)
+      pred-4 (Edge. node-2-1 node-1-1 #{:f :g :h} 3)
+      pred-5 (Edge. node-2-2 node-1-1 #{:i :j} 2)
+      pred-6 (Edge. node-2-3 node-1-1 #{:k} 1)
+      pred-7 (Edge. node-3-1 node-2-1 #{:f :g :h} 3)
+      pred-8 (Edge. node-4-2 node-2-2 #{:i :j} 2)
+      pred-9 (Edge. node-3-2 node-2-3 #{:k} 1)
+      pred-10 (Edge. node-4-0 node-3-0 #{:l :m :n :o :p :q :r :s} 8)
+      pred-11 (Edge. node-5-0 node-4-1 #{:t :u :v :w :x} 5)
+      pred-12 (Edge. node-6-1 node-5-0 #{:t :u :v :w :x} 5)
+      pred-13 (Edge. node-7-1 node-6-0 #{:y :z} 2)
+      pred-14 (Edge. node-8-0 node-7-0 #{:1 :2 :3} 3)
       layer-0 (fo/FlatLayer. 0 0 [node-0-0])
       layer-1 (fo/FlatLayer. 1 0 [node-1-0 node-1-1])
       layer-2 (fo/FlatLayer. 2 0 [node-2-0 node-2-1 node-2-2 node-2-3])
@@ -193,7 +194,7 @@
       layer-6 (fo/FlatLayer. 6 0 [node-6-0 node-6-1])
       layer-7 (fo/FlatLayer. 7 0 [node-7-0 node-7-1])
       layer-8 (fo/FlatLayer. 8 0 [node-8-0])
-      seg (fc/Segment. #{node-2-2 node-4-2} 3 #{:i :j} 2)
+      seg (Segment. #{node-2-2 node-4-2} 3 #{:i :j} 2)
       graph (fo/map->FlatGraph {:layers [layer-0 layer-1 layer-2 layer-3 layer-4
                                          layer-5 layer-6 layer-7 layer-8]
                                 :succs {}
@@ -600,15 +601,15 @@
           {:dir :down :pair [{:y 15} {:y 25}]}
           {:dir :up :pair [{:y 25} {:y 5}]}])))
 
-(let [node-1 (fc/Node. :0-0 0 #{:a :b :c} 3)
-      node-2 (fc/Node. :0-1 0 #{:d :e} 2)
-      node-3 (fc/Node. :0-2 0 #{:f} 1)
-      node-4 (fc/Node. :1-0 1 #{:a :b} 2)
-      node-5 (fc/Node. :1-1 1 #{:c :d :e} 3)
-      node-6 (fc/Node. :1-2 1 #{:f} 1)
-      node-7 (fc/Node. :2-0 2 #{:a :c} 2)
-      node-8 (fc/Node. :2-1 2 #{:b :e} 2)
-      node-9 (fc/Node. :2-2 2 #{:d :f} 2)
+(let [node-1 (Node. :0-0 0 #{:a :b :c} 3)
+      node-2 (Node. :0-1 0 #{:d :e} 2)
+      node-3 (Node. :0-2 0 #{:f} 1)
+      node-4 (Node. :1-0 1 #{:a :b} 2)
+      node-5 (Node. :1-1 1 #{:c :d :e} 3)
+      node-6 (Node. :1-2 1 #{:f} 1)
+      node-7 (Node. :2-0 2 #{:a :c} 2)
+      node-8 (Node. :2-1 2 #{:b :e} 2)
+      node-9 (Node. :2-2 2 #{:d :f} 2)
       path-info {:a [{:dir :down,
                       :pair [{:node node-1
                               :node-y [100 140], :y 100, :order 0, :arc-y 155, :arc-radius 55

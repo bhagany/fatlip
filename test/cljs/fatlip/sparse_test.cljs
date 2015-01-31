@@ -1,12 +1,12 @@
-(ns fatlip.core-test
+(ns fatlip.sparse-test
   (:require-macros [cemerick.cljs.test :refer (is deftest are testing)])
   (:require [cemerick.cljs.test :as test]
-            [fatlip.core :as f]))
+            [fatlip.sparse :as f]))
 
 
 (deftest test-graph-properties
   (let [input [{:groups [{:characters [:a :a]}]}]]
-    (is (thrown? js/Error (f/inp->SparseGraph input))
+    (is (thrown? js/Error (f/input->SparseGraph input))
         "Duplicate characters in a layer throw an error"))
 
   (let [input [{:duration 10
@@ -20,7 +20,7 @@
                 :groups [{:characters [:c :z]}]}
                {:duration 10
                 :groups [{:characters [:e :f :x]}]}]
-        graph (f/inp->SparseGraph input)]
+        graph (f/input->SparseGraph input)]
     (is (= (count (:layers graph))
            4)
         "Number of layers")

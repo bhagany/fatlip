@@ -3,7 +3,8 @@
             [clojure.core.rrb-vector :as rrb]
             [clojure.set :as set]
             [fatlip.order :as fo]
-            [fatlip.core :refer [Reversible Node Edge->Segment rev]]))
+            [fatlip.protocols :refer [Reversible Node Edge->Segment rev flip
+                                      nodes]]))
 
 
 (defprotocol YPlotted
@@ -344,9 +345,9 @@
   reversing, and then plots the y-positions for nodes in each of these
   variations, and returns them"
   [flat-graph node-sep char-sep]
-  (let [flipped (fo/flip flat-graph)
+  (let [flipped (flip flat-graph)
         reversed (rev flat-graph)
-        flipped-reversed (fo/flip reversed)]
+        flipped-reversed (flip reversed)]
     (->> [flat-graph flipped reversed flipped-reversed]
          (map FlatGraph->ClassGraph)
          (map-indexed #(if (odd? %1) (rev %2) %2))
@@ -790,7 +791,7 @@
   [flat-graph max-slope min-arc-radius layer-sep node-sep char-sep]
   (let [{:keys [layers characters]} flat-graph
         node-ys (FlatGraph->node-ys flat-graph node-sep char-sep)
-        paths-y (->> (fo/nodes flat-graph)
+        paths-y (->> (nodes flat-graph)
                      (mapcat (fn [node]
                                (map-indexed (fn [i c]
                                               {:node node

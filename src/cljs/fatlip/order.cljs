@@ -2,18 +2,26 @@
   (:require [clojure.core.rrb-vector :as rrb]
             [clojure.set :as set]
             [clojure.string :as s]
-            [fatlip.core :as fc :refer [Reversible Node Edge
-                                        Edge->Segment rev]]))
+            [fatlip.protocols :refer [Layered Sparse Directed Reversible
+                                      Flippable Nodey Node Edge Edge->Segment
+                                      rev]]))
 
 
-(defprotocol Flippable
-  (flip [item] "Flips a graph along the axis perpendicular to the layers, so
-                that nodes and edges within a layer reverse their order"))
 
-(defprotocol Nodey
-  (nodes [this] "Returns constituent nodes as close to ordered as possible"))
+(defrecord OrderedGraph [layers succs preds ps qs rs
+                         minus-ps minus-qs characters]
+  Layered
+  (layers [_] layers)
 
-(defrecord OrderedGraph [layers succs preds ps qs minus-ps minus-qs characters]
+  Sparse
+  (ps [_] ps)
+  (qs [_] qs)
+  (rs [_] rs)
+
+  Directed
+  (succs [_] succs)
+  (preds [_] preds)
+
   Reversible
   (rev [this]
     (assoc this
@@ -33,24 +41,30 @@
 
 (defrecord FlatGraph [layers succs preds aboves belows top-idxs bot-idxs
                       crossings marked characters]
+  Nodey
+  (nodes [_]
+    (mapcat (fn [layer]
+              (filter #(instance? Node %) (:items layer)))
+            layers))
+
+  Directed
+  (succs [_] succs)
+  (preds [_] preds)
+
   Reversible
   (rev [this]
     (assoc this
            :succs preds
            :preds succs
            :layers (vec (rseq layers))))
+
   Flippable
   (flip [this]
     (assoc this
            :aboves belows
            :belows aboves
            :top-idxs bot-idxs
-           :bot-idxs top-idxs))
-  Nodey
-  (nodes [this]
-    (mapcat (fn [layer]
-              (filter #(instance? Node %) (:items layer)))
-            layers)))
+           :bot-idxs top-idxs)))
 
 (defrecord FlatLayer [id duration items])
 
@@ -382,7 +396,7 @@
 (defn SparseGraph->OrderedGraph
   "Performs one layer-by-layer sweep of the graph using ESK's algorithm"
   [sparse-graph first-layer]
-  (let [{:keys [ps qs preds succs characters layers]} sparse-graph
+  (let [{:keys [ps qs rs preds succs characters layers]} sparse-graph
         [ordered-layers minus-ps minus-qs]
         (reduce (fn [[layers minus-ps minus-qs prev-layer] sparse-layer]
                   (let [minus-p (replace-ps (:items prev-layer) ps succs)
@@ -411,6 +425,7 @@
                         :preds preds
                         :ps ps
                         :qs qs
+                        :rs rs
                         :characters characters})))
 
 
@@ -601,3 +616,8 @@
                      :marked marked
                      :crossings crossings
                      :characters characters})))
+
+
+(def SparseGraph->FlatGraph (comp SparseGraph->ordered-graphs
+                                  best-ordering
+                                  CountedAndMarkedGraph->FlatGraph))
