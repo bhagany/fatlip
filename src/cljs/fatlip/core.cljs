@@ -1,13 +1,3 @@
-;; Account for danglers
-;; Check out alternative ordering heuristics, ie Junger and Mutzel. Look for more recent research.
-;; switch to new cljs.test
-;; pre/post conditions
-;; herbert
-;; support multi-section character paths
-;; separate core into logical subsections; ie, order, plot, draw
-;; figure out public api protocols
-;; short circuiting can't rely on initial layer... has to do whole graph
-
 (ns fatlip.core
   (:require [fatlip.sparse :refer [input->SparseGraph]]
             [fatlip.order :refer [SparseGraph->FlatGraph]]
