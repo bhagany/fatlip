@@ -497,46 +497,44 @@
         first-ordered-layer (map->OrderedLayer
                              (-> first-sparse-layer
                                  (dissoc :nodes)
-                                 (assoc :items (:nodes first-sparse-layer))))]
+                                 (assoc :items (:nodes first-sparse-layer))))
+        rev-sparse-graph (rev sparse-graph)]
     (->>
-     (range max-sweeps)
-     (reduce (fn [[orderings first-layers first-layer] c]
+     (cycle [sparse-graph rev-sparse-graph])
+     (reduce (fn [[orderings first-layers first-layer :as reduced-info]
+                  input-graph]
                ;; Graph orderings are determined by the first layer. If we've
                ;; seen this first layer before, then we can be sure that we're
                ;; about to enter a cycle, and can thus short circuit
-               (if (contains? first-layers first-layer)
+               (if (or (contains? first-layers first-layer)
+                       (= max-sweeps (count reduced-info)))
                  (reduced [orderings first-layers first-layer])
-                 (let [reverse? (odd? c)
-                       graph (-> (if reverse?
-                                   (rev sparse-graph)
-                                   sparse-graph)
-                                 (SparseGraph->OrderedGraph first-layer))
-                       backward-graph (if reverse?
-                                        graph
-                                        (rev graph))
-                       ;; This is sort of ugly, but once we order the nodes, we
-                       ;; still have to come up with a good subnode
-                       ;; ordering. Conceptually, this belongs in
-                       ;; SparseGraph->OrderedGraph, but it's also conceptually
-                       ;; cromulent to have SparseGraph->OrderedGraph know
-                       ;; nothing about the forward/reverse dance that we do
-                       ;; here. However, subnode ordering is dependent on
-                       ;; direction. My choice then, is to make
-                       ;; SparseGraph->OrderedGraph direction-aware, or pull
-                       ;; the subnode ordering out and put it here, where we're
-                       ;; aware of the direction.  For now, I've chosen the
-                       ;; latter.
-                       backward-subnode-pass (order-subnodes backward-graph)
-                       forward-subnode-pass (order-subnodes
-                                             (rev backward-subnode-pass))
+                 (let [graph (SparseGraph->OrderedGraph input-graph
+                                                        first-layer)
                        layers (:layers graph)]
                    ;; The last layer of the current ordering is the first layer
                    ;; of the next
-                   [(conj orderings forward-subnode-pass)
+                   [(conj orderings graph)
                     (conj first-layers first-layer)
                     (layers last-layer-idx)])))
              [[] #{} first-ordered-layer])
-     first)))
+     first
+     ;; This is sort of ugly, but once we order the nodes, we still have to
+     ;; come up with a good subnode ordering. Conceptually, this belongs in
+     ;; SparseGraph->OrderedGraph, but it's also conceptually cromulent to have
+     ;; SparseGraph->OrderedGraph know nothing about the forward/reverse dance
+     ;; that we do here. However, subnode ordering is dependent on
+     ;; direction. My choice then, is to make SparseGraph->OrderedGraph
+     ;; direction-aware, or pull the subnode ordering out and put it here,
+     ;; where we're aware of the direction.  For now, I've chosen the latter.
+     (map-indexed (fn [idx graph]
+                    (let [backward-graph (if (odd? idx)
+                                           graph
+                                           (rev graph))]
+                      (-> backward-graph
+                          order-subnodes
+                          rev
+                          order-subnodes)))))))
 
 
 (defn OrderedGraph->CountedAndMarkedGraph
