@@ -226,4 +226,4 @@
 ;;*** Guess at all of Beric's deaths?
 
 
-#_(def graph (fatlip/chart! input))
+(def graph (fatlip/chart! input))

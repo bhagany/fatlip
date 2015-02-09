@@ -616,6 +616,6 @@
                      :characters characters})))
 
 
-(def SparseGraph->FlatGraph (comp SparseGraph->ordered-graphs
+(def SparseGraph->FlatGraph (comp CountedAndMarkedGraph->FlatGraph
                                   best-ordering
-                                  CountedAndMarkedGraph->FlatGraph))
+                                  SparseGraph->ordered-graphs))
