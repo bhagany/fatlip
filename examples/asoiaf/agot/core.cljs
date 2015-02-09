@@ -216,8 +216,7 @@
              {:characters [:nymeria]}
              {:characters [:loras :renly]}
              {:characters [:bran :rickon :summer :shaggydog]}
-             {:characters [:lysa :robert-a]}]}
-])
+             {:characters [:lysa :robert-a]}]}])
 
 ;;*** Missed Robb leaving for the Westerlands, and Theon and Asha sailing for the North
 ;;*** Was Margaery at the Hand's Tourney?
