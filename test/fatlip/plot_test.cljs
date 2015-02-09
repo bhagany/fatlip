@@ -289,6 +289,13 @@
                    block-6 #{(f/BlockEdge. block-6 block-5 8)
                              (f/BlockEdge. block-6 block-7 2)}
                    block-7 #{(f/BlockEdge. block-7 block-8 3)}}
+      simple-succs {block-1 #{block-2}
+                    block-2 #{block-3}
+                    block-3 #{block-4}
+                    block-5 #{block-2 block-6}
+                    block-6 #{block-3}
+                    block-7 #{block-6}
+                    block-8 #{block-7}}
       block-graph (f/map->BlockGraph {:blocks [block-1
                                                block-5
                                                block-2
@@ -299,6 +306,7 @@
                                                block-4]
                                       :succs block-succs
                                       :preds block-preds
+                                      :simple-succs simple-succs
                                       :sources [block-1 block-5 block-8]})
       class-1 [block-1 block-2 block-3 block-4]
       class-2 [block-5 block-6]
@@ -327,7 +335,7 @@
     (is (= (f/FlatGraph->BlockGraph graph) block-graph)
         "FlatGraphs translate to BlockGraphs"))
   (deftest test-classify-source
-    (is (= (f/classify-source block-1 block-succs) (into #{} class-1))
+    (is (= (f/classify-source block-1 simple-succs) (into #{} class-1))
         "Descendents of a source block are correctly categorized"))
   (deftest test-classify
     (is (= (f/classify block-graph) block-classes)

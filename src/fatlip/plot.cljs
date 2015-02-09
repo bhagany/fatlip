@@ -197,18 +197,21 @@
                      (sort-by #(:layer-id (get % 0))
                               layer-id-compare))
         topo-blocks (topo-sort sources simple-succs)]
-    (map->BlockGraph {:blocks topo-blocks :succs succs
-                      :preds preds :sources sources})))
+    (map->BlockGraph {:blocks topo-blocks :succs succs :preds preds
+                      :simple-succs simple-succs :sources sources})))
 
 
 (defn classify-source
   "Given a class that is a source in a ClassGraph, returns a set containing
   that source and all of its descendants"
   [source succs]
-  (set/union #{source}
-             (apply set/union
-                    (map #(classify-source (:dest %) succs)
-                         (get succs source)))))
+  (loop [seen #{}
+         nodes [source]]
+    (if (empty? nodes)
+      seen
+      (let [[n & ns] nodes
+            unseen-ns (set/difference (get succs n) seen)]
+        (recur (conj seen n) (apply conj ns unseen-ns))))))
 
 
 (defn classify
@@ -217,7 +220,8 @@
   BlockGraph, with preference given to the left-most sources"
   [block-graph]
   (reduce (fn [classes root-block]
-            (let [proto-class (classify-source root-block (:succs block-graph))
+            (let [proto-class (classify-source root-block
+                                               (:simple-succs block-graph))
                   class-set (apply set/difference proto-class (vals classes))
                   class (vec (filter #(contains? class-set %)
                                      (:blocks block-graph)))]
