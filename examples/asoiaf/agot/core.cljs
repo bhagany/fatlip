@@ -1,5 +1,6 @@
-(ns fatlip.examples.agot
+(ns asoiaf.agot.core
   (:require [fatlip.core :as fatlip]))
+
 
 (def input
   ;; A Game of Thrones
@@ -225,4 +226,4 @@
 ;;*** Guess at all of Beric's deaths?
 
 
-#_(def graph (fatlip/input->SparseGraph input))
+#_(def graph (fatlip/chart! input))

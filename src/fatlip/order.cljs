@@ -7,7 +7,6 @@
                                       rev]]))
 
 
-
 (defrecord OrderedGraph [layers succs preds ps qs rs
                          minus-ps minus-qs characters]
   Layered
