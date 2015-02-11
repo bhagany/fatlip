@@ -10,7 +10,7 @@
                  [figwheel "0.2.3-SNAPSHOT"]
                  [om "0.7.3"]
                  [org.clojure/clojure "1.6.0"]
-                 [org.clojure/clojurescript "0.0-2760"]
+                 [org.clojure/clojurescript "0.0-2816"]
                  [org.clojure/core.rrb-vector "0.0.11"]
                  [org.clojure/core.match "0.3.0-alpha4"]]
 
