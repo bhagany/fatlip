@@ -166,10 +166,10 @@
   "Step 4 of ESK - takes the results of step 3, which doesn't include the
   q-nodes, and adds them, splitting their segment containers in the process"
   [minus-qs qs]
-  (->> (map #(if (contains? qs (:dest %))
+  (->> (flatten minus-qs)
+       (map #(if (contains? qs (:dest %))
                (:dest %)
-               %)
-            (flatten minus-qs))
+               %))
        (partition-by (partial instance? Node))
        (reduce #(if (instance? Node (first %2))
                   (into %1 %2)

@@ -150,8 +150,7 @@
     (if (empty? sources)
       sorted
       (let [node (first sources)
-            dests (get succs node)
-            succs' (dissoc succs node)
+            [dests succs'] ((juxt get dissoc) succs node)
             all-dests (reduce set/union (vals succs'))
             sources' (apply conj (rest sources)
                             (set/difference dests all-dests))]
