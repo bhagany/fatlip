@@ -89,22 +89,29 @@
         nl-node-3 (Node. :1-2 1 #{:a} 1)
         nl-node-4 (Node. :1-3 1 #{:d} 1)
         nl-node-5 (Node. :1-4 1 #{:f :g} 2)
+        nl-node-6 (Node. :1-5 1 #{:m} 1)
         l-seg-1 [(Edge. "meh" "somewhere else" #{:x} 1)]
         l-seg-2 [(Edge. "bleh" "elsewhere" #{:y} 1)
                  (Edge. "geh" nl-node-5 #{:f :g} 2)]
-        minus-ps [l-node-1 l-seg-1 l-node-2 l-seg-2 l-node-3]
+        split-edge-1 (Edge. "heh" "whatever" #{:h} 1)
+        split-edge-2 (Edge. "teh" "edge" #{:i} 1)
+        l-seg-3 [split-edge-1 split-edge-2]
+        minus-ps [l-node-1 l-seg-1 l-node-2 l-seg-2 l-node-3 l-seg-3]
         positions {l-node-1 0
                    l-seg-1 1
                    l-node-2 2
                    l-seg-2 3
-                   l-node-3 5}
-        non-qs [nl-node-1 nl-node-2 nl-node-3 nl-node-4]
+                   l-node-3 5
+                   l-seg-3 6}
+        non-qs [nl-node-1 nl-node-2 nl-node-3 nl-node-4 nl-node-5]
         measures {nl-node-1 0
                   nl-node-2 2.5
                   nl-node-3 0
-                  nl-node-4 2}]
+                  nl-node-4 2
+                  nl-node-5 7}]
     (is (= (f/merge-layer minus-ps positions non-qs measures)
-           [nl-node-1 nl-node-3 l-seg-1 nl-node-4 nl-node-2 l-seg-2])
+           [nl-node-1 nl-node-3 l-seg-1 nl-node-4 nl-node-2 l-seg-2
+            [split-edge-1] nl-node-5 [split-edge-2]])
         "Nodes and segment containers are merged correctly")))
 
 

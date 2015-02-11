@@ -157,7 +157,7 @@
                             s-2 (rrb/subvec seg-1 k)]
                         (recur
                          (rest nodes)
-                         (cons s-2 segments)
+                         (cons s-2 (rest segments))
                          (assoc pos s-2 (+ (get pos seg-1) 1))
                          (into ord [s-1 node-1])))))))))
 
