@@ -34,11 +34,11 @@
                                  :optimizations :whitespace
                                  :pretty-print true}}
                ;; examples
-               :agot-dev {:source-paths ["src" "examples/asoiaf/agot"]
+               :agot-dev {:source-paths ["src" "examples/asoiaf/agot/src" "examples/asoiaf/agot/dev"]
                           :compiler {:output-to     "resources/public/asoiaf/agot/agot.js"
                                      :output-dir    "resources/public/asoiaf/agot/out"
+                                     :main asoiaf.agot.dev
                                      :asset-path    "out"
-                                     :main          asoiaf.agot.dev
                                      :source-map    true
                                      :optimizations :none
                                      :cache-analysis true}}}}

@@ -226,3 +226,5 @@
 
 
 (def graph (fatlip/chart! input))
+
+(def foo "bar")

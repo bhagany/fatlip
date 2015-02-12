@@ -1,5 +1,5 @@
 (ns asoiaf.agot.dev
-  (:require [asoiaf.agot.core :as agot]
+  (:require [asoiaf.agot.core]
             [figwheel.client :as fw]))
 
 (enable-console-print!)
