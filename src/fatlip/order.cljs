@@ -435,10 +435,10 @@
         node-characters (:characters node)
         ordered (condp = (count pred-nodes)
                   0 (get characters node)
-                  1 (vec (filter #(contains? node-characters %)
-                                 (get characters (:dest (first pred-nodes)))))
-                  (vec (filter #(contains? node-characters %)
-                               prev-l-characters)))]
+                  1 (filterv #(contains? node-characters %)
+                             (get characters (:dest (first pred-nodes))))
+                  (filterv #(contains? node-characters %)
+                           prev-l-characters))]
     (if (= (count ordered) (count node-characters))
       ordered
       (into ordered (set/difference node-characters (set ordered))))))
@@ -601,7 +601,7 @@
   blocks"
   [cm-graph]
   (let [{:keys [layers succs preds marked crossings characters]} cm-graph
-        cm-layers (vec (map OrderedLayer->FlatLayer layers))
+        cm-layers (mapv OrderedLayer->FlatLayer layers)
         [aboves belows] (apply map merge (map neighborify cm-layers))
         [top-idxs bot-idxs] (apply map merge (map indexify cm-layers))]
     (map->FlatGraph {:layers cm-layers

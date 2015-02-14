@@ -27,7 +27,7 @@
   Reversible
   (rev [this]
     (assoc this
-           :classes (vec (reverse (map #(vec (reverse %)) classes)))
+           :classes (vec (reverse (map #(vec (rseq %)) classes)))
            :succs preds
            :preds succs
            :block-succs block-preds
@@ -70,11 +70,11 @@
         src-layer (:layer-id src)
         dest-layer (:layer-id dest)
         segs (if (> src-layer dest-layer)
-               (map (partial Edge->Segment pred)
-                    (range (inc dest-layer) src-layer))
-               (map (partial Edge->Segment pred)
-                    (range (dec dest-layer) src-layer -1)))]
-    (conj (vec segs) src)))
+               (mapv (partial Edge->Segment pred)
+                     (range (inc dest-layer) src-layer))
+               (mapv (partial Edge->Segment pred)
+                     (range (dec dest-layer) src-layer -1)))]
+    (conj segs src)))
 
 
 (defn blockify-layer
@@ -222,8 +222,8 @@
             (let [proto-class (classify-source root-block
                                                (:simple-succs block-graph))
                   class-set (apply set/difference proto-class (vals classes))
-                  class (vec (filter #(contains? class-set %)
-                                     (:blocks block-graph)))]
+                  class (filterv #(contains? class-set %)
+                                 (:blocks block-graph))]
               (reduce #(assoc %1 %2 class) classes class)))
           {}
           (:sources block-graph)))
