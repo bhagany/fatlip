@@ -27,7 +27,7 @@
   Reversible
   (rev [this]
     (assoc this
-           :classes (vec (reverse (map #(vec (rseq %)) classes)))
+           :classes (vec (rseq (mapv #(vec (rseq %)) classes)))
            :succs preds
            :preds succs
            :block-succs block-preds
