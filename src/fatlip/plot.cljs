@@ -789,7 +789,7 @@
 
 
 (defn plot
-  "Generates coordinates all paths in a FlatGraph"
+  "Generates coordinates for all paths in a FlatGraph"
   [flat-graph max-slope min-arc-radius layer-sep node-sep char-sep]
   (let [{:keys [layers characters]} flat-graph
         node-ys (FlatGraph->node-ys flat-graph node-sep char-sep)
