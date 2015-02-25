@@ -821,5 +821,5 @@
          (map (fn [[character pair-maps]]
                 [character (add-x-info pair-maps layer-xs)]))
          (map (fn [[character pair-maps]]
-                [character (reduce char-plots [] pair-maps)]))
-         (into {}))))
+                {:character character
+                 :plots (reduce char-plots [] pair-maps)})))))

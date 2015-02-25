@@ -308,9 +308,9 @@
                                       :preds block-preds
                                       :simple-succs simple-succs
                                       :sources [block-1 block-5 block-8]})
-      class-1 [block-1 block-2 block-3 block-4]
-      class-2 [block-5 block-6]
-      class-3 [block-8 block-7]
+      class-1 (lazy-seq [block-1 block-2 block-3 block-4])
+      class-2 (lazy-seq [block-5 block-6])
+      class-3 (lazy-seq [block-8 block-7])
       block-classes {block-1 class-1
                      block-2 class-1
                      block-3 class-1
@@ -411,128 +411,157 @@
             node-8-0 0})
         "Final y-positions are correctly calculated"))
   (deftest test-plot
-    (is (= (f/plot graph 8 15 50 60 10)
-           {:a [{:type :m, :x 0, :y 0}
-                {:type :h, :x 50}],
-            :b [{:type :m, :x 0, :y 10}
-                {:type :h, :x 50}],
-            :c [{:type :m, :x 0, :y 20}
-                {:type :h, :x 50}],
-            :d [{:type :m, :x 0, :y 30}
-                {:type :h, :x 50}],
-            :e [{:type :m, :x 0, :y 40}
-                {:type :h, :x 0}],
-            :f [{:type :m, :x 0, :y 50}
-                {:type :h, :x 0}
-                {:type :a, :radius 15, :sweep 0, :x 1.5745856353591172, :y 35}
-                {:type :l, :x 15, :y 80}
-                {:type :a, :radius 35, :sweep 1, :x 50, :y 80}
-                {:type :a, :radius 35, :sweep 1, :x 85, :y 80}
-                {:type :l, :x 85, :y 50}
-                {:type :a, :radius 15, :sweep 0, :x 100, :y 50}],
-            :g [{:type :m, :x 0, :y 60}
-                {:type :h, :x 0}
-                {:type :a, :radius 25, :sweep 0, :x 2.6243093922651948, :y 35}
-                {:type :l, :x 25, :y 80}
-                {:type :a, :radius 25, :sweep 1, :x 50, :y 80}
-                {:type :a, :radius 25, :sweep 1, :x 75, :y 80}
-                {:type :l, :x 75, :y 50}
-                {:type :a, :radius 25, :sweep 0, :x 100, :y 50}],
-            :h [{:type :m, :x 0, :y 70}
-                {:type :h, :x 0}
-                {:type :a, :radius 35, :sweep 0, :x 3.674033149171267, :y 35}
-                {:type :l, :x 35, :y 80}
-                {:type :a, :radius 15, :sweep 1, :x 50, :y 80}
-                {:type :a, :radius 15, :sweep 1, :x 65, :y 80}
-                {:type :l, :x 65, :y 50}
-                {:type :a, :radius 35, :sweep 0, :x 100, :y 50}],
-            :i [{:type :m, :x 0, :y 80}
-                {:type :h, :x 0}
-                {:type :a, :radius 35, :sweep 1, :x 35.00000000000001, :y 115}
-                {:type :l, :x 35, :y 70}
-                {:type :a, :radius 15, :sweep 0, :x 50, :y 70}
-                {:type :a, :radius 25, :sweep 1, :x 62.18305555873586, :y 131.83055558735865}
-                {:type :l, :x 142.6901666647585, :y 113.09833335241518}
-                {:type :a, :radius 15, :sweep 0, :x 150, :y 100}],
-            :j [{:type :m, :x 0, :y 90}
-                {:type :h, :x 0}
-                {:type :a, :radius 25, :sweep 1, :x 25.000000000000007, :y 115}
-                {:type :l, :x 25, :y 70}
-                {:type :a, :radius 25, :sweep 0, :x 50, :y 70}
-                {:type :a, :radius 15, :sweep 1, :x 57.30983333524153, :y 123.09833335241517}
-                {:type :l, :x 137.81694444126413, :y 121.83055558735862}
-                {:type :a, :radius 25, :sweep 0, :x 150, :y 100}],
-            :k [{:type :m, :x 0, :y 100}
-                {:type :h, :x 0}
-                {:type :a, :radius 15, :sweep 1, :x 11.032560937856337, :y 125.16280468928171}
-                {:type :l, :x 38.96743906214366, :y 115.16280468928171}
-                {:type :a, :radius 15, :sweep 0, :x 50, :y 105}
-                {:type :a, :radius 15, :sweep 1, :x 59, :y 147}
-                {:type :l, :x 91, :y 147}
-                {:type :a, :radius 15, :sweep 0, :x 100, :y 135}],
-            :l [{:type :m, :x 100, :y 0}
-                {:type :h, :x 150}],
-            :m [{:type :m, :x 100, :y 10}
-                {:type :h, :x 150}],
-            :n [{:type :m, :x 100, :y 20}
-                {:type :h, :x 150}],
-            :o [{:type :m, :x 100, :y 30}
-                {:type :h, :x 150}],
-            :p [{:type :m, :x 100, :y 40}
-                {:type :h, :x 150}],
-            :q [{:type :m, :x 100, :y 50} {:type :h, :x 150}],
-            :r [{:type :m, :x 100, :y 60} {:type :h, :x 150}],
-            :s [{:type :m, :x 100, :y 70}
-                {:type :h, :x 150}],
-            :t [{:type :m, :x 150, :y 65}
-                {:type :a, :radius 15, :sweep 0, :x 164.884168150705, :y 50.276330184980495}
-                {:type :l, :x 164.92923136115692, :y 53.97908022150265}
-                {:type :a, :radius 55, :sweep 1, :x 219.9197552976123, :y 55}
-                {:type :a, :radius 55, :sweep 1, :x 274.49503851686404, :y 48.17808959759357}
-                {:type :l, :x 271.2053424445196, :y 21.860521018838117}
-                {:type :a, :radius 15, :sweep 0, :x 286.0895105952246, :y 20}],
-            :u [{:type :m, :x 150, :y 75}
-                {:type :a, :radius 25, :sweep 0, :x 174.80694691784174, :y 50.460550308301194}
-                {:type :l, :x 174.92750844051247, :y 54.164701999410596}
-                {:type :a, :radius 45, :sweep 1, :x 219.9197552976123, :y 55}
-                {:type :a, :radius 45, :sweep 1, :x 264.5722597497274, :y 49.41843694348569}
-                {:type :l, :x 261.28256367738294, :y 23.10086836473017}
-                {:type :a, :radius 25, :sweep 0, :x 286.0895105952246, :y 20}]
-            :v [{:type :m, :x 150, :y 85}
-                {:type :a, :radius 35, :sweep 0, :x 184.72972568497835, :y 50.64477043162132}
-                {:type :l, :x 184.925785519868, :y 54.3503237773197}
-                {:type :a, :radius 35, :sweep 1, :x 219.9197552976123, :y 55}
-                {:type :a, :radius 35, :sweep 1, :x 254.6494809825907, :y 50.658784289377635}
-                {:type :l, :x 251.35978491024628, :y 24.34121571062236}
-                {:type :a, :radius 35, :sweep 0, :x 286.0895105952246, :y 20}],
-            :w [{:type :m, :x 150, :y 95}
-                {:type :a, :radius 45, :sweep 0, :x 194.652504452115, :y 50.82899055494148}
-                {:type :l, :x 194.9240625992235, :y 54.53594555522848}
-                {:type :a, :radius 25, :sweep 1, :x 219.9197552976123, :y 55}
-                {:type :a, :radius 25, :sweep 1, :x 244.72670221545403, :y 51.899131635269896}
-                {:type :l, :x 241.43700614310956, :y 25.581563056514184}
-                {:type :a, :radius 45, :sweep 0, :x 286.0895105952246, :y 20}],
-            :x [{:type :m, :x 150, :y 105}
-                {:type :a, :radius 55, :sweep 0, :x 204.5752832192517, :y 51.01321067826212}
-                {:type :l, :x 204.92233967857902, :y 54.721567333137}
-                {:type :a, :radius 15, :sweep 1, :x 219.9197552976123, :y 55}
-                {:type :a, :radius 15, :sweep 1, :x 234.80392344831733, :y 53.139478981161915}
-                {:type :l, :x 231.5142273759729, :y 26.821910402406314}
-                {:type :a, :radius 55, :sweep 0, :x 286.0895105952246, :y 20}],
-            :y [{:type :m, :x 286.0895105952246, :y 0}
-                {:type :a, :radius 25, :sweep 1, :x 306.0895105952246, :y 40}
-                {:type :l, :x 324.0895105952246, :y 34}
-                {:type :a, :radius 15, :sweep 0, :x 336.0895105952246, :y 25}],
-            :z [{:type :m, :x 286.0895105952246, :y 10}
-                {:type :a, :radius 15, :sweep 1, :x 298.0895105952246, :y 34}
-                {:type :l, :x 316.0895105952246, :y 40}
-                {:type :a, :radius 25, :sweep 0, :x 336.0895105952246, :y 25}],
-            :1 [{:type :m, :x 336.0895105952246, :y 0}
-                {:type :h, :x 336.0895105952246}],
-            :2 [{:type :m, :x 336.0895105952246, :y 10}
-                {:type :h, :x 336.0895105952246}],
-            :3 [{:type :m, :x 336.0895105952246, :y 20}
-                {:type :h, :x 336.0895105952246}]}))))
+    (is (= (set (f/plot graph 8 15 50 60 10))
+           (set [{:character :a
+                  :plots [{:type :m, :x 0, :y 0}
+                          {:type :h, :x 50}]},
+                 {:character :b
+                  :plots [{:type :m, :x 0, :y 10}
+                          {:type :h, :x 50}]},
+                 {:character :c
+                  :plots [{:type :m, :x 0, :y 20}
+                          {:type :h, :x 50}]},
+                 {:character :d
+                  :plots [{:type :m, :x 0, :y 30}
+                          {:type :h, :x 50}]},
+                 {:character :e
+                  :plots [{:type :m, :x 0, :y 40}
+                          {:type :h, :x 0}]},
+                 {:character :f
+                  :plots [{:type :m, :x 0, :y 50}
+                          {:type :h, :x 0}
+                          {:type :a, :radius 15, :sweep 0, :x 1.5745856353591172, :y 35}
+                          {:type :l, :x 15, :y 80}
+                          {:type :a, :radius 35, :sweep 1, :x 50, :y 80}
+                          {:type :a, :radius 35, :sweep 1, :x 85, :y 80}
+                          {:type :l, :x 85, :y 50}
+                          {:type :a, :radius 15, :sweep 0, :x 100, :y 50}]},
+                 {:character :g
+                  :plots [{:type :m, :x 0, :y 60}
+                          {:type :h, :x 0}
+                          {:type :a, :radius 25, :sweep 0, :x 2.6243093922651948, :y 35}
+                          {:type :l, :x 25, :y 80}
+                          {:type :a, :radius 25, :sweep 1, :x 50, :y 80}
+                          {:type :a, :radius 25, :sweep 1, :x 75, :y 80}
+                          {:type :l, :x 75, :y 50}
+                          {:type :a, :radius 25, :sweep 0, :x 100, :y 50}]},
+                 {:character :h
+                  :plots [{:type :m, :x 0, :y 70}
+                          {:type :h, :x 0}
+                          {:type :a, :radius 35, :sweep 0, :x 3.674033149171267, :y 35}
+                          {:type :l, :x 35, :y 80}
+                          {:type :a, :radius 15, :sweep 1, :x 50, :y 80}
+                          {:type :a, :radius 15, :sweep 1, :x 65, :y 80}
+                          {:type :l, :x 65, :y 50}
+                          {:type :a, :radius 35, :sweep 0, :x 100, :y 50}]},
+                 {:character :i
+                  :plots [{:type :m, :x 0, :y 80}
+                          {:type :h, :x 0}
+                          {:type :a, :radius 35, :sweep 1, :x 35.00000000000001, :y 115}
+                          {:type :l, :x 35, :y 70}
+                          {:type :a, :radius 15, :sweep 0, :x 50, :y 70}
+                          {:type :a, :radius 25, :sweep 1, :x 62.18305555873586, :y 131.83055558735865}
+                          {:type :l, :x 142.6901666647585, :y 113.09833335241518}
+                          {:type :a, :radius 15, :sweep 0, :x 150, :y 100}]},
+                 {:character :j
+                  :plots [{:type :m, :x 0, :y 90}
+                          {:type :h, :x 0}
+                          {:type :a, :radius 25, :sweep 1, :x 25.000000000000007, :y 115}
+                          {:type :l, :x 25, :y 70}
+                          {:type :a, :radius 25, :sweep 0, :x 50, :y 70}
+                          {:type :a, :radius 15, :sweep 1, :x 57.30983333524153, :y 123.09833335241517}
+                          {:type :l, :x 137.81694444126413, :y 121.83055558735862}
+                          {:type :a, :radius 25, :sweep 0, :x 150, :y 100}]},
+                 {:character :k
+                  :plots [{:type :m, :x 0, :y 100}
+                          {:type :h, :x 0}
+                          {:type :a, :radius 15, :sweep 1, :x 11.032560937856337, :y 125.16280468928171}
+                          {:type :l, :x 38.96743906214366, :y 115.16280468928171}
+                          {:type :a, :radius 15, :sweep 0, :x 50, :y 105}
+                          {:type :a, :radius 15, :sweep 1, :x 59, :y 147}
+                          {:type :l, :x 91, :y 147}
+                          {:type :a, :radius 15, :sweep 0, :x 100, :y 135}]},
+                 {:character :l
+                  :plots [{:type :m, :x 100, :y 0}
+                          {:type :h, :x 150}]},
+                 {:character :m
+                  :plots [{:type :m, :x 100, :y 10}
+                          {:type :h, :x 150}]},
+                 {:character :n
+                  :plots [{:type :m, :x 100, :y 20}
+                          {:type :h, :x 150}]},
+                 {:character :o
+                  :plots [{:type :m, :x 100, :y 30}
+                          {:type :h, :x 150}]},
+                 {:character :p
+                  :plots [{:type :m, :x 100, :y 40}
+                          {:type :h, :x 150}]},
+                 {:character :q
+                  :plots [{:type :m, :x 100, :y 50} {:type :h, :x 150}]},
+                 {:character :r
+                  :plots [{:type :m, :x 100, :y 60} {:type :h, :x 150}]},
+                 {:character :s
+                  :plots [{:type :m, :x 100, :y 70}
+                          {:type :h, :x 150}]},
+                 {:character :t
+                  :plots [{:type :m, :x 150, :y 65}
+                          {:type :a, :radius 15, :sweep 0, :x 164.884168150705, :y 50.276330184980495}
+                          {:type :l, :x 164.92923136115692, :y 53.97908022150265}
+                          {:type :a, :radius 55, :sweep 1, :x 219.9197552976123, :y 55}
+                          {:type :a, :radius 55, :sweep 1, :x 274.49503851686404, :y 48.17808959759357}
+                          {:type :l, :x 271.2053424445196, :y 21.860521018838117}
+                          {:type :a, :radius 15, :sweep 0, :x 286.0895105952246, :y 20}]},
+                 {:character :u
+                  :plots [{:type :m, :x 150, :y 75}
+                          {:type :a, :radius 25, :sweep 0, :x 174.80694691784174, :y 50.460550308301194}
+                          {:type :l, :x 174.92750844051247, :y 54.164701999410596}
+                          {:type :a, :radius 45, :sweep 1, :x 219.9197552976123, :y 55}
+                          {:type :a, :radius 45, :sweep 1, :x 264.5722597497274, :y 49.41843694348569}
+                          {:type :l, :x 261.28256367738294, :y 23.10086836473017}
+                          {:type :a, :radius 25, :sweep 0, :x 286.0895105952246, :y 20}]}
+                 {:character :v
+                  :plots [{:type :m, :x 150, :y 85}
+                          {:type :a, :radius 35, :sweep 0, :x 184.72972568497835, :y 50.64477043162132}
+                          {:type :l, :x 184.925785519868, :y 54.3503237773197}
+                          {:type :a, :radius 35, :sweep 1, :x 219.9197552976123, :y 55}
+                          {:type :a, :radius 35, :sweep 1, :x 254.6494809825907, :y 50.658784289377635}
+                          {:type :l, :x 251.35978491024628, :y 24.34121571062236}
+                          {:type :a, :radius 35, :sweep 0, :x 286.0895105952246, :y 20}]},
+                 {:character :w
+                  :plots [{:type :m, :x 150, :y 95}
+                          {:type :a, :radius 45, :sweep 0, :x 194.652504452115, :y 50.82899055494148}
+                          {:type :l, :x 194.9240625992235, :y 54.53594555522848}
+                          {:type :a, :radius 25, :sweep 1, :x 219.9197552976123, :y 55}
+                          {:type :a, :radius 25, :sweep 1, :x 244.72670221545403, :y 51.899131635269896}
+                          {:type :l, :x 241.43700614310956, :y 25.581563056514184}
+                          {:type :a, :radius 45, :sweep 0, :x 286.0895105952246, :y 20}]},
+                 {:character :x
+                  :plots [{:type :m, :x 150, :y 105}
+                          {:type :a, :radius 55, :sweep 0, :x 204.5752832192517, :y 51.01321067826212}
+                          {:type :l, :x 204.92233967857902, :y 54.721567333137}
+                          {:type :a, :radius 15, :sweep 1, :x 219.9197552976123, :y 55}
+                          {:type :a, :radius 15, :sweep 1, :x 234.80392344831733, :y 53.139478981161915}
+                          {:type :l, :x 231.5142273759729, :y 26.821910402406314}
+                          {:type :a, :radius 55, :sweep 0, :x 286.0895105952246, :y 20}]},
+                 {:character :y
+                  :plots [{:type :m, :x 286.0895105952246, :y 0}
+                          {:type :a, :radius 25, :sweep 1, :x 306.0895105952246, :y 40}
+                          {:type :l, :x 324.0895105952246, :y 34}
+                          {:type :a, :radius 15, :sweep 0, :x 336.0895105952246, :y 25}]},
+                 {:character :z
+                  :plots [{:type :m, :x 286.0895105952246, :y 10}
+                          {:type :a, :radius 15, :sweep 1, :x 298.0895105952246, :y 34}
+                          {:type :l, :x 316.0895105952246, :y 40}
+                          {:type :a, :radius 25, :sweep 0, :x 336.0895105952246, :y 25}]},
+                 {:character :1
+                  :plots [{:type :m, :x 336.0895105952246, :y 0}
+                          {:type :h, :x 336.0895105952246}]},
+                 {:character :2
+                  :plots [{:type :m, :x 336.0895105952246, :y 10}
+                          {:type :h, :x 336.0895105952246}]},
+                 {:character :3
+                  :plots [{:type :m, :x 336.0895105952246, :y 20}
+                          {:type :h, :x 336.0895105952246}]}])))))
 
 (deftest test-arc-distance
   (is (= (f/arc-distance 5 (/ 3 4))) 4)
