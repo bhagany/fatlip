@@ -645,9 +645,7 @@
                                              :layer-id))
                        src-arc-y (:arc-y src)
                        dest-arc-y (:arc-y dest)
-                       centers-y-dist (if (= dir :up)
-                                        (- src-arc-y dest-arc-y)
-                                        (- dest-arc-y src-arc-y))
+                       centers-y-dist (.abs js/Math (- src-arc-y dest-arc-y))
                        x-dist (layer-x-distance max-slope
                                                 total-arc-radius
                                                 centers-y-dist)]
@@ -678,7 +676,8 @@
   transition"
   [{:keys [dir total-arc-radius],
     [{src-x :arc-x, src-y :arc-y, src-radius :arc-radius}
-     {dest-x :arc-x, dest-y :arc-y, dest-radius :arc-radius}] :pair}]
+     {dest-x :arc-x, dest-y :arc-y, dest-radius :arc-radius
+      dest-path-y :y}] :pair}]
   {:pre [(every? number? [total-arc-radius src-x src-y src-radius
                           dest-x dest-y dest-radius])
          (contains? #{:up :down} dir)]}
@@ -719,10 +718,10 @@
         [src-y-op dest-y-op] (if (= dir :up) [+ -] [- +])
         src-tangent-x (x-op src-altitude-foot-x
                             (* src-radius-ratio
-                               (- src-altitude-foot-y src-y)))
+                               (.abs js/Math (- src-altitude-foot-y src-y))))
         src-tangent-y (src-y-op src-altitude-foot-y
                                 (* src-radius-ratio
-                                   (- src-x src-altitude-foot-x)))
+                                   (.abs js/Math (- src-x src-altitude-foot-x))))
         radius-slope (/ (- src-tangent-y src-y)
                         (- src-tangent-x src-x))
         dest-tangent-x (- dest-x
@@ -731,10 +730,10 @@
                                   (arc-y-distance dest-radius radius-slope))
         [src-sweep dest-sweep] (if (= dir :up) [0 1] [1 0])]
     [{:type :a, :radius src-radius, :sweep src-sweep
-      :x src-tangent-x, :y src-tangent-y}
+      :x src-tangent-x, :y src-tangent-y :arc-x src-x :arc-y src-y}
      {:type :l, :x dest-tangent-x, :y dest-tangent-y}
      {:type :a, :radius dest-radius, :sweep dest-sweep
-      :x dest-x, :y dest-y}]))
+      :x dest-x, :y dest-path-y :arc-x dest-x :arc-y dest-y}]))
 
 
 (defn extend-h
