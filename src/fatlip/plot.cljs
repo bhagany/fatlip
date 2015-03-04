@@ -7,12 +7,15 @@
                                       nodes]]))
 
 
-(defprotocol YPlotted
-  (min-y [graph] "Minimum y-coordinate in the graph")
-  (max-y [graph] "Maximum y-coordinate in the graph")
-  (mid-y [graph] "Midpoint of y-coordinates in the graph")
-  (shift-y [graph delta] "Shift the y-coordinate of every node by delta")
-  (width [graph] "Width of the graph in y"))
+(defprotocol YPlottable
+  (ys [graph node-sep char-sep] "Returns y-coordinates to nodes, given
+                                 minimum separations between nodes and
+                                 characters")
+  (min-y [graph node-sep char-sep] "Minimum y-coordinate in the graph")
+  (max-y [graph node-sep char-sep] "Maximum y-coordinate in the graph")
+  (mid-y [graph node-sep char-sep] "Midpoint of y-coordinates in the graph")
+  (shift-ys [graph node-sep char-sep delta] "Shift the y-coordinate of every node by delta")
+  (width [graph node-sep char-sep] "Width of the graph in y"))
 
 (defrecord BlockGraph [blocks succs preds sources])
 
@@ -22,6 +25,72 @@
     (assoc this
            :src dest
            :dest src)))
+
+
+(defn calc-rel-ys
+  "An abstraction for processing a topologically-sorted seq of nodes (blocks or
+  classes in our case) and calcluating y-values for each.  Higher order; takes
+  a function that generates a function for mapping, and returns a function that
+  returns a map of y-values"
+  [map-gen-fn get-preds]
+  (fn [items preds node-sep char-sep]
+    (let [filter-set (set items)]
+      (reduce (fn [ys item]
+                (let [pred-ys (map (map-gen-fn ys char-sep)
+                                   (get-preds preds item filter-set))
+                      item-y (if (empty? pred-ys)
+                               0
+                               (+ node-sep (apply max pred-ys)))]
+                  (assoc ys item item-y)))
+              {}
+              items))))
+
+
+(def get-rel-ys
+  "Takes topologically-sorted blocks from a single class, plus preds and
+  minimum separation between nodes and subnodes, and returns a map of blocks to
+  relative y-positions within the class"
+  (calc-rel-ys
+   (fn [ys char-sep]
+     #(+ (get ys (:dest %))
+         (* char-sep (dec (:weight %)))))
+   (fn [preds item filter-set]
+     (filter #(contains? filter-set (:dest %)) (get preds item)))))
+
+
+(defn gen-get-shift-ys
+  "Takes a map of blocks to relative y-positions within classes, and returns a
+  function that returns a map of classes to their relative y-positions"
+  [rel-ys]
+  (calc-rel-ys (fn [ys char-sep]
+                 #(- (+ (get ys (:dest %))
+                        (get rel-ys (:dest %))
+                        (* char-sep (dec (:weight %))))
+                     (get rel-ys (:src %))))
+               (fn [preds item _] (get preds item))))
+
+
+(def memo-ys ;; heh
+  (memoize
+   (fn [this node-sep char-sep]
+     (let [{:keys [classes preds block-preds]} this
+           rel-ys (reduce #(merge %1 (get-rel-ys %2 block-preds
+                                                 node-sep char-sep))
+                          {}
+                          classes)
+           shift-ys (let [get-shift-ys (gen-get-shift-ys rel-ys)]
+                      (get-shift-ys classes preds node-sep char-sep))
+           block-shift-ys (into {} (mapcat (fn [[class shift]]
+                                             (map #(-> [% shift]) class))
+                                           shift-ys))]
+       (->> rel-ys
+            (map (fn [[block rel-y]]
+                   [block (+ rel-y (get block-shift-ys block))]))
+            (mapcat (fn [[block y]]
+                      (->> (filter #(instance? Node %) block)
+                           (map #(-> [% y])))))
+            (into {}))))))
+
 
 (defrecord ClassGraph [classes succs preds block-succs block-preds sources sinks]
   Reversible
@@ -33,24 +102,30 @@
            :block-succs block-preds
            :block-preds block-succs
            :sources sinks
-           :sinks sources)))
+           :sinks sources))
 
-(defrecord YPlottedClassGraph [classes ys char-sep]
-  YPlotted
-  (min-y [_]
-    (apply min (map #(ys (ffirst %)) classes)))
-  (max-y [_]
+  YPlottable
+  (ys [this node-sep char-sep]
+    (memo-ys this node-sep char-sep))
+
+  (min-y [this node-sep char-sep]
+    (apply min (map #(get (ys this node-sep char-sep) (ffirst %)) classes)))
+
+  (max-y [this node-sep char-sep]
     (->> classes
          (mapcat peek)
-         (map #(+ (ys %) (* char-sep (dec (:weight %)))))
+         (map #(+ (get (ys this node-sep char-sep) %)
+                  (* char-sep (dec (:weight %)))))
          (apply max)))
-  (width [this]
-    (- (max-y this) (min-y this)))
-  (shift-y [this delta]
-    (assoc this :ys (into {}
-                          (map (fn [[node y]]
-                                 [node (+ y delta)])
-                               ys)))))
+
+  (width [this node-sep char-sep]
+    (- (max-y this node-sep char-sep) (min-y this node-sep char-sep)))
+
+  (shift-ys [this node-sep char-sep delta]
+    (->> (ys this node-sep char-sep)
+         (map (fn [[node y]]
+                [node (+ y delta)]))
+         (into {}))))
 
 
 (defn check-alignment
@@ -269,116 +344,33 @@
                       :block-preds (:preds block-graph)})))
 
 
-(defn calc-rel-ys
-  "An abstraction for processing a topologically-sorted seq of nodes (blocks or
-  classes in our case) and calcluating y-values for each.  Higher order; takes
-  a function that generates a function for mapping, and returns a function that
-  returns a map of y-values"
-  [map-gen-fn get-preds]
-  (fn [items preds node-sep char-sep]
-    (let [filter-set (set items)]
-      (reduce (fn [ys item]
-                (let [pred-ys (map (map-gen-fn ys char-sep)
-                                   (get-preds preds item filter-set))
-                      item-y (if (empty? pred-ys)
-                               0
-                               (+ node-sep (apply max pred-ys)))]
-                  (assoc ys item item-y)))
-              {}
-              items))))
-
-
-(def get-rel-ys
-  "Takes topologically-sorted blocks from a single class, plus preds and
-  minimum separation between nodes and subnodes, and returns a map of blocks to
-  relative y-positions within the class"
-  (calc-rel-ys
-   (fn [ys char-sep]
-     #(+ (get ys (:dest %))
-         (* char-sep (dec (:weight %)))))
-   (fn [preds item filter-set]
-     (filter #(contains? filter-set (:dest %)) (get preds item)))))
-
-
-(defn gen-get-shift-ys
-  "Takes a map of blocks to relative y-positions within classes, and returns a
-  function that returns a map of classes to their relative y-positions"
-  [rel-ys]
-  (calc-rel-ys (fn [ys char-sep]
-                 #(- (+ (get ys (:dest %))
-                        (get rel-ys (:dest %))
-                        (* char-sep (dec (:weight %))))
-                     (get rel-ys (:src %))))
-               (fn [preds item _] (get preds item))))
-
-
-(defn ClassGraph->YPlottedClassGraph
-  "Takes a class graph, minimum node separation, and minimum sub-node
-  separation and returns a map of nodes to y-positions"
-  [class-graph node-sep char-sep]
-  (let [{:keys [classes preds block-preds]} class-graph
-        rel-ys (reduce #(merge %1 (get-rel-ys %2 block-preds
-                                              node-sep char-sep))
-                       {}
-                       classes)
-        shift-ys (let [get-shift-ys (gen-get-shift-ys rel-ys)]
-                   (get-shift-ys classes preds node-sep char-sep))
-        block-shift-ys (into {} (mapcat (fn [[class shift]]
-                                          (map #(-> [% shift]) class))
-                                        shift-ys))
-        block-ys (map (fn [[block rel-y]]
-                        [block (+ rel-y (get block-shift-ys block))])
-                      rel-ys)
-        ys (into {} (mapcat (fn [[block y]]
-                              (->> (filter #(instance? Node %) block)
-                                   (map #(-> [% y]))))
-                            block-ys))]
-    (map->YPlottedClassGraph {:ys ys
-                              :classes classes
-                              :char-sep char-sep})))
-
-
 (def FlatGraph->ClassGraph
   (comp BlockGraph->ClassGraph
         FlatGraph->BlockGraph))
 
 
-(defn FlatGraph->y-graphs
+(defn FlatGraph->FlatGraphs
+  [flat-graph]
+  (let [flipped (with-meta (flip flat-graph) {:flipped true})
+        reversed (rev flat-graph)
+        flipped-reversed (with-meta (flip reversed) {:flipped true})]
+    [flat-graph flipped reversed flipped-reversed]))
+
+
+(defn FlatGraph->ClassGraphs
   "Takes a FlatGraph and creates four variations of it by flipping and
   reversing, and then plots the y-positions for nodes in each of these
   variations, and returns them"
-  [flat-graph node-sep char-sep]
-  (let [flipped (flip flat-graph)
-        reversed (rev flat-graph)
-        flipped-reversed (flip reversed)]
-    (->> [flat-graph flipped reversed flipped-reversed]
-         (map FlatGraph->ClassGraph)
-         (map-indexed #(if (odd? %1) (rev %2) %2))
-         (map #(ClassGraph->YPlottedClassGraph % node-sep char-sep)))))
+  [flat-graph]
+  (->> flat-graph
+       FlatGraph->FlatGraphs
+       (map #(let [class-graph (FlatGraph->ClassGraph %)]
+               (if (:flipped (meta %))
+                 (with-meta (rev class-graph) {:aligned-down true})
+                 class-graph)))))
 
 
-(defn avg-y-graphs
-  "Takes four YPlottedClassGraphs, normalizes them to the narrowest one,
-  and returns a map of nodes to the average median of the y-positions in the
-  given graphs"
-  [y-graphs]
-  (let [narrowest (apply min-key width y-graphs)
-        narrow-min-y (min-y narrowest)
-        narrow-max-y (max-y narrowest)]
-    (->> y-graphs
-         (map-indexed #(let [delta (if (odd? %1)
-                                     (- narrow-max-y (max-y %2))
-                                     (- narrow-min-y (min-y %2)))]
-                         (shift-y %2 delta)))
-         (map :ys)
-         (apply merge-with #(if (vector? %1) (conj %1 %2) [%1 %2]))
-         (map (fn [[node ys]]
-                (let [sort-ys (sort ys)]
-                  [node (/ (+ (nth sort-ys 1) (nth sort-ys 2)) 2)])))
-         (into {}))))
-
-
-(defn FlatGraph->node-ys
+(defn plot-ys
   "Given a FlatGraph, generate four variations by flipping and reversing, then
   construct ClassGraphs for each, which are used to assign y-values for each
   node in each graph variation. The four y-positions for each node are then
@@ -405,8 +397,20 @@
   block graph. If you reflect the graph though, you'll see that we're working
   from the same block and getting the same result."
   [flat-graph node-sep char-sep]
-  (let [y-graphs (FlatGraph->y-graphs flat-graph node-sep char-sep)]
-    (avg-y-graphs y-graphs)))
+  (let [class-graphs (FlatGraph->ClassGraphs flat-graph)
+        narrowest (apply min-key #(width % node-sep char-sep) class-graphs)
+        narrow-min-y (min-y narrowest node-sep char-sep)
+        narrow-max-y (max-y narrowest node-sep char-sep)]
+    (->> class-graphs
+         (map #(let [delta (if (:aligned-down (meta %))
+                             (- narrow-max-y (max-y % node-sep char-sep))
+                             (- narrow-min-y (min-y % node-sep char-sep)))]
+                 (shift-ys % node-sep char-sep delta)))
+         (apply merge-with #(if (vector? %1) (conj %1 %2) [%1 %2]))
+         (map (fn [[node ys]]
+                (let [sort-ys (sort ys)]
+                  [node (/ (+ (nth sort-ys 1) (nth sort-ys 2)) 2)])))
+         (into {}))))
 
 
 (defn arc-distance
@@ -792,7 +796,7 @@
   "Generates coordinates for all paths in a FlatGraph"
   [flat-graph max-slope min-arc-radius layer-sep node-sep char-sep]
   (let [{:keys [layers characters]} flat-graph
-        node-ys (FlatGraph->node-ys flat-graph node-sep char-sep)
+        node-ys (plot-ys flat-graph node-sep char-sep)
         paths-y (->> (nodes flat-graph)
                      (mapcat (fn [node]
                                (map-indexed (fn [i c]
