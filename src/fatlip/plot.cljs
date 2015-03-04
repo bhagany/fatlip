@@ -17,8 +17,6 @@
   (shift-ys [graph node-sep char-sep delta] "Shift the y-coordinate of every node by delta")
   (width [graph node-sep char-sep] "Width of the graph in y"))
 
-(defrecord BlockGraph [blocks succs preds sources])
-
 (defrecord BlockEdge [src dest weight]
   Reversible
   (rev [this]
@@ -232,47 +230,50 @@
         (recur sources' succs' (conj sorted node))))))
 
 
-(defn FlatGraph->BlockGraph
+(defn block-edges
+  [flat-graph roots blocks]
+  (let [edge->set #(update-in %1 [(:src %2)] (fnil conj #{}) %2)]
+    (reduce (fn [{:keys [succs preds] :as edges} block]
+              (let [b-succs (->> (map #(get-in flat-graph [:aboves %])
+                                      block)
+                                 (remove nil?)
+                                 (group-by #(get roots %))
+                                 (map (fn [[above-root above-nodes]]
+                                        (BlockEdge.
+                                         (get blocks above-root)
+                                         block
+                                         (apply max (map :weight
+                                                         above-nodes))))))
+                    b-preds (map rev b-succs)]
+                (-> edges
+                    (update-in [:succs] #(reduce edge->set % b-succs))
+                    (update-in [:preds] #(reduce edge->set % b-preds)))))
+            {:succs {} :preds {}}
+            (vals blocks))))
+
+
+(defn FlatGraph->block-info
   "Organizes all of the Nodes and Segments in a FlatGraph into horizontally-
   aligned blocks. These blocks are then organized into a graph of their own,
   where the nodes are blocks and the edges are determined by adjacency between
   their constituent Nodes and Segments in each FlatLayer."
   [flat-graph]
   (let [[roots blocks] (blockify flat-graph)
-        edge->set #(update-in %1 [(:src %2)] (fnil conj #{}) %2)
-        [succs preds]
-        (reduce (fn [[succs preds] block-item]
-                  (let [block (second block-item) ; we want the value
-                        b-succs (->> (map #(get-in flat-graph [:aboves %])
-                                          block)
-                                     (remove nil?)
-                                     (group-by #(get roots %))
-                                     (map (fn [[above-root above-nodes]]
-                                            (BlockEdge.
-                                             (get blocks above-root)
-                                             block
-                                             (apply max (map :weight
-                                                             above-nodes))))))
-                        b-preds (map rev b-succs)]
-                    [(reduce edge->set succs b-succs)
-                     (reduce edge->set preds b-preds)]))
-                [{} {}]
-                blocks)
-        simple-succs (->> (map (fn [[src edges]]
-                                 [src (set (map :dest edges))])
-                               succs)
-                          (into {}))
+        {:keys [succs preds]} (block-edges flat-graph roots blocks)
+        simple-succs (into {} (map (fn [[src edges]]
+                                     [src (set (map :dest edges))])
+                                   succs))
         block-set (set (vals blocks))
         long-block (first (filter #(> (count %) 1) block-set))
         layer-id-compare (if (< (-> long-block first :layer-id)
                                 (-> long-block second :layer-id))
                            < >)
-        sources (->> (set/difference block-set (keys preds))
-                     (sort-by #(:layer-id (get % 0))
-                              layer-id-compare))
+        sources (sort-by #(:layer-id (get % 0))
+                         layer-id-compare
+                         (set/difference block-set (keys preds)))
         topo-blocks (topo-sort sources simple-succs)]
-    (map->BlockGraph {:blocks topo-blocks :succs succs :preds preds
-                      :simple-succs simple-succs :sources sources})))
+    {:blocks topo-blocks :succs succs :preds preds
+     :simple-succs simple-succs :sources sources}))
 
 
 (defn classify-source
@@ -289,27 +290,28 @@
 
 
 (defn classify
-  "Given a BlockGraph, organizes the blocks into classes that are defined as
+  "Given block-info, organizes the blocks into classes that are defined as
   all blocks that are reachable from a block that is a source in its
-  BlockGraph, with preference given to the left-most sources"
-  [block-graph]
+  graph, with preference given to the left-most sources"
+  [block-info]
   (reduce (fn [classes root-block]
             (let [proto-class (classify-source root-block
-                                               (:simple-succs block-graph))
+                                               (:simple-succs block-info))
                   class-set (apply set/difference proto-class (vals classes))
                   class (filterv #(contains? class-set %)
-                                 (:blocks block-graph))]
+                                 (:blocks block-info))]
               (reduce #(assoc %1 %2 class) classes class)))
           {}
-          (:sources block-graph)))
+          (:sources block-info)))
 
 
-(defn BlockGraph->ClassGraph
-  "Given a BlockGraph, organizes the blocks into classes and then constructs a
+(defn FlatGraph->ClassGraph
+  "Given block-info, organizes the blocks into classes and then constructs a
   ClassGraph, where the nodes are classes and the edges are BlockEdges that
   span classes. This means there can be multiple edges per class pair."
-  [block-graph]
-  (let [block-classes (classify block-graph)
+  [flat-graph]
+  (let [block-info (FlatGraph->block-info flat-graph)
+        block-classes (classify block-info)
         classes (set (vals block-classes))
         edge->set #(update-in %1 [(get block-classes (:src %2))]
                               (fnil conj #{}) %2)
@@ -317,7 +319,7 @@
         (reduce (fn [[succs preds] class]
                   (let [class-set (set class)
                         block-succs (->> class
-                                         (mapcat #(-> block-graph :succs
+                                         (mapcat #(-> block-info :succs
                                                       (get %)))
                                          (remove #(contains? class-set
                                                              (:dest %)))
@@ -340,13 +342,8 @@
     (map->ClassGraph {:classes topo-classes
                       :succs succs :preds preds
                       :sources sources :sinks sinks
-                      :block-succs (:succs block-graph)
-                      :block-preds (:preds block-graph)})))
-
-
-(def FlatGraph->ClassGraph
-  (comp BlockGraph->ClassGraph
-        FlatGraph->BlockGraph))
+                      :block-succs (:succs block-info)
+                      :block-preds (:preds block-info)})))
 
 
 (defn FlatGraph->FlatGraphs
