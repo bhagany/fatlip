@@ -126,6 +126,10 @@
          (into {}))))
 
 
+(defn square [x]
+  (* x x))
+
+
 (defn check-alignment
   "Checks whether a predecessor is a valid alignment candidate"
   [pred last-idx marked]
@@ -415,7 +419,7 @@
   the the radius slope, or the slope of the tangent to that radius"
   [radius slope]
   {:pre [(every? number? [radius slope])]}
-  (/ radius (.sqrt js/Math (+ 1 (* slope slope)))))
+  (/ radius (.sqrt js/Math (+ 1 (square slope)))))
 
 
 (defn arc-x-distance
@@ -690,13 +694,11 @@
         intersect-y (/ (+ (* src-radius dest-y)
                           (* dest-radius src-y))
                        total-arc-radius)
-        src-radius2 (* src-radius src-radius)
+        src-radius2 (square src-radius)
         src-center-intersect-dx (- intersect-x src-x)
-        src-center-intersect-dx2 (* src-center-intersect-dx
-                                    src-center-intersect-dx)
+        src-center-intersect-dx2 (square src-center-intersect-dx)
         src-center-intersect-dy (- intersect-y src-y)
-        src-center-intersect-dy2 (* src-center-intersect-dy
-                                    src-center-intersect-dy)
+        src-center-intersect-dy2 (square src-center-intersect-dy)
         src-center-intersect-dx2-dy2 (+ src-center-intersect-dx2
                                         src-center-intersect-dy2)
         ;; In the triangle formed by arc center, tangent point, and intersect,
