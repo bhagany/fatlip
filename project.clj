@@ -32,6 +32,7 @@
                       :notify-command ["phantomjs" :cljs.test/runner "target/test.js"]
                       :compiler {:output-to     "target/test.js"
                                  :optimizations :whitespace
+                                 :verbose true
                                  :pretty-print true}}
                ;; examples
                :agot-dev {:source-paths ["src" "examples/asoiaf/agot/src" "examples/asoiaf/agot/dev"]
