@@ -443,9 +443,32 @@
   (arc-distance radius (/ 1 radius-slope)))
 
 
-(defn layer-x-distance
-  "Calculates the minimum distance between two layers based on the maximum
-  allowed slope of a line between them"
+(defn tangent-x-sep
+  [max-slope sum-radii centers-y-dist src-arc-y dest-arc-y dir]
+  (when (and (>= sum-radii centers-y-dist)
+             (or (and (< src-arc-y dest-arc-y)
+                      (= dir :up))
+                 (and (> src-arc-y dest-arc-y)
+                      (= dir :down))))
+    (let [x-sep (.sqrt js/Math (- (square sum-radii) (square centers-y-dist)))
+          tangent-slope (/ x-sep centers-y-dist)]
+      (when (<= tangent-slope max-slope)
+        x-sep))))
+
+
+(defn max-slope-x-sep
+  [max-slope sum-radii centers-y-dist]
+  (let [min-radius-slope (/ 1 max-slope)
+        arcs-x-dist (arc-x-distance sum-radii min-radius-slope)
+        arcs-y-dist (arc-y-distance sum-radii min-radius-slope)
+        tangent-y-dist (+ arcs-y-dist centers-y-dist)
+        tangent-x-dist (/ tangent-y-dist max-slope)]
+    (+ arcs-x-dist tangent-x-dist)))
+
+
+(defn min-pair-x-sep
+  "Calculates the minimum distance between a connected pair in two layers,
+  based on the maximum allowed slope of a line between them"
   ;; Came up with this formula in the following manner: we have the
   ;; y-coordinates of two circles and the slope of the line that is internally
   ;; tangent to both.  We want to find the horizontal distance between the
@@ -522,14 +545,12 @@
 
   ;; total dx = ((r_1 + r_2) / √((1 / m^2) + 1))
   ;;            + ((|y_1 - y_2| + (r_1 + r_2) / √(m^2 + 1)) / m)
-  [max-slope sum-radii centers-y-dist]
-  {:pre [(every? number? [max-slope sum-radii centers-y-dist])]}
-  (let [radius-slope (/ 1 max-slope)
-        arcs-x-dist (arc-x-distance sum-radii radius-slope)
-        arcs-y-dist (arc-y-distance sum-radii radius-slope)
-        tangent-y-dist (+ arcs-y-dist centers-y-dist)
-        tangent-x-dist (/ tangent-y-dist max-slope)]
-    (+ arcs-x-dist tangent-x-dist)))
+  [max-slope sum-radii src-arc-y dest-arc-y dir]
+  {:pre [(every? number? [max-slope sum-radii src-arc-y dest-arc-y])]}
+  (let [centers-y-dist (.abs js/Math (- src-arc-y dest-arc-y))]
+    (or (tangent-x-sep max-slope sum-radii centers-y-dist
+                       src-arc-y dest-arc-y dir)
+        (max-slope-x-sep max-slope sum-radii centers-y-dist))))
 
 
 (defn arc-center-up
@@ -655,13 +676,12 @@
                                              :layer-id))
                        src-arc-y (:arc-y src)
                        dest-arc-y (:arc-y dest)
-                       centers-y-dist (.abs js/Math (- src-arc-y dest-arc-y))
-                       x-dist (layer-x-distance max-slope
-                                                total-arc-radius
-                                                centers-y-dist)]
-                   (update-in min-seps [layer]
-                              (fnil conj #{})
-                              x-dist)))
+                       x-dist (min-pair-x-sep max-slope
+                                              total-arc-radius
+                                              src-arc-y
+                                              dest-arc-y
+                                              dir)]
+                   (update-in min-seps [layer] (fnil conj #{}) x-dist)))
                {})
        (map (fn [[layer x-ds]]
               [layer (apply max layer-sep x-ds)]))
@@ -678,6 +698,29 @@
                              [start-x end-x]))
                          [0 (:duration (first layers))]
                          (rest layers)))))
+
+
+(defn tangent-arcs
+  [{:keys [total-arc-radius dir],
+    [{src-x :arc-x src-y :arc-y src-radius :arc-radius}
+     {dest-x :arc-x dest-y :arc-y dest-radius :arc-radius
+      dest-path-y :y}] :pair}]
+  (let [centers-x-dist (- dest-x src-x)
+        centers-y-dist (- dest-y src-y)]
+    (when (= (.round js/Math (* (square total-arc-radius) 1000))
+             (.round js/Math (* (+ (square centers-x-dist)
+                                   (square centers-y-dist))
+                                1000)))
+      (let [radius-slope (/ centers-y-dist centers-x-dist)
+            tangent-x (+ src-x (arc-x-distance src-radius radius-slope))
+            tangent-y (if (pos? radius-slope)
+                        (+ src-y (arc-y-distance src-radius radius-slope))
+                        (- src-y (arc-y-distance src-radius radius-slope)))
+            [src-sweep dest-sweep] (if (= dir :up) [0 1] [1 0])]
+        [{:type :a, :radius src-radius, :sweep src-sweep
+          :x tangent-x, :y tangent-y :arc-x src-x :arc-y src-y}
+         {:type :a, :radius dest-radius, :sweep dest-sweep
+          :x dest-x, :y dest-path-y :arc-x dest-x :arc-y dest-y}]))))
 
 
 (defn arcs-and-tangent
@@ -792,8 +835,9 @@
     (match [last-type dir]
            [:h :level] (extend-h plots' dest-end-x)
            [_ :level] (conj plots' (h-to dest-end-x))
-           :else (plot-duration (into plots' (arcs-and-tangent pair-map))
-                                dest-start-x dest-end-x))))
+           :else (let [ps (or (tangent-arcs pair-map)
+                              (arcs-and-tangent pair-map))]
+                   (plot-duration (into plots' ps) dest-start-x dest-end-x)))))
 
 
 (defn plot-xs
