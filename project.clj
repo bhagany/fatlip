@@ -4,7 +4,7 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
 
-  :dependencies [[com.cemerick/austin "0.1.6"]
+  :dependencies [[cljsjs/d3 "3.5.3-0"]
                  [com.cemerick/piggieback "0.1.5"]
                  [environ "1.0.0"]
                  [figwheel "0.2.3-SNAPSHOT"]

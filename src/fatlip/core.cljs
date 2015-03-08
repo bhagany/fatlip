@@ -2,7 +2,7 @@
   (:require [fatlip.sparse :refer [input->SparseGraph]]
             [fatlip.order :refer [SparseGraph->FlatGraph]]
             [fatlip.plot :refer [plot]]
-            #_[fatlip.draw.svg :as draw-svg]))
+            [fatlip.draw.d3 :refer [draw-d3!]]))
 
 
 (defn chart!
@@ -15,4 +15,5 @@
   (-> input
       input->SparseGraph
       SparseGraph->FlatGraph
-      (plot max-slope min-arc-radius layer-sep node-sep char-sep)))
+      (plot max-slope min-arc-radius layer-sep node-sep char-sep)
+      draw-d3!))
