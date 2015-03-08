@@ -14,7 +14,6 @@
   (min-y [graph node-sep char-sep] "Minimum y-coordinate in the graph")
   (max-y [graph node-sep char-sep] "Maximum y-coordinate in the graph")
   (mid-y [graph node-sep char-sep] "Midpoint of y-coordinates in the graph")
-  (shift-ys [graph node-sep char-sep delta] "Shift the y-coordinate of every node by delta")
   (width [graph node-sep char-sep] "Width of the graph in y"))
 
 (defrecord BlockEdge [src dest weight]
