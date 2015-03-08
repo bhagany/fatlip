@@ -796,38 +796,49 @@
                                 dest-start-x dest-end-x))))
 
 
-(defn plot
-  "Generates coordinates for all paths in a FlatGraph"
-  [flat-graph max-slope min-arc-radius layer-sep node-sep char-sep]
-  (let [{:keys [layers characters]} flat-graph
-        node-ys (plot-ys flat-graph node-sep char-sep)
-        paths-y (->> (nodes flat-graph)
-                     (mapcat (fn [node]
-                               (map-indexed (fn [i c]
-                                              {:node node
-                                               :character c
-                                               :order i})
-                                            (get characters node))))
-                     (map (fn [info]
-                            (let [node (:node info)
-                                  node-top-y (get node-ys node)]
-                              (assoc info
-                                     :node-y [node-top-y
-                                              (+ node-top-y
-                                                 (* char-sep
-                                                    (dec (:weight node))))]
-                                     :y (+ node-top-y (* (:order info)
-                                                         char-sep))))))
-                     (group-by :character)
-                     (map (fn [[character infos]]
-                            [character (pair-up infos)]))
-                     (map (fn [[character pair-maps]]
-                            [character (add-y-info pair-maps min-arc-radius
-                                                   char-sep)])))
-        layer-xs (absolute-layer-xs paths-y layers max-slope layer-sep)]
+(defn plot-xs
+  [paths-y layers max-slope layer-sep]
+  (let [layer-xs (absolute-layer-xs paths-y layers max-slope layer-sep)]
     (->> paths-y
          (map (fn [[character pair-maps]]
                 [character (add-x-info pair-maps layer-xs)]))
          (map (fn [[character pair-maps]]
                 {:character character
                  :plots (reduce char-plots [] pair-maps)})))))
+
+
+(defn pathify
+  [node-ys nodes characters min-arc-radius char-sep]
+  (->> nodes
+       (mapcat (fn [node]
+                 (map-indexed (fn [i c]
+                                {:node node
+                                 :character c
+                                 :order i})
+                              (get characters node))))
+       (map (fn [info]
+              (let [node (:node info)
+                    node-top-y (get node-ys node)]
+                (assoc info
+                       :node-y [node-top-y
+                                (+ node-top-y
+                                   (* char-sep
+                                      (dec (:weight node))))]
+                       :y (+ node-top-y (* (:order info)
+                                           char-sep))))))
+       (group-by :character)
+       (map (fn [[character infos]]
+              [character (pair-up infos)]))
+       (map (fn [[character pair-maps]]
+              [character (add-y-info pair-maps min-arc-radius
+                                     char-sep)]))))
+
+
+(defn plot
+  "Generates coordinates for all paths in a FlatGraph"
+  [flat-graph max-slope min-arc-radius layer-sep node-sep char-sep]
+  (let [{:keys [layers characters]} flat-graph]
+    (-> flat-graph
+        (plot-ys node-sep char-sep)
+        (pathify (nodes flat-graph) characters min-arc-radius char-sep)
+        (plot-xs layers max-slope layer-sep))))
