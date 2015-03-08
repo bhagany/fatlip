@@ -353,8 +353,9 @@
 (defn FlatGraph->FlatGraphs
   [flat-graph]
   (let [flipped (with-meta (flip flat-graph) {:flipped true})
-        reversed (rev flat-graph)
-        flipped-reversed (with-meta (flip reversed) {:flipped true})]
+        reversed (with-meta (rev flat-graph) {:reversed true})
+        flipped-reversed (with-meta (flip reversed) {:flipped true
+                                                     :reversed true})]
     [flat-graph flipped reversed flipped-reversed]))
 
 
@@ -365,10 +366,14 @@
   [flat-graph]
   (->> flat-graph
        FlatGraph->FlatGraphs
-       (map #(let [class-graph (FlatGraph->ClassGraph %)]
-               (if (:flipped (meta %))
-                 (with-meta (rev class-graph) {:aligned-down true})
-                 class-graph)))))
+       (map #(let [flat-meta (meta %)]
+               (as-> (FlatGraph->ClassGraph %) class-graph
+                 (if (:flipped flat-meta)
+                   (with-meta (rev class-graph) {:aligned-down true})
+                   (with-meta class-graph {:aligned-up true}))
+                 (if (:reversed flat-meta)
+                   (vary-meta class-graph assoc :aligned-right true)
+                   (vary-meta class-graph assoc :aligned-left true)))))))
 
 
 (defn plot-ys
