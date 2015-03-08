@@ -8,9 +8,9 @@
 
 
 (defprotocol YPlottable
-  (ys [graph node-sep char-sep] "Returns y-coordinates to nodes, given
-                                 minimum separations between nodes and
-                                 characters")
+  (ys [graph node-sep char-sep] [graph node-sep char-sep delta]
+    "Returns y-coordinates to nodes, given minimum separations between nodes
+     and characters")
   (min-y [graph node-sep char-sep] "Minimum y-coordinate in the graph")
   (max-y [graph node-sep char-sep] "Maximum y-coordinate in the graph")
   (mid-y [graph node-sep char-sep] "Midpoint of y-coordinates in the graph")
@@ -106,6 +106,12 @@
   (ys [this node-sep char-sep]
     (memo-ys this node-sep char-sep))
 
+  (ys [this node-sep char-sep delta]
+    (->> (ys this node-sep char-sep)
+         (map (fn [[node y]]
+                [node (+ y delta)]))
+         (into {})))
+
   (min-y [this node-sep char-sep]
     (apply min (map #(get (ys this node-sep char-sep) (ffirst %)) classes)))
 
@@ -117,13 +123,7 @@
          (apply max)))
 
   (width [this node-sep char-sep]
-    (- (max-y this node-sep char-sep) (min-y this node-sep char-sep)))
-
-  (shift-ys [this node-sep char-sep delta]
-    (->> (ys this node-sep char-sep)
-         (map (fn [[node y]]
-                [node (+ y delta)]))
-         (into {}))))
+    (- (max-y this node-sep char-sep) (min-y this node-sep char-sep))))
 
 
 (defn square [x]
@@ -411,7 +411,7 @@
          (map #(let [delta (if (:aligned-down (meta %))
                              (- narrow-max-y (max-y % node-sep char-sep))
                              (- narrow-min-y (min-y % node-sep char-sep)))]
-                 (shift-ys % node-sep char-sep delta)))
+                 (ys % node-sep char-sep delta)))
          (apply merge-with #(if (vector? %1) (conj %1 %2) [%1 %2]))
          (map (fn [[node ys]]
                 (let [sort-ys (sort ys)]
