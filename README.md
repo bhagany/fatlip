@@ -1,6 +1,6 @@
 # fatlip
 
-Fatlip was inspired by an [xkcd comic](http://xkcd.com/657/ "Movie Narrative Charts"), was previously implemented in JavaScript, and is being rewritten in ClojureScript (more below). You feed it a representation of a story - basically what characters in the story are together at each point - and fatlip constructs a graph from it. Then, using a series of graph layout techniques (mostly variations on Sugiyama-style layered graph drawing), it plots the graph in a hopefully pleasing way, by attempting to minimize the number of edge crossings and maximizing straight lines. Here's an example of the old JS version in action, using [A Game of Thrones](http://bhagany.github.com/nchart/agot.html) (the book, not the show, and more examples below).
+Fatlip was inspired by an [xkcd comic](http://xkcd.com/657/ "Movie Narrative Charts"), was previously implemented in JavaScript, and is being rewritten in ClojureScript (more below). You feed it a representation of a story - basically what characters in the story are together at each point - and fatlip constructs a graph from it. Then, using a series of graph layout techniques (mostly variations on Sugiyama-style layered graph drawing), it plots the graph in a hopefully pleasing way, by attempting to minimize the number of edge crossings and maximizing straight lines. Here's an example of the old JS version in action, using [A Game of Thrones](http://bhagany.github.com/nchart/examples/agot.html) (the book, not the show, and more examples below).
 
 ## Method overview
 
