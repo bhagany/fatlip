@@ -42,6 +42,7 @@
                                      :asset-path    "out"
                                      :source-map    true
                                      :optimizations :none
+                                     :recompile-dependents true
                                      :cache-analysis true}}}}
 
   :figwheel {:http-server-root "public" ;; default and assumes "resources"
