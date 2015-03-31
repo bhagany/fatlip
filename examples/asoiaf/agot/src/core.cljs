@@ -1,5 +1,6 @@
 (ns asoiaf.agot.core
-  (:require [fatlip.core :as fatlip]))
+  (:require [fatlip.core :as fatlip]
+            [fatlip.debug :as debug]))
 
 
 (def input
@@ -226,5 +227,4 @@
 
 
 (def graph (fatlip/chart! input))
-
-(def foo "bar")
+#_(def test-graph (debug/chart-coarse! input))
