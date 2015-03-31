@@ -526,7 +526,7 @@
 
 (def count-and-mark-crossings
   ^{:doc "Takes an OrderedGraph, counts edge crossings and marks edges that should not
-         be drawn straight, and returns a new graph with this information. Memoized."}
+         be drawn straight. Memoized."}
   (memoize
    (fn [ordered-graph]
      (let [{:keys [minus-ps minus-qs preds succs characters]} ordered-graph
