@@ -28,12 +28,6 @@
 (defprotocol Reversible
   (rev [this] "It... reverses"))
 
-(defprotocol Flippable
-  (flip [item] "Flips a graph along the axis perpendicular to the layers, so
-                that nodes and edges within a layer reverse their order"))
-
-
-
 (defrecord Node [id layer-id characters weight])
 
 (defrecord Edge [src dest characters weight]

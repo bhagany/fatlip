@@ -3,7 +3,7 @@
             [clojure.core.rrb-vector :as rrb]
             [clojure.set :as set]
             [fatlip.order :as fo]
-            [fatlip.protocols :refer [Reversible Node Edge->Segment rev flip
+            [fatlip.protocols :refer [Reversible Node Edge->Segment rev
                                       nodes]]))
 
 
@@ -24,59 +24,66 @@
            :dest src)))
 
 
-(defn calc-rel-ys
-  "An abstraction for processing a topologically-sorted seq of nodes (blocks or
-  classes in our case) and calcluating y-values for each.  Higher order; takes
-  a function that generates a function for mapping, and returns a function that
-  returns a map of y-values"
-  [map-gen-fn get-preds]
-  (fn [items preds node-sep char-sep]
-    (let [filter-set (set items)]
-      (reduce (fn [ys item]
-                (let [pred-ys (map (map-gen-fn ys char-sep)
-                                   (get-preds preds item filter-set))
-                      item-y (if (empty? pred-ys)
-                               0
-                               (+ node-sep (apply max pred-ys)))]
-                  (assoc ys item item-y)))
-              {}
-              items))))
+(defn get-block-rel-ys
+  "Calculates the relative y-positions of blocks within a class. If the class
+  was compacted upward, we start at the top and walk down the class; for
+  downward, at the bottom, walking up."
+  [class block-edges node-sep char-sep compacted]
+  (let [filter-set (set class)
+        rel-op ({:up + :down -} compacted)]
+    (reduce (fn [ys block]
+              (let [in-class-edges (filter #(contains? filter-set (:dest %))
+                                           (get block-edges block))
+                    neighbor-ys (map #(rel-op (get ys (:dest %))
+                                              (* char-sep (dec (:weight %))))
+                                     in-class-edges)
+                    block-y (if (empty? neighbor-ys)
+                              0
+                              (if (= compacted :up)
+                                (+ (apply max neighbor-ys) node-sep)
+                                (- (apply min neighbor-ys) node-sep)))]
+                (assoc ys block block-y)))
+            {}
+            class)))
 
 
-(def get-rel-ys
-  "Takes topologically-sorted blocks from a single class, plus preds and
-  minimum separation between nodes and subnodes, and returns a map of blocks to
-  relative y-positions within the class"
-  (calc-rel-ys
-   (fn [ys char-sep]
-     #(+ (get ys (:dest %))
-         (* char-sep (dec (:weight %)))))
-   (fn [preds item filter-set]
-     (filter #(contains? filter-set (:dest %)) (get preds item)))))
-
-
-(defn gen-get-shift-ys
-  "Takes a map of blocks to relative y-positions within classes, and returns a
-  function that returns a map of classes to their relative y-positions"
-  [rel-ys]
-  (calc-rel-ys (fn [ys char-sep]
-                 #(- (+ (get ys (:dest %))
-                        (get rel-ys (:dest %))
-                        (* char-sep (dec (:weight %))))
-                     (get rel-ys (:src %))))
-               (fn [preds item _] (get preds item))))
+(defn get-shift-ys
+  "Calculates the relative y-positions of classes. If compacted upward, we walk
+  the classes downward; for downward compaction, upward."
+  [classes class-edges node-sep char-sep rel-ys compacted]
+  (reduce (fn [ys class]
+            (let [rel-op ({:up + :down -} compacted)
+                  neighbor-ys (map #(rel-op (- (+ (get ys (:dest %))
+                                                  (get rel-ys (:dest %)))
+                                               (get rel-ys (:src %)))
+                                            (* char-sep (dec (:weight %))))
+                               (get class-edges class))
+                  class-y (if (empty? neighbor-ys)
+                            0
+                            (if (= compacted :up)
+                              (+ (apply max neighbor-ys) node-sep)
+                              (- (apply min neighbor-ys) node-sep)))]
+              (assoc ys class class-y)))
+          {}
+          classes))
 
 
 (def memo-ys ;; heh
+  ^{:doc "Given a class graph and node and char separations, calculates y
+         positions for each node in the underlying graph."}
   (memoize
-   (fn [this node-sep char-sep]
-     (let [{:keys [classes preds block-preds]} this
-           rel-ys (reduce #(merge %1 (get-rel-ys %2 block-preds
-                                                 node-sep char-sep))
+   (fn [class-graph node-sep char-sep]
+     (let [{:keys [classes preds succs
+                   block-preds block-succs compacted]} class-graph
+           [block-edges class-edges] ({:up [block-preds preds]
+                                       :down [block-succs succs]} compacted)
+           rel-ys (reduce #(merge %1 (get-block-rel-ys %2 block-edges
+                                                       node-sep char-sep
+                                                       compacted))
                           {}
                           classes)
-           shift-ys (let [get-shift-ys (gen-get-shift-ys rel-ys)]
-                      (get-shift-ys classes preds node-sep char-sep))
+           shift-ys (get-shift-ys classes class-edges node-sep char-sep
+                                  rel-ys compacted)
            block-shift-ys (into {} (mapcat (fn [[class shift]]
                                              (map #(-> [% shift]) class))
                                            shift-ys))]
@@ -89,18 +96,8 @@
             (into {}))))))
 
 
-(defrecord ClassGraph [classes succs preds block-succs block-preds sources sinks]
-  Reversible
-  (rev [this]
-    (assoc this
-           :classes (vec (rseq (mapv #(vec (reverse %)) classes)))
-           :succs preds
-           :preds succs
-           :block-succs block-preds
-           :block-preds block-succs
-           :sources sinks
-           :sinks sources))
-
+(defrecord ClassGraph [classes succs preds block-succs block-preds sources sinks
+                       aligned compacted]
   YPlottable
   (ys [this node-sep char-sep]
     (memo-ys this node-sep char-sep))
@@ -126,6 +123,7 @@
 
 
 (defn square [x]
+  "Squares a number"
   (* x x))
 
 
@@ -234,6 +232,8 @@
 
 
 (defn block-edges
+  "Uses neighbor information (:aboves) from a FlatGraph to determine where the
+  edges are between blocks, given a particular blockification of that graph"
   [flat-graph roots blocks]
   (let [edge->set #(update-in %1 [(:src %2)] (fnil conj #{}) %2)]
     (reduce (fn [{:keys [succs preds] :as edges} block]
@@ -241,12 +241,12 @@
                                       block)
                                  (remove nil?)
                                  (group-by #(get roots %))
-                                 (map (fn [[above-root above-nodes]]
+                                 (map (fn [[neighbor-root neighbor-nodes]]
                                         (BlockEdge.
-                                         (get blocks above-root)
+                                         (get blocks neighbor-root)
                                          block
                                          (apply max (map :weight
-                                                         above-nodes))))))
+                                                         neighbor-nodes))))))
                     b-preds (map rev b-succs)]
                 (-> edges
                     (update-in [:succs] #(reduce edge->set % b-succs))
@@ -263,123 +263,135 @@
   [flat-graph]
   (let [[roots blocks] (blockify flat-graph)
         {:keys [succs preds]} (block-edges flat-graph roots blocks)
-        simple-succs (into {} (map (fn [[src edges]]
-                                     [src (set (map :dest edges))])
-                                   succs))
+        [simple-succs simple-preds] (map
+                                     #(into {}
+                                            (map
+                                             (fn [[src edges]]
+                                               [src (set (map :dest edges))])
+                                             %))
+                                     [succs preds])
         block-set (set (vals blocks))
-        long-block (first (filter #(> (count %) 1) block-set))
-        layer-id-compare (if (< (-> long-block first :layer-id)
-                                (-> long-block second :layer-id))
-                           < >)
-        sources (sort-by #(:layer-id (get % 0))
-                         layer-id-compare
-                         (set/difference block-set (keys preds)))
-        topo-blocks (topo-sort sources simple-succs)]
-    {:blocks topo-blocks :succs succs :preds preds
-     :simple-succs simple-succs :sources sources}))
+        layer-id-compare (if (:reversed (meta flat-graph))
+                           > <)
+        [sources sinks] (map (fn [edges]
+                               (sort-by #(:layer-id (get % 0))
+                                        layer-id-compare
+                                        (set/difference block-set
+                                                        (keys edges))))
+                             [preds succs])
+        blocks-up (topo-sort sources simple-succs)
+        blocks-down (topo-sort sinks simple-preds)]
+    {:blocks-up blocks-up :blocks-down blocks-down :succs succs :preds preds
+     :simple-succs simple-succs :simple-preds simple-preds
+     :sources sources :sinks sinks}))
 
 
-(defn classify-source
-  "Given a class that is a source in a ClassGraph, returns a set containing
-  that source and all of its descendants"
-  [source succs]
+(defn classify-start
+  "Given a block that is a start (source or sink) in a ClassGraph, returns a set
+  containing that start and all of its descendants"
+  [start edges]
   (loop [seen #{}
-         nodes [source]]
+         nodes [start]]
     (if (empty? nodes)
       seen
       (let [[n & ns] nodes
-            unseen-ns (set/difference (get succs n) seen)]
+            unseen-ns (set/difference (get edges n) seen)]
         (recur (conj seen n) (apply conj ns unseen-ns))))))
 
 
 (defn classify
-  "Given block-info, organizes the blocks into classes that are defined as
-  all blocks that are reachable from a block that is a source in its
-  graph, with preference given to the left-most sources"
-  [block-info]
-  (reduce (fn [classes root-block]
-            (let [proto-class (classify-source root-block
-                                               (:simple-succs block-info))
-                  class-set (apply set/difference proto-class (vals classes))
-                  class (filterv #(contains? class-set %)
-                                 (:blocks block-info))]
+  "Organizes blocks into classes, defined as all blocks that are reachable from
+  a block that is a root in its graph, with preference given to the left-most
+  roots"
+  [blocks edges start-blocks]
+  (reduce (fn [classes start-block]
+            (let [proto-class (classify-start start-block edges)
+                  class-set (set/difference proto-class (apply set (vals classes)))
+                  class (filterv #(contains? class-set %) blocks)]
               (reduce #(assoc %1 %2 class) classes class)))
           {}
-          (:sources block-info)))
+          start-blocks))
 
 
-(defn FlatGraph->ClassGraph
-  "Given block-info, organizes the blocks into classes and then constructs a
+(defn block-info->ClassGraph
+  "For a particular blockification, compacts these blocks in to a ClassGraph,
+  in either an :up or :down direction"
+  [block-info compacted]
+  (let [block-keys (if (= compacted :up)
+                     [:blocks-up :simple-succs :sources]
+                     [:blocks-down :simple-preds :sinks])
+        [blocks classify-edges start-blocks] (map block-info block-keys)
+        block-classes (classify blocks classify-edges start-blocks)
+        classes-set (set (vals block-classes))
+        edge->set #(update-in %1 [(get block-classes (:src %2))]
+                              (fnil conj #{}) %2)
+        block-succs (:succs block-info)
+        [succs preds]
+        (reduce (fn [[s p] class]
+                  (let [class-set (set class)
+                        class-succs (->> class
+                                         (mapcat #(get block-succs %))
+                                         (remove #(contains? class-set (:dest %)))
+                                         set)
+                        class-preds (map rev class-succs)]
+                    [(reduce edge->set s class-succs)
+                     (reduce edge->set p class-preds)]))
+                [{} {}]
+                classes-set)
+        sources (set/difference classes-set (set (keys preds)))
+        sinks (set/difference classes-set (set (keys succs)))
+        classes (if (= compacted :up)
+                  (let [simple-succs (->> succs
+                                          (map (fn [[src edges]]
+                                                 [src (set (map #(get-in
+                                                                  block-classes
+                                                                  [(:dest %)])
+                                                                edges))]))
+                                          (into {}))]
+                    (topo-sort sources simple-succs))
+                  (let [simple-preds (->> preds
+                                          (map (fn [[src edges]]
+                                                 [src (set (map #(get-in
+                                                                  block-classes
+                                                                  [(:dest %)])
+                                                                edges))]))
+                                          (into {}))]
+                    (topo-sort sinks simple-preds)))]
+    (map->ClassGraph {:classes classes
+                      :succs succs :preds preds
+                      :sources sources :sinks sinks
+                      :block-succs block-succs
+                      :block-preds (:preds block-info)
+                      :compacted compacted})))
+
+
+(defn FlatGraph->UpDownClassGraphs
+  "Organizes nodes and edges into blocks into classes and then constructs a
   ClassGraph, where the nodes are classes and the edges are BlockEdges that
   span classes. This means there can be multiple edges per class pair."
   [flat-graph]
-  (let [block-info (FlatGraph->block-info flat-graph)
-        block-classes (classify block-info)
-        classes (set (vals block-classes))
-        edge->set #(update-in %1 [(get block-classes (:src %2))]
-                              (fnil conj #{}) %2)
-        [succs preds]
-        (reduce (fn [[succs preds] class]
-                  (let [class-set (set class)
-                        block-succs (->> class
-                                         (mapcat #(-> block-info :succs
-                                                      (get %)))
-                                         (remove #(contains? class-set
-                                                             (:dest %)))
-                                         set)
-                        block-preds (map rev block-succs)]
-                    [(reduce edge->set succs block-succs)
-                     (reduce edge->set preds block-preds)]))
-                [{} {}]
-                classes)
-        simple-succs (->> succs
-                          (map (fn [[src edges]]
-                                 [src
-                                  (set (map #(get-in
-                                              block-classes [(:dest %)])
-                                            edges))]))
-                          (into {}))
-        sources (set/difference classes (keys preds))
-        sinks (set/difference classes (keys succs))
-        topo-classes (topo-sort sources simple-succs)]
-    (map->ClassGraph {:classes topo-classes
-                      :succs succs :preds preds
-                      :sources sources :sinks sinks
-                      :block-succs (:succs block-info)
-                      :block-preds (:preds block-info)})))
-
-
-(defn FlatGraph->FlatGraphs
-  [flat-graph]
-  (let [flipped (with-meta (flip flat-graph) {:flipped true})
-        reversed (with-meta (rev flat-graph) {:reversed true})
-        flipped-reversed (with-meta (flip reversed) {:flipped true
-                                                     :reversed true})]
-    [flat-graph flipped reversed flipped-reversed]))
+  (let [block-info (FlatGraph->block-info flat-graph)]
+    [(block-info->ClassGraph block-info :up)
+     (block-info->ClassGraph block-info :down)]))
 
 
 (defn FlatGraph->ClassGraphs
-  "Takes a FlatGraph and creates four variations of it by flipping and
-  reversing, and then plots the y-positions for nodes in each of these
-  variations, and returns them"
+  "Takes a FlatGraph and creates four variations of it by aggregating nodes and
+  segments into blocks in forward and reverse directions, and then organizes
+  these blocks both upward and downward"
   [flat-graph]
-  (->> flat-graph
-       FlatGraph->FlatGraphs
-       (map #(let [flat-meta (meta %)]
-               (as-> (FlatGraph->ClassGraph %) class-graph
-                 (if (:flipped flat-meta)
-                   (with-meta (rev class-graph) {:aligned-down true})
-                   (with-meta class-graph {:aligned-up true}))
-                 (if (:reversed flat-meta)
-                   (vary-meta class-graph assoc :aligned-right true)
-                   (vary-meta class-graph assoc :aligned-left true)))))))
+  (mapcat (fn [fg]
+            (let [class-graphs (FlatGraph->UpDownClassGraphs fg)]
+              (if (:reversed (meta fg))
+                (map #(vary-meta % {:aligned-right true}) class-graphs)
+                (map #(vary-meta % {:aligned-left true}) class-graphs))))
+          [flat-graph ^:reversed (rev flat-graph)]))
 
 
 (defn plot-ys
-  "Given a FlatGraph, generate four variations by flipping and reversing, then
-  construct ClassGraphs for each, which are used to assign y-values for each
-  node in each graph variation. The four y-positions for each node are then
-  averaged together to give a final value.
+  "Given a FlatGraph, generate four ClassGraphs, which are used to assign
+  y-values for each node in each graph variation. The four y-positions for each
+  node are then averaged together to give a final value.
 
   This approach is very heavily based on Fast and Simple Horizontal Coordinate
   Assignment by Ulrik Brandes and Boris Köpf (BK), even though the algorithm
@@ -796,6 +808,8 @@
 
 
 (defn plot-xs
+  "Given y-values and layer-spacing paramters, calculate an x-value for
+  characters"
   [paths-y layers max-slope layer-sep]
   (let [layer-xs (absolute-layer-xs paths-y layers max-slope layer-sep)]
     (->> paths-y
@@ -807,6 +821,8 @@
 
 
 (defn pathify
+  "Given node-level y information, generate paths with character-level y info
+  for each character"
   [node-ys nodes characters min-arc-radius char-sep]
   (->> nodes
        (mapcat (fn [node]

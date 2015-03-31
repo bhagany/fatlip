@@ -3,8 +3,7 @@
             [clojure.set :as set]
             [clojure.string :as s]
             [fatlip.protocols :refer [Layered Sparse Directed Reversible
-                                      Flippable Nodey Node Edge Edge->Segment
-                                      rev flip]]))
+                                      Nodey Node Edge Edge->Segment rev]]))
 
 
 (defrecord OrderedGraph [layers succs preds ps qs rs
@@ -55,22 +54,9 @@
     (assoc this
            :succs preds
            :preds succs
-           :layers (vec (rseq layers))))
+           :layers (vec (rseq layers)))))
 
-  Flippable
-  (flip [this]
-    (assoc this
-           :layers (mapv flip layers)
-           :aboves belows
-           :belows aboves
-           :top-idxs bot-idxs
-           :bot-idxs top-idxs)))
-
-(defrecord FlatLayer [id duration items]
-  Flippable
-  (flip [this]
-    (assoc this
-           :items (reverse items))))
+(defrecord FlatLayer [id duration items])
 
 (defrecord AccumulatorNode [weight node-edges is-seg-c])
 
