@@ -33,10 +33,6 @@
 
 (defrecord OrderedLayer [id duration items])
 
-;; still has OrderedLayers
-(defrecord CountedAndMarkedGraph [layers succs preds
-                                  crossings marked characters])
-
 (defrecord FlatGraph [layers succs preds aboves belows top-idxs bot-idxs
                       crossings marked characters]
   Nodey
@@ -340,7 +336,7 @@
                0)))
 
 
-(defn count-and-mark-crossings
+(defn count-and-mark-crossings-layer
   "Step 5 of ESK, counts the number of crossings that result from a bi-layer
   ordering. Implements the algorithm found in Bilayer Cross Counting, by
   Wilhelm Barth, Petra Mutzel and Michael Jünger
@@ -528,27 +524,27 @@
                           order-subnodes)))))))
 
 
-(defn OrderedGraph->CountedAndMarkedGraph
-  "Takes an OrderedGraph, counts edge crossings and marks edges that should not
-  be drawn straight, and returns a new graph with this information"
-  [ordered-graph]
-  (let [{:keys [minus-ps minus-qs preds succs characters]} ordered-graph
-        [crossings marked] (->> (map #(count-and-mark-crossings
-                                       %1 %2 preds succs characters)
-                                     minus-ps minus-qs)
-                                (apply map vector))]
-    (map->CountedAndMarkedGraph (assoc ordered-graph
-                                       :crossings (reduce + crossings)
-                                       :marked (reduce set/union marked)))))
+(def count-and-mark-crossings
+  ^{:doc "Takes an OrderedGraph, counts edge crossings and marks edges that should not
+         be drawn straight, and returns a new graph with this information. Memoized."}
+  (memoize
+   (fn [ordered-graph]
+     (let [{:keys [minus-ps minus-qs preds succs characters]} ordered-graph
+           [crossings marked] (->> (map #(count-and-mark-crossings-layer
+                                          %1 %2 preds succs characters)
+                                        minus-ps minus-qs)
+                                   (apply map vector))]
+       {:crossings (reduce + crossings)
+        :marked (reduce set/union marked)}))))
 
 
 (defn best-ordering
   "Chooses the graph with the fewest crossings from a collection of OrderedGraphs"
   [ordered-graphs]
-  (->> (map OrderedGraph->CountedAndMarkedGraph ordered-graphs)
-       (sort-by (fn [g]
-                  [(:crossings g)
-                   (reduce #(+ %1 (:weight %2)) 0 (:marked g))]))
+  (->> ordered-graphs
+       (sort-by (fn [og]
+                  (let [{:keys [crossings marked]} (count-and-mark-crossings og)]
+                    [crossings (reduce #(+ %1 (:weight %2)) 0 marked)])))
        first))
 
 
@@ -586,16 +582,17 @@
                                      (-> ordered-layer :items flatten)))))
 
 
-(defn CountedAndMarkedGraph->FlatGraph
+(defn OrderedGraph->FlatGraph
   "Transforms each OrderedLayer into a FlatLayer, and calculates attributes
   that are useful for organizing Nodes and Segments into horizontally-aligned
   blocks"
-  [cm-graph]
-  (let [{:keys [layers succs preds marked crossings characters]} cm-graph
-        cm-layers (mapv OrderedLayer->FlatLayer layers)
-        [aboves belows] (apply map merge (map neighborify cm-layers))
-        [top-idxs bot-idxs] (apply map merge (map indexify cm-layers))]
-    (map->FlatGraph {:layers cm-layers
+  [ordered-graph]
+  (let [{:keys [layers succs preds characters]} ordered-graph
+        {:keys [crossings marked]} (count-and-mark-crossings ordered-graph)
+        flat-layers (mapv OrderedLayer->FlatLayer layers)
+        [aboves belows] (apply map merge (map neighborify flat-layers))
+        [top-idxs bot-idxs] (apply map merge (map indexify flat-layers))]
+    (map->FlatGraph {:layers flat-layers
                      :succs succs
                      :preds preds
                      :aboves aboves
@@ -607,6 +604,6 @@
                      :characters characters})))
 
 
-(def SparseGraph->FlatGraph (comp CountedAndMarkedGraph->FlatGraph
+(def SparseGraph->FlatGraph (comp OrderedGraph->FlatGraph
                                   best-ordering
                                   SparseGraph->ordered-graphs))
