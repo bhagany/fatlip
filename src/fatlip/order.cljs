@@ -489,21 +489,19 @@
      (cycle [sparse-graph rev-sparse-graph])
      (reduce (fn [[orderings ordering-set first-layer :as reduced-info]
                   input-graph]
-               (if (or (contains? ordering-set first-layer)
-                       (= max-sweeps (count reduced-info)))
-                 (reduced [orderings])
-                 (let [graph (SparseGraph->OrderedGraph input-graph
-                                                        first-layer)
-                       layers (:layers graph)]
-                   ;; If we see a graph that we've seen before, this is the
-                   ;; beginning of a cycle, and we can stop processing
-                   (if (contains? ordering-set graph)
-                     (reduced [orderings])
-                     ;; The last layer of the current ordering is the first
-                     ;; layer of the next
-                     [(conj orderings graph)
-                      (conj ordering-set first-layer)
-                      (layers last-layer-idx)]))))
+               (let [graph (SparseGraph->OrderedGraph input-graph
+                                                      first-layer)
+                     layers (:layers graph)]
+                 ;; If we see a graph that we've seen before, this is the
+                 ;; beginning of a cycle, and we can stop processing
+                 (if (or (contains? ordering-set graph)
+                         (= max-sweeps (inc (count reduced-info))))
+                   (reduced [orderings])
+                   ;; The last layer of the current ordering is the first
+                   ;; layer of the next
+                   [(conj orderings graph)
+                    (conj ordering-set graph)
+                    (layers last-layer-idx)])))
              [[] #{} first-ordered-layer])
      first
      ;; This is sort of ugly, but once we order the nodes, we still have to
