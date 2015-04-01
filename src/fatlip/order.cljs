@@ -379,24 +379,25 @@
     [(+ sup-crossings sub-crossings) marked]))
 
 
-(defn SparseGraph->OrderedGraph
+(defn OrderedGraph->OrderedGraph
   "Performs one layer-by-layer sweep of the graph using ESK's algorithm"
-  [sparse-graph first-layer]
-  (let [{:keys [ps qs rs preds succs characters layers]} sparse-graph
+  [ordered-graph]
+  (let [{:keys [ps qs rs preds succs characters layers]} ordered-graph
+        first-layer (first layers)
         [ordered-layers minus-ps minus-qs]
-        (reduce (fn [[layers minus-ps minus-qs prev-layer] sparse-layer]
+        (reduce (fn [[layers minus-ps minus-qs prev-layer] layer]
                   (let [minus-p (replace-ps (:items prev-layer) ps succs)
                         positions (set-positions minus-p)
                         [qs non-qs] (map set
                                          ((juxt filter remove)
                                           #(contains? qs %)
-                                          (:nodes sparse-layer)))
+                                          (remove vector? (:items layer))))
                         measures (set-measures non-qs preds positions)
                         minus-q (merge-layer minus-p positions
                                              non-qs measures)
                         items (add-qs minus-q qs)
-                        ordered-layer (OrderedLayer. (:id sparse-layer)
-                                                     (:duration sparse-layer)
+                        ordered-layer (OrderedLayer. (:id layer)
+                                                     (:duration layer)
                                                      items)]
                     [(conj layers ordered-layer)
                      (conj minus-ps minus-p)
@@ -456,6 +457,26 @@
     (assoc co-graph :characters sorted)))
 
 
+(defn SparseGraph->OrderedGraph
+  [sparse-graph]
+  (let [{:keys [ps qs rs preds succs characters layers]} sparse-graph
+        ordered-layers (map (fn [layer]
+                              (map->OrderedLayer
+                               (-> layer
+                                   (dissoc :nodes)
+                                   (assoc :items (:nodes layer)))))
+                            layers)]
+    (map->OrderedGraph {:layers ordered-layers
+                        :minus-ps []
+                        :minus-qs []
+                        :succs succs
+                        :preds preds
+                        :ps ps
+                        :qs qs
+                        :rs rs
+                        :characters characters})))
+
+
 (defn SparseGraph->ordered-graphs
   "Implements the 2-layer crossing minimization algorithm on a sparse graph
   found in 'An Efficient Implementation of Sugiyama’s Algorithm for Layered
@@ -476,34 +497,23 @@
   allows the counting and marking to be parallelized, whereas the ordering is
   inherently serial."
   [sparse-graph & {:keys [max-sweeps] :or {max-sweeps 20}}]
-  (let [layers (:layers sparse-graph)
-        last-layer-idx (dec (count layers))
-        first-sparse-layer (first layers)
-        ;; seed the first layer with initial ordered layer
-        first-ordered-layer (map->OrderedLayer
-                             (-> first-sparse-layer
-                                 (dissoc :nodes)
-                                 (assoc :items (:nodes first-sparse-layer))))
-        rev-sparse-graph (rev sparse-graph)]
+  (let [last-layer-idx (dec (count (:layers sparse-graph)))]
     (->>
-     (cycle [sparse-graph rev-sparse-graph])
-     (reduce (fn [[orderings ordering-set first-layer :as reduced-info]
-                  input-graph]
-               (let [graph (SparseGraph->OrderedGraph input-graph
-                                                      first-layer)
-                     layers (:layers graph)]
-                 ;; If we see a graph that we've seen before, this is the
-                 ;; beginning of a cycle, and we can stop processing
-                 (if (or (contains? ordering-set graph)
-                         (= max-sweeps (inc (count reduced-info))))
-                   (reduced [orderings])
-                   ;; The last layer of the current ordering is the first
-                   ;; layer of the next
-                   [(conj orderings graph)
-                    (conj ordering-set graph)
-                    (layers last-layer-idx)])))
-             [[] #{} first-ordered-layer])
-     first
+     (loop [orderings []
+            ordering-set #{}
+            input-graph (SparseGraph->OrderedGraph sparse-graph)]
+       (let [graph (OrderedGraph->OrderedGraph input-graph)
+             layers (:layers graph)]
+         ;; If we see a graph that we've seen before, this is the
+         ;; beginning of a cycle, and we can stop processing
+         (if (or (contains? ordering-set graph)
+                 (= max-sweeps (inc (count orderings))))
+           orderings
+           ;; The last layer of the current ordering is the first
+           ;; layer of the next
+           (recur (conj orderings graph)
+                  (conj ordering-set graph)
+                  (rev graph)))))
      ;; This is sort of ugly, but once we order the nodes, we still have to
      ;; come up with a good subnode ordering. Conceptually, this belongs in
      ;; SparseGraph->OrderedGraph, but it's also conceptually cromulent to have
