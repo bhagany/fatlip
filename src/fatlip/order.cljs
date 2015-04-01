@@ -516,10 +516,10 @@
                   (rev graph)))))
      ;; This is sort of ugly, but once we order the nodes, we still have to
      ;; come up with a good subnode ordering. Conceptually, this belongs in
-     ;; SparseGraph->OrderedGraph, but it's also conceptually cromulent to have
-     ;; SparseGraph->OrderedGraph know nothing about the forward/reverse dance
+     ;; OrderedGraph->OrderedGraph, but it's also conceptually cromulent to have
+     ;; OrderedGraph->OrderedGraph know nothing about the forward/reverse dance
      ;; that we do here. However, subnode ordering is dependent on
-     ;; direction. My choice then, is to make SparseGraph->OrderedGraph
+     ;; direction. My choice then, is to make OrderedGraph->OrderedGraph
      ;; direction-aware, or pull the subnode ordering out and put it here,
      ;; where we're aware of the direction.  For now, I've chosen the latter.
      (map-indexed (fn [idx graph]
