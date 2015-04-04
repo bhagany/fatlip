@@ -304,13 +304,14 @@
   a block that is a root in its graph, with preference given to the left-most
   roots"
   [blocks edges start-blocks]
-  (reduce (fn [classes start-block]
-            (let [proto-class (classify-start start-block edges)
-                  class-set (set/difference proto-class (apply set (vals classes)))
-                  class (filterv #(contains? class-set %) blocks)]
-              (reduce #(assoc %1 %2 class) classes class)))
-          {}
-          start-blocks))
+  (first (reduce (fn [[classes used-blocks] start-block]
+                   (let [proto-class (classify-start start-block edges)
+                         class-set (set/difference proto-class used-blocks)
+                         class (filterv #(contains? class-set %) blocks)]
+                     [(reduce #(assoc %1 %2 class) classes class)
+                      (into used-blocks class)]))
+                 [{} #{}]
+                 start-blocks)))
 
 
 (defn block-info->ClassGraph
