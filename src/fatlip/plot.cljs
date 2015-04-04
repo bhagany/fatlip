@@ -50,10 +50,10 @@
 (defn get-shift-ys
   "Calculates the relative y-positions of classes. If compacted upward, we walk
   the classes downward; for downward compaction, upward."
-  [classes class-edges node-sep char-sep rel-ys compacted]
+  [classes block-classes class-edges node-sep char-sep rel-ys compacted]
   (reduce (fn [ys class]
             (let [rel-op ({:up + :down -} compacted)
-                  neighbor-ys (map #(rel-op (- (+ (get ys (:dest %))
+                  neighbor-ys (map #(rel-op (- (+ (get ys (get block-classes (:dest %)))
                                                   (get rel-ys (:dest %)))
                                                (get rel-ys (:src %)))
                                             (* char-sep (dec (:weight %))))
@@ -73,7 +73,7 @@
          positions for each node in the underlying graph."}
   (memoize
    (fn [class-graph node-sep char-sep]
-     (let [{:keys [classes preds succs
+     (let [{:keys [classes block-classes preds succs
                    block-preds block-succs compacted]} class-graph
            [block-edges class-edges] ({:up [block-preds preds]
                                        :down [block-succs succs]} compacted)
@@ -82,8 +82,8 @@
                                                        compacted))
                           {}
                           classes)
-           shift-ys (get-shift-ys classes class-edges node-sep char-sep
-                                  rel-ys compacted)
+           shift-ys (get-shift-ys classes block-classes class-edges node-sep
+                                  char-sep rel-ys compacted)
            block-shift-ys (into {} (mapcat (fn [[class shift]]
                                              (map #(-> [% shift]) class))
                                            shift-ys))]
@@ -96,8 +96,8 @@
             (into {}))))))
 
 
-(defrecord ClassGraph [classes succs preds block-succs block-preds sources sinks
-                       aligned compacted]
+(defrecord ClassGraph [classes block-classes succs preds block-succs
+                       block-preds sources sinks aligned compacted]
   YPlottable
   (ys [this node-sep char-sep]
     (memo-ys this node-sep char-sep))
@@ -359,6 +359,7 @@
                                           (into {}))]
                     (topo-sort sinks simple-preds)))]
     (map->ClassGraph {:classes classes
+                      :block-classes block-classes
                       :succs succs :preds preds
                       :sources sources :sinks sinks
                       :block-succs block-succs
