@@ -434,8 +434,8 @@
 
 (defn order-subnodes
   "Orders all characters in all nodes based on their predecessors"
-  [co-graph]
-  (let [{:keys [layers characters preds]} co-graph
+  [graph]
+  (let [{:keys [layers characters preds]} graph
         sorted
         (->> (rest layers)
              (reduce (fn [[sorted prev-l] layer]
@@ -454,7 +454,7 @@
                          [s layer]))
                      [characters (first layers)])
              first)]
-    (assoc co-graph :characters sorted)))
+    (assoc graph :characters sorted)))
 
 
 (defn SparseGraph->OrderedGraph
