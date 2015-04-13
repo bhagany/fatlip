@@ -419,17 +419,26 @@
   (let [class-graphs (FlatGraph->ClassGraphs flat-graph)
         narrowest (apply min-key #(width % node-sep char-sep) class-graphs)
         narrow-min-y (min-y narrowest node-sep char-sep)
-        narrow-max-y (max-y narrowest node-sep char-sep)]
-    (->> class-graphs
-         (map #(let [delta (if (:aligned-down (meta %))
-                             (- narrow-max-y (max-y % node-sep char-sep))
-                             (- narrow-min-y (min-y % node-sep char-sep)))]
-                 (ys % node-sep char-sep delta)))
-         (apply merge-with #(if (vector? %1) (conj %1 %2) [%1 %2]))
-         (map (fn [[node ys]]
-                (let [sort-ys (sort ys)]
-                  [node (/ (+ (nth sort-ys 1) (nth sort-ys 2)) 2)])))
-         (into {}))))
+        narrow-max-y (max-y narrowest node-sep char-sep)
+        y-map (->> class-graphs
+                   (map #(let [delta (if (:aligned-down (meta %))
+                                       (- narrow-max-y (max-y % node-sep
+                                                              char-sep))
+                                       (- narrow-min-y (min-y % node-sep
+                                                              char-sep)))]
+                           (ys % node-sep char-sep delta)))
+                   (apply merge-with #(if (vector? %1) (conj %1 %2) [%1 %2]))
+                   (map (fn [[node ys]]
+                          (let [sort-ys (sort ys)]
+                            [node (/ (+ (nth sort-ys 1) (nth sort-ys 2)) 2)])))
+                   (into {}))]
+    (map (fn [node]
+           (let [top-y (get y-map node)
+                 bot-y (+ top-y
+                            (* char-sep
+                               (dec (:weight node))))]
+             [node [top-y bot-y]]))
+         (nodes flat-graph))))
 
 
 (defn arc-distance
@@ -545,124 +554,93 @@
     (+ arcs-x-dist tangent-x-dist)))
 
 
-(defn arc-center-up
-  "Given node info map (must have :node-y) and a min-arc-radius, returns the
-  center for the upward arcs on that node"
-  [{:keys [node-y]} min-arc-radius]
-  {:pre [(vector? node-y) (number? min-arc-radius)]}
-  (- (node-y 0) min-arc-radius))
-
-
-(defn arc-center-down
-  "Given node info map (must have :node-y) and a min-arc-radius, returns the
-  center for the downward arcs on that node"
-  [{:keys [node-y]} min-arc-radius]
-  {:pre [(vector? node-y) (number? min-arc-radius)]}
-  (+ (node-y 1) min-arc-radius))
-
-
-(defn arc-radius-up
+(defn arc-radius
   "Given node info map (must have :order) a min-arc-radius and the number of
   pixels characters should be separated by, and returns the radius of the arc
   for that node for that character"
   [{:keys [order]} min-arc-radius char-sep]
   {:pre [(integer? order) (every? number? [min-arc-radius char-sep])]}
-  (+ min-arc-radius
-     (* order char-sep)))
-
-
-(defn arc-radius-down
-  "Given node info map (must have :order and :node, which in turn must
-  have :weight) a min-arc-radius and the number of pixels characters should be
-  separated by, and returns the radius of the arc for that node for that
-  character"
-  [{:keys [order] {weight :weight} :node} min-arc-radius char-sep]
-  {:pre [(every? integer? [order weight])
-         (every? number? [min-arc-radius char-sep])]}
-  (+ min-arc-radius
-     (* (- (dec weight) order)
-        char-sep)))
+  (+ min-arc-radius (* order char-sep)))
 
 
 (defn arc-y-info
   "Returns the y values of the arc centers, as well as the radii for each arc
-  for a pair of character nodes on adjacent layers"
+  for a character segment with endpoints on adjacent layers"
   [src dest dir min-arc-radius char-sep]
   {:pre [(contains? #{:up :down} dir)]}
-  (if (= dir :up)
-    {:src-arc-y (arc-center-up src min-arc-radius)
-     :src-arc-radius (arc-radius-up src min-arc-radius char-sep)
-     :dest-arc-y (arc-center-down dest min-arc-radius)
-     :dest-arc-radius (arc-radius-down dest min-arc-radius char-sep)}
-    {:src-arc-y (arc-center-down src min-arc-radius)
-     :src-arc-radius (arc-radius-down src min-arc-radius char-sep)
-     :dest-arc-y (arc-center-up dest min-arc-radius)
-     :dest-arc-radius (arc-radius-up dest min-arc-radius char-sep)}))
+  (let [src-arc-r (arc-radius src min-arc-radius char-sep)
+        dest-arc-r (arc-radius dest min-arc-radius char-sep)
+        [src-op dest-op] ({:up [- +] :down [+ -]} dir)]
+    {:src-arc-radius src-arc-r
+     :dest-arc-radius dest-arc-r
+     :src-arc-y (src-op (:y src) src-arc-r)
+     :dest-arc-y (dest-op (:y dest) dest-arc-r)}))
 
 
 (defn add-y-info
-  "Adds :arc-y and :arc-radius information to character path pairs, plus
+  "Adds :arc-y and :arc-radius information to character segments, plus
   :total-arc-radius, for convenience"
-  [pair-maps min-arc-radius char-sep]
-  (map (fn [{:keys [dir], [src dest] :pair, :as info}]
+  [char-segs min-arc-radius char-sep]
+  (map (fn [{:keys [dir src dest], :as seg}]
          (if (= dir :level)
-           info
+           seg
            (let [{:keys [src-arc-y dest-arc-y
                          src-arc-radius dest-arc-radius]}
                  (arc-y-info src dest dir min-arc-radius char-sep)]
-             (-> info
+             (-> seg
                  (assoc :total-arc-radius (+ src-arc-radius dest-arc-radius))
-                 (assoc-in [:pair 0 :arc-y] src-arc-y)
-                 (assoc-in [:pair 0 :arc-radius] src-arc-radius)
-                 (assoc-in [:pair 1 :arc-y] dest-arc-y)
-                 (assoc-in [:pair 1 :arc-radius] dest-arc-radius)))))
-       pair-maps))
+                 (assoc-in [:src :arc-y] src-arc-y)
+                 (assoc-in [:src :arc-radius] src-arc-radius)
+                 (assoc-in [:dest :arc-y] dest-arc-y)
+                 (assoc-in [:dest :arc-radius] dest-arc-radius)))))
+       char-segs))
 
 
 (defn add-x-info
-  "Adds :xs to character path pairs, and if the pairs are not :level, also
-  adds :arc-x for each pair"
-  [pair-maps layer-xs]
-  (map (fn [{:keys [dir], [src dest] :pair, :as info}]
+  "Adds :xs to character segments, and if the segment is not :level, also
+  adds :arc-x for each segment"
+  [char-segs layer-xs]
+  (map (fn [{:keys [dir src dest], :as seg}]
          (let [src-xs (-> src :node :layer-id layer-xs)
                dest-xs (-> dest :node :layer-id layer-xs)
-               info' (-> info
-                         (assoc-in [:pair 0 :xs] src-xs)
-                         (assoc-in [:pair 1 :xs] dest-xs))]
+               seg' (-> seg
+                        (assoc-in [:src :xs] src-xs)
+                        (assoc-in [:dest :xs] dest-xs))]
            (if (= dir :level)
-             info'
-             (-> info'
-                 (assoc-in [:pair 0 :arc-x] (src-xs 1))
-                 (assoc-in [:pair 1 :arc-x] (dest-xs 0))))))
-       pair-maps))
+             seg'
+             (-> seg'
+                 (assoc-in [:src :arc-x] (src-xs 1))
+                 (assoc-in [:dest :arc-x] (dest-xs 0))))))
+       char-segs))
 
 
 (defn pair-up
   "Given a list of character positions, pairs each with the one following for a
   representation of transistions between layers. Also adds information about
-  the direction this transition goes."
+  the direction this segment goes."
   [infos]
   (->> (map vector infos (drop 1 infos))
-       (reduce (fn [pairs [src dest]]
+       (reduce (fn [segments [src dest]]
                  (let [src-y (:y src)
                        dest-y (:y dest)]
-                   (conj pairs
+                   (conj segments
                          {:dir (if (= src-y dest-y)
                                  :level
                                  (if (> src-y dest-y)
                                    :up
                                    :down))
-                          :pair [src dest]})))
+                          :src src
+                          :dest dest
+                          :character (:character src)})))
                [])))
 
 
 (defn relative-layer-xs
   "Generates a map of layers to the pixel distance to the preceding layer"
   [path-info layers max-slope layer-sep]
-  (->> (map second path-info)
+  (->> (vals path-info)
        (mapcat #(remove (fn [{:keys [dir]}] (= dir :level)) %))
-       (reduce (fn [min-seps {:keys [dir total-arc-radius],
-                              [src dest] :pair}]
+       (reduce (fn [min-seps {:keys [dir total-arc-radius src dest]}]
                  (let [layer (get layers (-> dest
                                              :node
                                              :layer-id))
@@ -694,13 +672,12 @@
 
 
 (defn arcs-and-tangent
-  "Given a pair of character positions that are not :level, generates plotting
-  information for the arcs and the line tangent to them required to draw the
-  transition"
+  "Given a segment that is not :level, generates plotting information for the
+  arcs and the line tangent to them required to draw the transition"
   [{:keys [dir total-arc-radius],
-    [{src-x :arc-x, src-y :arc-y, src-radius :arc-radius}
-     {dest-x :arc-x, dest-y :arc-y, dest-radius :arc-radius
-      dest-path-y :y}] :pair}]
+    {src-x :arc-x, src-y :arc-y, src-radius :arc-radius} :src
+    {dest-x :arc-x, dest-y :arc-y, dest-radius :arc-radius
+     dest-path-y :y} :dest}]
   {:pre [(every? number? [total-arc-radius src-x src-y src-radius
                           dest-x dest-y dest-radius])
          (contains? #{:up :down} dir)]}
@@ -793,7 +770,7 @@
 
 (defn char-plots
   "Generates coordinates a single character's path"
-  [plots {:keys [dir pair], [src dest] :pair, :as pair-map}]
+  [plots {:keys [dir src dest], :as segment}]
   ;; TODO checking empty? on every step seems silly; once we have
   ;; multipart paths, potentially with mid-path M's, we should just
   ;; use (move-to src) as the seed value in the reduce
@@ -805,7 +782,7 @@
     (match [last-type dir]
            [:h :level] (extend-h plots' dest-end-x)
            [_ :level] (conj plots' (h-to dest-end-x))
-           :else (plot-duration (into plots' (arcs-and-tangent pair-map))
+           :else (plot-duration (into plots' (arcs-and-tangent segment))
                                 dest-start-x dest-end-x))))
 
 
@@ -815,47 +792,104 @@
   [paths-y layers max-slope layer-sep]
   (let [layer-xs (absolute-layer-xs paths-y layers max-slope layer-sep)]
     (->> paths-y
-         (map (fn [[character pair-maps]]
-                [character (add-x-info pair-maps layer-xs)]))
-         (map (fn [[character pair-maps]]
+         (map (fn [[character segments]]
+                [character (add-x-info segments layer-xs)]))
+         (map (fn [[character segments]]
                 {:character character
-                 :plots (reduce char-plots [] pair-maps)})))))
+                 :plots (reduce char-plots [] segments)})))))
 
 
-(defn pathify
-  "Given node-level y information, generate paths with character-level y info
-  for each character"
-  [node-ys nodes characters min-arc-radius char-sep]
-  (->> nodes
-       (mapcat (fn [node]
-                 (map-indexed (fn [i c]
-                                {:node node
-                                 :character c
-                                 :order i})
-                              (get characters node))))
-       (map (fn [info]
-              (let [node (:node info)
-                    node-top-y (get node-ys node)]
-                (assoc info
-                       :node-y [node-top-y
-                                (+ node-top-y
-                                   (* char-sep
-                                      (dec (:weight node))))]
-                       :y (+ node-top-y (* (:order info)
-                                           char-sep))))))
+(defn character-ys
+  "Given node-level ys, generate y info for each character"
+  [node-ys characters char-sep]
+  (mapcat (fn [[node [top-y _ :as node-y]]]
+            (map-indexed (fn [i c]
+                           {:node node
+                            :character c
+                            :node-y node-y
+                            :y (+ top-y (* i char-sep))})
+                         (get characters node)))
+          node-ys))
+
+
+(defn character-segments
+  [char-ys]
+  (->> char-ys
        (group-by :character)
-       (map (fn [[character infos]]
-              [character (pair-up infos)]))
-       (map (fn [[character pair-maps]]
-              [character (add-y-info pair-maps min-arc-radius
-                                     char-sep)]))))
+       vals
+       (mapcat pair-up)))
+
+
+(defn get-segments-by-layer-character
+  [char-segs layers]
+  (let [layer-map (group-by #(-> % :dest :node :layer-id) char-segs)]
+    (->> (drop 1 layers)
+         (map (fn [layer]
+                (get layer-map (:id layer))))
+         (map (fn [seg-layer]
+                (into {} (map (fn [seg]
+                                [(:character seg) seg])
+                              seg-layer)))))))
+
+
+(defn get-character-layer-pairs
+  [layers characters]
+  (let [char-layers (map (fn [layer]
+                           (map (fn [item]
+                                  (if (instance? Node item)
+                                    (get characters item)
+                                    (get characters (first (:endpoints item)))))
+                                (:items layer)))
+                         layers)]
+    (map vector char-layers (drop 1 char-layers))))
+
+
+(defn order-groups
+  [groups order-attr char-segs]
+  (first
+   (reduce (fn [[segs order] group]
+             [(first (reduce (fn [[p i] char]
+                              [(assoc-in p [char order-attr :order] (+ order i))
+                               (inc i)])
+                            [segs 0]
+                            group))
+              (+ order (dec (count group)))])
+           [char-segs 0]
+           groups)))
 
 
 (defn plot
   "Generates coordinates for all paths in a FlatGraph"
   [flat-graph max-slope min-arc-radius layer-sep node-sep char-sep]
-  (let [{:keys [layers characters]} flat-graph]
-    (-> flat-graph
-        (plot-ys node-sep char-sep)
-        (pathify (nodes flat-graph) characters min-arc-radius char-sep)
-        (plot-xs layers max-slope layer-sep))))
+  (let [{:keys [layers characters]} flat-graph
+        character-layer-pairs (get-character-layer-pairs layers characters)
+        char-segs (-> flat-graph
+                      (plot-ys node-sep char-sep)
+                      (character-ys characters char-sep)
+                      character-segments)
+        segs-by-layer-character (get-segments-by-layer-character char-segs layers)
+        segs-by-char (->> (map (fn [layer-pair char-segs]
+                                 (let [char-dir #(:dir (get char-segs %))
+                                       [src-dirs dest-dirs] (map (fn [layer]
+                                                                   (->> layer
+                                                                        (mapcat (fn [node]
+                                                                                  (partition-by char-dir node)))
+                                                                        (group-by #(char-dir (first %)))))
+                                                                 layer-pair)]
+                                   (->> char-segs
+                                        (order-groups (:up src-dirs) :src)
+                                        (order-groups (reverse (map reverse (:down src-dirs))) :src)
+                                        (order-groups (reverse (map reverse (:up dest-dirs))) :dest)
+                                        (order-groups (:down dest-dirs) :dest))))
+                               character-layer-pairs
+                               segs-by-layer-character)
+                          (reduce (fn [by-char layer-map]
+                                    (reduce (fn [bc [char seg]]
+                                              (update-in bc [char] (fnil conj []) seg))
+                                            by-char
+                                            layer-map))
+                                  {}))]
+    (plot-xs (map (fn [[character segs]]
+                    [character (add-y-info segs min-arc-radius char-sep)])
+                  segs-by-char)
+             layers max-slope layer-sep)))
