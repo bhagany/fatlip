@@ -835,7 +835,7 @@
 (defn get-character-layer-pairs
   [layers characters]
   (let [char-layers (map (fn [layer]
-                           (map (fn [item]
+                           (mapcat (fn [item]
                                   (if (instance? Node item)
                                     (get characters item)
                                     (get characters (first (:endpoints item)))))
@@ -844,18 +844,13 @@
     (map vector char-layers (drop 1 char-layers))))
 
 
-(defn order-groups
-  [groups order-attr char-segs]
-  (first
-   (reduce (fn [[segs order] group]
-             [(first (reduce (fn [[p i] char]
-                              [(assoc-in p [char order-attr :order] (+ order i))
-                               (inc i)])
-                            [segs 0]
-                            group))
-              (+ order (dec (count group)))])
-           [char-segs 0]
-           groups)))
+(defn order-group
+  [char-segs group order-attr]
+  (first (reduce (fn [[segs i] char]
+                   [(assoc-in segs [char order-attr :order] i)
+                    (inc i)])
+                 [char-segs 0]
+                 group)))
 
 
 (defn plot
@@ -870,17 +865,12 @@
         segs-by-layer-character (get-segments-by-layer-character char-segs layers)
         segs-by-char (->> (map (fn [layer-pair char-segs]
                                  (let [char-dir #(:dir (get char-segs %))
-                                       [src-dirs dest-dirs] (map (fn [layer]
-                                                                   (->> layer
-                                                                        (mapcat (fn [node]
-                                                                                  (partition-by char-dir node)))
-                                                                        (group-by #(char-dir (first %)))))
-                                                                 layer-pair)]
-                                   (->> char-segs
-                                        (order-groups (:up src-dirs) :src)
-                                        (order-groups (reverse (map reverse (:down src-dirs))) :src)
-                                        (order-groups (reverse (map reverse (:up dest-dirs))) :dest)
-                                        (order-groups (:down dest-dirs) :dest))))
+                                       [src-dirs dest-dirs] (map #(group-by char-dir %) layer-pair)]
+                                   (-> char-segs
+                                       (order-group (:up src-dirs) :src)
+                                       (order-group ((fnil rseq []) (:down src-dirs)) :src)
+                                       (order-group ((fnil rseq []) (:up dest-dirs)) :dest)
+                                       (order-group (:down dest-dirs) :dest))))
                                character-layer-pairs
                                segs-by-layer-character)
                           (reduce (fn [by-char layer-map]
