@@ -813,6 +813,8 @@
 
 
 (defn character-segments
+  "Takes character-level y info, and generates all the line segments for each
+  character's path"
   [char-ys]
   (->> char-ys
        (group-by :character)
@@ -821,6 +823,7 @@
 
 
 (defn get-segments-by-layer-character
+  "Takes character segments and organizes them by layer, and then by character"
   [char-segs layers]
   (let [layer-map (group-by #(-> % :dest :node :layer-id) char-segs)]
     (->> (drop 1 layers)
@@ -833,6 +836,9 @@
 
 
 (defn get-character-layer-pairs
+  "Generates a layer structure that mirrors the underlying graph, but with
+  characters as the things in the layers. Then it pairs these character layers
+  off with their adjacent layers"
   [layers characters]
   (let [char-layers (map (fn [layer]
                            (mapcat (fn [item]
@@ -845,6 +851,8 @@
 
 
 (defn order-group
+  "Modifies the :order attribute for segments in char-segs, for each character
+  named in `group`"
   [char-segs group order-attr]
   (first (reduce (fn [[segs i] char]
                    [(assoc-in segs [char order-attr :order] i)
