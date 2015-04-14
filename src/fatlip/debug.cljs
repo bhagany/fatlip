@@ -4,11 +4,11 @@
             [fatlip.protocols :refer [nodes succs Node]]
             [fatlip.sparse :refer [input->SparseGraph]]
             [fatlip.order :refer [SparseGraph->FlatGraph]]
-            [fatlip.plot :refer [FlatGraph->ClassGraphs ys pathify plot-xs]]
+            [fatlip.plot :refer [FlatGraph->ClassGraphs ys plot-xs min-y max-y]]
             [fatlip.draw.d3 :refer [data->path]]))
 
 
-(defn plot-alignments
+#_(defn plot-alignments
   [flat-graph max-slope min-arc-radius layer-sep node-sep char-sep]
   (let [{:keys [layers characters]} flat-graph]
     (->> flat-graph
@@ -18,7 +18,7 @@
          (map #(plot-xs % layers max-slope layer-sep)))))
 
 
-(defn input->plots
+#_(defn input->plots
   [input & {:keys [max-slope min-arc-radius layer-sep node-sep char-sep]
             :or {max-slope 10
                  min-arc-radius 15
@@ -41,12 +41,12 @@
 (defn plot-coarse
   [flat-graph max-slope min-arc-radius layer-sep node-sep char-sep]
   (let [{:keys [layers characters]} flat-graph
-        class-graphs (FlatGraph->ClassGraphs flat-graph)
-        node-ys (map #(ys % node-sep char-sep) class-graphs)]
-    (map (fn [n-ys]
-           (let [nodes (map (fn [node]
+        class-graphs (FlatGraph->ClassGraphs flat-graph)]
+    (map (fn [class-graph]
+           (let [node-ys (ys class-graph node-sep char-sep)
+                 nodes (map (fn [node]
                               {:x (* layer-sep (:layer-id node))
-                               :y (get n-ys node)
+                               :y (get node-ys node)
                                :id (:id node)})
                             (nodes flat-graph))
                  edges (map (fn [edge]
@@ -54,18 +54,26 @@
                                     node-2 (:dest edge)]
                                 {:x1 (* layer-sep (:layer-id node-1))
                                  :x2 (* layer-sep (:layer-id node-2))
-                                 :y1 (get n-ys node-1)
-                                 :y2 (get n-ys node-2)}))
-                            (reduce set/union (vals (succs flat-graph))))]
-             {:nodes nodes :edges edges}))
-         node-ys)))
+                                 :y1 (get node-ys node-1)
+                                 :y2 (get node-ys node-2)}))
+                            (reduce set/union (vals (succs flat-graph))))
+                 ;; min-x is always 0 for these debug graphs
+                 mn-x 0
+                 mx-x (* layer-sep (dec (count layers)))
+                 mn-y (min-y class-graph node-sep char-sep)
+                 mx-y (max-y class-graph node-sep char-sep)
+                 ;; _ (println mn-x mx-x mn-y mx-y)
+                 vbox (s/join " " [(- mn-x 50) (- mn-y 50) (+ 100 (- mx-x mn-x)) (+ 100 (- mx-y mn-y))])]
+             {:nodes nodes :edges edges :vbox vbox}))
+         class-graphs)))
 
 
 (defn draw-d3-coarse!
   [plot-data]
   (doall (map
           (fn [p-data]
-            (let [svg (-> js/d3 (.select "#app") (.append "svg") (.attr "viewBox" "-50 0 4000 1000"))]
+            (let [svg (-> js/d3 (.select "#app") (.append "svg") (.attr "viewBox" (:vbox p-data))
+                          (.attr "preserveAspectRatio" "xMidYMid meet"))]
               (-> svg
                   (.selectAll "path")
                   (.data (clj->js (:edges p-data)))
