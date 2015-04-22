@@ -68,39 +68,31 @@
           classes))
 
 
-(def memo-ys ;; heh
-  ^{:doc "Given a class graph and node and char separations, calculates y
-         positions for each node in the underlying graph."}
-  (memoize
-   (fn [class-graph node-sep char-sep]
-     (let [{:keys [classes block-classes preds succs
-                   block-preds block-succs compacted]} class-graph
-           [block-edges class-edges] ({:up [block-preds preds]
-                                       :down [block-succs succs]} compacted)
-           rel-ys (reduce #(merge %1 (get-block-rel-ys %2 block-edges
-                                                       node-sep char-sep
-                                                       compacted))
-                          {}
-                          classes)
-           shift-ys (get-shift-ys classes block-classes class-edges node-sep
-                                  char-sep rel-ys compacted)
-           block-shift-ys (into {} (mapcat (fn [[class shift]]
-                                             (map #(-> [% shift]) class))
-                                           shift-ys))]
-       (->> rel-ys
-            (map (fn [[block rel-y]]
-                   [block (+ rel-y (get block-shift-ys block))]))
-            (mapcat (fn [[block y]]
-                      (->> (filter #(instance? Node %) block)
-                           (map #(-> [% y])))))
-            (into {}))))))
-
-
 (defrecord ClassGraph [classes block-classes succs preds block-succs
                        block-preds sources sinks aligned compacted]
   YPlottable
   (ys [this node-sep char-sep]
-    (memo-ys this node-sep char-sep))
+    (let [{:keys [classes block-classes preds succs
+                  block-preds block-succs compacted]} this
+                  [block-edges class-edges] ({:up [block-preds preds]
+                                              :down [block-succs succs]} compacted)
+                  rel-ys (reduce #(merge %1 (get-block-rel-ys %2 block-edges
+                                                              node-sep char-sep
+                                                              compacted))
+                                 {}
+                                 classes)
+                  shift-ys (get-shift-ys classes block-classes class-edges node-sep
+                                         char-sep rel-ys compacted)
+                  block-shift-ys (into {} (mapcat (fn [[class shift]]
+                                                    (map #(-> [% shift]) class))
+                                                  shift-ys))]
+      (->> rel-ys
+           (map (fn [[block rel-y]]
+                  [block (+ rel-y (get block-shift-ys block))]))
+           (mapcat (fn [[block y]]
+                     (->> (filter #(instance? Node %) block)
+                          (map #(-> [% y])))))
+           (into {}))))
 
   (ys [this node-sep char-sep delta]
     (->> (ys this node-sep char-sep)
