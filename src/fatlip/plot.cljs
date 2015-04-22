@@ -424,13 +424,18 @@
                           (let [sort-ys (sort ys)]
                             [node (/ (+ (nth sort-ys 1) (nth sort-ys 2)) 2)])))
                    (into {}))]
-    (map (fn [node]
-           (let [top-y (get y-map node)
-                 bot-y (+ top-y
-                            (* char-sep
-                               (dec (:weight node))))]
-             [node [top-y bot-y]]))
-         (nodes flat-graph))))
+    (reduce (fn [{:keys [ys min-y max-y]} node]
+              (let [top-y (get y-map node)
+                    bot-y (+ top-y
+                             (* char-sep
+                                (dec (:weight node))))]
+                {:ys (conj ys [node [top-y bot-y]])
+                 :min-y (min top-y min-y)
+                 :max-y (max bot-y max-y)}))
+            {:ys []
+             :min-y js/Infinity
+             :max-y js/-Infinity}
+            (nodes flat-graph))))
 
 
 (defn arc-distance
@@ -779,16 +784,19 @@
 
 
 (defn plot-xs
-  "Given y-values and layer-spacing paramters, calculate an x-value for
+  "Given y-values and layer-spacing parameters, calculate an x-value for
   characters"
   [paths-y layers max-slope layer-sep]
-  (let [layer-xs (absolute-layer-xs paths-y layers max-slope layer-sep)]
-    (->> paths-y
-         (map (fn [[character segments]]
-                [character (add-x-info segments layer-xs)]))
-         (map (fn [[character segments]]
-                {:character character
-                 :plots (reduce char-plots [] segments)})))))
+  (let [layer-xs (absolute-layer-xs paths-y layers max-slope layer-sep)
+        plots (->> paths-y
+                   (map (fn [[character segments]]
+                          {:character character
+                           :plots (reduce char-plots
+                                          []
+                                          (add-x-info segments layer-xs))})))]
+    {:min-x (ffirst layer-xs)
+     :max-x (second (get layer-xs (dec (count layer-xs))))
+     :plots plots}))
 
 
 (defn character-ys
@@ -858,8 +866,8 @@
   [flat-graph max-slope min-arc-radius layer-sep node-sep char-sep]
   (let [{:keys [layers characters]} flat-graph
         character-layer-pairs (get-character-layer-pairs layers characters)
-        char-segs (-> flat-graph
-                      (plot-ys node-sep char-sep)
+        y-info (plot-ys flat-graph node-sep char-sep)
+        char-segs (-> (:ys y-info)
                       (character-ys characters char-sep)
                       character-segments)
         segs-by-layer-character (get-segments-by-layer-character char-segs layers)
@@ -878,8 +886,11 @@
                                               (update-in bc [char] (fnil conj []) seg))
                                             by-char
                                             layer-map))
-                                  {}))]
-    (plot-xs (map (fn [[character segs]]
-                    [character (add-y-info segs min-arc-radius char-sep)])
-                  segs-by-char)
-             layers max-slope layer-sep)))
+                                  {}))
+        x-info (plot-xs (map (fn [[character segs]]
+                               [character (add-y-info segs min-arc-radius char-sep)])
+                             segs-by-char)
+                        layers max-slope layer-sep)]
+    (assoc x-info
+           :min-y (:min-y y-info)
+           :max-y (:max-y y-info))))

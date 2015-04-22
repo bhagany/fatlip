@@ -16,10 +16,16 @@
 
 (defn draw-d3!
   [plot-data]
-  (let [svg (-> js/d3 (.select "#app") (.append "svg") (.attr "viewBox" #_"0 0 500 1000" "0 0 4700 1000"))]
+  (let [{:keys [min-x max-x min-y max-y]} plot-data
+        width (- max-x min-x)
+        height (- max-y min-y)
+        svg (-> js/d3 (.select "#app") (.append "svg") (.attr "viewBox" (s/join " " [min-x
+                                                                                     min-y
+                                                                                     width
+                                                                                     height])))]
     (-> svg
         (.selectAll "path")
-        (.data (clj->js plot-data))
+        (.data (clj->js (:plots plot-data)))
         (.enter)
         (.append "path")
         (.attr "d" #(s/join " " (map data->path (.-plots %))))
