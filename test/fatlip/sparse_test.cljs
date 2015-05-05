@@ -1,6 +1,5 @@
 (ns fatlip.sparse-test
-  (:require-macros [cemerick.cljs.test :refer (is deftest are testing)])
-  (:require [cemerick.cljs.test :as test]
+  (:require [cljs.test :refer-macros [is deftest are testing]]
             [fatlip.sparse :as f]))
 
 

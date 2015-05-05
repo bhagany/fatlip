@@ -661,7 +661,7 @@
   [path-info layers max-slope layer-sep]
   (let [x-seps (relative-layer-xs path-info layers max-slope layer-sep)]
     (into [] (reductions (fn [[_ last-x] layer]
-                           (let [start-x (+ last-x (get x-seps layer))
+                           (let [start-x (+ last-x (get x-seps layer layer-sep))
                                  end-x (+ start-x (:duration layer))]
                              [start-x end-x]))
                          [0 (:duration (first layers))]

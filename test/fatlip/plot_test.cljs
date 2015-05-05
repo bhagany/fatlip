@@ -1,6 +1,5 @@
 (ns fatlip.plot-test
-  (:require-macros [cemerick.cljs.test :refer (is deftest are testing)])
-  (:require [cemerick.cljs.test :as test]
+  (:require [cljs.test :refer-macros [is deftest are testing]]
             [fatlip.protocols :refer [Node Edge Segment Edge->Segment]]
             [fatlip.core :as fc]
             [fatlip.order :as fo]
@@ -185,6 +184,20 @@
       pred-12 (Edge. node-6-1 node-5-0 #{:t :u :v :w :x} 5)
       pred-13 (Edge. node-7-1 node-6-0 #{:y :z} 2)
       pred-14 (Edge. node-8-0 node-7-0 #{:1 :2 :3} 3)
+      succ-1 (Edge. node-0-0 node-1-0 #{:a :b :c :d :e} 5)
+      succ-2 (Edge. node-0-0 node-1-1 #{:f :g :h :i :j :k} 6)
+      succ-3 (Edge. node-1-0 node-2-0 #{:a :b :c :d} 4)
+      succ-4 (Edge. node-1-1 node-2-1 #{:f :g :h} 3)
+      succ-5 (Edge. node-1-1 node-2-2 #{:i :j} 2)
+      succ-6 (Edge. node-1-1 node-2-3 #{:k} 1)
+      succ-7 (Edge. node-2-1 node-3-1 #{:f :g :h} 3)
+      succ-8 (Edge. node-2-2 node-4-2 #{:i :j} 2)
+      succ-9 (Edge. node-2-3 node-3-2 #{:k} 1)
+      succ-10 (Edge. node-3-0 node-4-0 #{:l :m :n :o :p :q :r :s} 8)
+      succ-11 (Edge. node-4-1 node-5-0 #{:t :u :v :w :x} 5)
+      succ-12 (Edge. node-5-0 node-6-1 #{:t :u :v :w :x} 5)
+      succ-13 (Edge. node-6-0 node-7-1 #{:y :z} 2)
+      succ-14 (Edge. node-7-0 node-8-0 #{:1 :2 :3} 3)
       layer-0 (fo/FlatLayer. 0 0 [node-0-0])
       layer-1 (fo/FlatLayer. 1 0 [node-1-0 node-1-1])
       layer-2 (fo/FlatLayer. 2 0 [node-2-0 node-2-1 node-2-2 node-2-3])
@@ -197,7 +210,6 @@
       seg (Segment. #{node-2-2 node-4-2} 3 #{:i :j} 2)
       graph (fo/map->FlatGraph {:layers [layer-0 layer-1 layer-2 layer-3 layer-4
                                          layer-5 layer-6 layer-7 layer-8]
-                                :succs {}
                                 :preds {node-1-0 #{pred-1}
                                         node-1-1 #{pred-2}
                                         node-2-0 #{pred-3}
@@ -212,6 +224,17 @@
                                         node-6-1 #{pred-12}
                                         node-7-1 #{pred-13}
                                         node-8-0 #{pred-14}}
+                                :succs {node-0-0 #{succ-1 succ-2}
+                                        node-1-0 #{succ-3}
+                                        node-1-1 #{succ-4 succ-5 succ-6}
+                                        node-2-1 #{succ-7}
+                                        node-2-2 #{succ-8}
+                                        node-2-3 #{succ-9}
+                                        node-3-0 #{succ-10}
+                                        node-4-1 #{succ-11}
+                                        node-5-0 #{succ-12}
+                                        node-6-0 #{succ-13}
+                                        node-7-0 #{succ-14}}
                                 :aboves {node-1-1 node-1-0
                                          node-2-1 node-2-0
                                          node-2-2 node-2-1
@@ -296,21 +319,9 @@
                     block-6 #{block-3}
                     block-7 #{block-6}
                     block-8 #{block-7}}
-      block-graph (f/map->BlockGraph {:blocks [block-1
-                                               block-5
-                                               block-2
-                                               block-8
-                                               block-7
-                                               block-6
-                                               block-3
-                                               block-4]
-                                      :succs block-succs
-                                      :preds block-preds
-                                      :simple-succs simple-succs
-                                      :sources [block-1 block-5 block-8]})
-      class-1 (lazy-seq [block-1 block-2 block-3 block-4])
-      class-2 (lazy-seq [block-5 block-6])
-      class-3 (lazy-seq [block-8 block-7])
+      class-1 [block-1 block-2 block-3 block-4]
+      class-2 [block-5 block-6]
+      class-3 [block-8 block-7]
       block-classes {block-1 class-1
                      block-2 class-1
                      block-3 class-1
@@ -320,10 +331,11 @@
                      block-7 class-3
                      block-8 class-3}
       classes [class-3 class-2 class-1]
+      block-succs {class-2 #{(f/BlockEdge. block-5 block-2 8)
+                             (f/BlockEdge. block-6 block-3 5)}
+                   class-3 #{(f/BlockEdge. block-7 block-6 2)}}
       class-graph (f/map->ClassGraph {:classes classes
-                                      :succs {class-2 #{(f/BlockEdge. block-5 block-2 8)
-                                                        (f/BlockEdge. block-6 block-3 5)}
-                                              class-3 #{(f/BlockEdge. block-7 block-6 2)}}
+                                      :succs block-succs
                                       :preds {class-1 #{(f/BlockEdge. block-2 block-5 8)
                                                         (f/BlockEdge. block-3 block-6 5)}
                                               class-2 #{(f/BlockEdge. block-6 block-7 2)}}
@@ -331,18 +343,16 @@
                                       :block-preds block-preds
                                       :sources #{class-3}
                                       :sinks #{class-1}})]
-  (deftest test-FlatGraph->BlockGraph
-    (is (= (f/FlatGraph->BlockGraph graph) block-graph)
-        "FlatGraphs translate to BlockGraphs"))
-  (deftest test-classify-source
-    (is (= (f/classify-source block-1 simple-succs) (into #{} class-1))
+  (deftest test-classify-start
+    (is (= (f/classify-start block-1 simple-succs) (into #{} class-1))
         "Descendents of a source block are correctly categorized"))
   (deftest test-classify
-    (is (= (f/classify block-graph) block-classes)
+    (is (= (f/classify [block-1 block-2 block-3 block-4
+                        block-5 block-6 block-8 block-7]
+                       simple-succs
+                       [block-1 block-5 block-8])
+           block-classes)
         "Classes are calculated from BlockGraphs"))
-  (deftest test-BlockGraph->ClassGraph
-    (is (= (f/BlockGraph->ClassGraph block-graph) class-graph)
-        "ClassGraphs are derived from BlockGraphs"))
   (deftest test-class-topo-sort
     (is (= (f/topo-sort [class-3]
                         {class-3 #{class-2} class-2 #{class-1}})
@@ -357,14 +367,14 @@
                                                    block-8 #{block-7}})
            [block-1 block-5 block-2 block-8
             block-7 block-6 block-3 block-4])))
-  (deftest test-get-rel-ys
-    (is (= (f/get-rel-ys class-1 block-preds 50 15)
+  (deftest test-get-block-rel-ys
+    (is (= (f/get-block-rel-ys class-1 block-preds 50 15 :up)
            {block-1 0
             block-2 110
             block-3 190
             block-4 255})
         "Relative y-positions within a class are calculated"))
-  (deftest test-ClassGraph->YPlottedClassGraph
+  #_(deftest test-ClassGraph->YPlottedClassGraph
     (is (= (f/ClassGraph->YPlottedClassGraph class-graph 50 15)
            (f/YPlottedClassGraph. classes
                                   {node-0-0 75
@@ -388,7 +398,7 @@
                                    node-8-0 0}
                                   15))
         "ClassGraph y-positions are correctly calculated"))
-  (deftest test-FlatGraph->node-ys
+  #_(deftest test-FlatGraph->node-ys
     (is (= (f/FlatGraph->node-ys graph 50 15)
            {node-0-0 0
             node-1-0 0
@@ -411,157 +421,121 @@
             node-8-0 0})
         "Final y-positions are correctly calculated"))
   (deftest test-plot
-    (is (= (set (f/plot graph 8 15 50 60 10))
-           (set [{:character :a
-                  :plots [{:type :m, :x 0, :y 0}
-                          {:type :h, :x 50}]},
-                 {:character :b
-                  :plots [{:type :m, :x 0, :y 10}
-                          {:type :h, :x 50}]},
-                 {:character :c
-                  :plots [{:type :m, :x 0, :y 20}
-                          {:type :h, :x 50}]},
-                 {:character :d
-                  :plots [{:type :m, :x 0, :y 30}
-                          {:type :h, :x 50}]},
-                 {:character :e
-                  :plots [{:type :m, :x 0, :y 40}
-                          {:type :h, :x 0}]},
-                 {:character :f
-                  :plots [{:type :m, :x 0, :y 50}
-                          {:type :h, :x 0}
-                          {:type :a, :radius 15, :sweep 0, :x 1.5745856353591172, :y 35}
-                          {:type :l, :x 15, :y 80}
-                          {:type :a, :radius 35, :sweep 1, :x 50, :y 80}
-                          {:type :a, :radius 35, :sweep 1, :x 85, :y 80}
-                          {:type :l, :x 85, :y 50}
-                          {:type :a, :radius 15, :sweep 0, :x 100, :y 50}]},
-                 {:character :g
-                  :plots [{:type :m, :x 0, :y 60}
-                          {:type :h, :x 0}
-                          {:type :a, :radius 25, :sweep 0, :x 2.6243093922651948, :y 35}
-                          {:type :l, :x 25, :y 80}
-                          {:type :a, :radius 25, :sweep 1, :x 50, :y 80}
-                          {:type :a, :radius 25, :sweep 1, :x 75, :y 80}
-                          {:type :l, :x 75, :y 50}
-                          {:type :a, :radius 25, :sweep 0, :x 100, :y 50}]},
-                 {:character :h
-                  :plots [{:type :m, :x 0, :y 70}
-                          {:type :h, :x 0}
-                          {:type :a, :radius 35, :sweep 0, :x 3.674033149171267, :y 35}
-                          {:type :l, :x 35, :y 80}
-                          {:type :a, :radius 15, :sweep 1, :x 50, :y 80}
-                          {:type :a, :radius 15, :sweep 1, :x 65, :y 80}
-                          {:type :l, :x 65, :y 50}
-                          {:type :a, :radius 35, :sweep 0, :x 100, :y 50}]},
-                 {:character :i
-                  :plots [{:type :m, :x 0, :y 80}
-                          {:type :h, :x 0}
-                          {:type :a, :radius 35, :sweep 1, :x 35.00000000000001, :y 115}
-                          {:type :l, :x 35, :y 70}
-                          {:type :a, :radius 15, :sweep 0, :x 50, :y 70}
-                          {:type :a, :radius 25, :sweep 1, :x 62.18305555873586, :y 131.83055558735865}
-                          {:type :l, :x 142.6901666647585, :y 113.09833335241518}
-                          {:type :a, :radius 15, :sweep 0, :x 150, :y 100}]},
-                 {:character :j
-                  :plots [{:type :m, :x 0, :y 90}
-                          {:type :h, :x 0}
-                          {:type :a, :radius 25, :sweep 1, :x 25.000000000000007, :y 115}
-                          {:type :l, :x 25, :y 70}
-                          {:type :a, :radius 25, :sweep 0, :x 50, :y 70}
-                          {:type :a, :radius 15, :sweep 1, :x 57.30983333524153, :y 123.09833335241517}
-                          {:type :l, :x 137.81694444126413, :y 121.83055558735862}
-                          {:type :a, :radius 25, :sweep 0, :x 150, :y 100}]},
-                 {:character :k
-                  :plots [{:type :m, :x 0, :y 100}
-                          {:type :h, :x 0}
-                          {:type :a, :radius 15, :sweep 1, :x 11.032560937856337, :y 125.16280468928171}
-                          {:type :l, :x 38.96743906214366, :y 115.16280468928171}
-                          {:type :a, :radius 15, :sweep 0, :x 50, :y 105}
-                          {:type :a, :radius 15, :sweep 1, :x 59, :y 147}
-                          {:type :l, :x 91, :y 147}
-                          {:type :a, :radius 15, :sweep 0, :x 100, :y 135}]},
-                 {:character :l
-                  :plots [{:type :m, :x 100, :y 0}
-                          {:type :h, :x 150}]},
-                 {:character :m
-                  :plots [{:type :m, :x 100, :y 10}
-                          {:type :h, :x 150}]},
-                 {:character :n
-                  :plots [{:type :m, :x 100, :y 20}
-                          {:type :h, :x 150}]},
-                 {:character :o
-                  :plots [{:type :m, :x 100, :y 30}
-                          {:type :h, :x 150}]},
-                 {:character :p
-                  :plots [{:type :m, :x 100, :y 40}
-                          {:type :h, :x 150}]},
-                 {:character :q
-                  :plots [{:type :m, :x 100, :y 50} {:type :h, :x 150}]},
-                 {:character :r
-                  :plots [{:type :m, :x 100, :y 60} {:type :h, :x 150}]},
-                 {:character :s
-                  :plots [{:type :m, :x 100, :y 70}
-                          {:type :h, :x 150}]},
-                 {:character :t
-                  :plots [{:type :m, :x 150, :y 65}
-                          {:type :a, :radius 15, :sweep 0, :x 164.884168150705, :y 50.276330184980495}
-                          {:type :l, :x 164.92923136115692, :y 53.97908022150265}
-                          {:type :a, :radius 55, :sweep 1, :x 219.9197552976123, :y 55}
-                          {:type :a, :radius 55, :sweep 1, :x 274.49503851686404, :y 48.17808959759357}
-                          {:type :l, :x 271.2053424445196, :y 21.860521018838117}
-                          {:type :a, :radius 15, :sweep 0, :x 286.0895105952246, :y 20}]},
-                 {:character :u
-                  :plots [{:type :m, :x 150, :y 75}
-                          {:type :a, :radius 25, :sweep 0, :x 174.80694691784174, :y 50.460550308301194}
-                          {:type :l, :x 174.92750844051247, :y 54.164701999410596}
-                          {:type :a, :radius 45, :sweep 1, :x 219.9197552976123, :y 55}
-                          {:type :a, :radius 45, :sweep 1, :x 264.5722597497274, :y 49.41843694348569}
-                          {:type :l, :x 261.28256367738294, :y 23.10086836473017}
-                          {:type :a, :radius 25, :sweep 0, :x 286.0895105952246, :y 20}]}
-                 {:character :v
-                  :plots [{:type :m, :x 150, :y 85}
-                          {:type :a, :radius 35, :sweep 0, :x 184.72972568497835, :y 50.64477043162132}
-                          {:type :l, :x 184.925785519868, :y 54.3503237773197}
-                          {:type :a, :radius 35, :sweep 1, :x 219.9197552976123, :y 55}
-                          {:type :a, :radius 35, :sweep 1, :x 254.6494809825907, :y 50.658784289377635}
-                          {:type :l, :x 251.35978491024628, :y 24.34121571062236}
-                          {:type :a, :radius 35, :sweep 0, :x 286.0895105952246, :y 20}]},
-                 {:character :w
-                  :plots [{:type :m, :x 150, :y 95}
-                          {:type :a, :radius 45, :sweep 0, :x 194.652504452115, :y 50.82899055494148}
-                          {:type :l, :x 194.9240625992235, :y 54.53594555522848}
-                          {:type :a, :radius 25, :sweep 1, :x 219.9197552976123, :y 55}
-                          {:type :a, :radius 25, :sweep 1, :x 244.72670221545403, :y 51.899131635269896}
-                          {:type :l, :x 241.43700614310956, :y 25.581563056514184}
-                          {:type :a, :radius 45, :sweep 0, :x 286.0895105952246, :y 20}]},
-                 {:character :x
-                  :plots [{:type :m, :x 150, :y 105}
-                          {:type :a, :radius 55, :sweep 0, :x 204.5752832192517, :y 51.01321067826212}
-                          {:type :l, :x 204.92233967857902, :y 54.721567333137}
-                          {:type :a, :radius 15, :sweep 1, :x 219.9197552976123, :y 55}
-                          {:type :a, :radius 15, :sweep 1, :x 234.80392344831733, :y 53.139478981161915}
-                          {:type :l, :x 231.5142273759729, :y 26.821910402406314}
-                          {:type :a, :radius 55, :sweep 0, :x 286.0895105952246, :y 20}]},
-                 {:character :y
-                  :plots [{:type :m, :x 286.0895105952246, :y 0}
-                          {:type :a, :radius 25, :sweep 1, :x 306.0895105952246, :y 40}
-                          {:type :l, :x 324.0895105952246, :y 34}
-                          {:type :a, :radius 15, :sweep 0, :x 336.0895105952246, :y 25}]},
-                 {:character :z
-                  :plots [{:type :m, :x 286.0895105952246, :y 10}
-                          {:type :a, :radius 15, :sweep 1, :x 298.0895105952246, :y 34}
-                          {:type :l, :x 316.0895105952246, :y 40}
-                          {:type :a, :radius 25, :sweep 0, :x 336.0895105952246, :y 25}]},
-                 {:character :1
-                  :plots [{:type :m, :x 336.0895105952246, :y 0}
-                          {:type :h, :x 336.0895105952246}]},
-                 {:character :2
-                  :plots [{:type :m, :x 336.0895105952246, :y 10}
-                          {:type :h, :x 336.0895105952246}]},
-                 {:character :3
-                  :plots [{:type :m, :x 336.0895105952246, :y 20}
-                          {:type :h, :x 336.0895105952246}]}])))))
+    (is (= (update-in (f/plot graph 8 15 50 60 10) [:plots] set)
+           {:min-x 0
+            :max-x 429.68386622447827
+            :min-y -160
+            :max-y 160
+            :plots #{{:character :a,
+                      :plots [{:type :m, :x 0, :y -40}
+                              {:type :a, :radius 15, :sweep 0, :x 11.860320721904968, :y -45.816711244137444,
+                               :arc-x 0, :arc-y -55}
+                              {:type :l, :x 29.55691265062744, :y -68.67205877149604}
+                              {:type :a, :radius 55, :sweep 1, :x 73.04475529761231, :y -90,
+                               :arc-x 73.04475529761231, :arc-y -35}
+                              {:type :h, :x 129.68386622447827}]}
+                     {:character :b,
+                      :plots [{:type :m, :x 0, :y -30}
+                              {:type :a, :radius 25, :sweep 0, :x 19.767201203174942, :y -39.694518740229064,
+                               :arc-x 0, :arc-y -55}
+                              {:type :l, :x 37.463793131897425, :y -62.549866267587674}
+                              {:type :a, :radius 45, :sweep 1, :x 73.04475529761231, :y -80,
+                               :arc-x 73.04475529761231, :arc-y -35}
+                              {:type :h, :x 129.68386622447827}]}
+                     {:character :c,
+                      :plots [{:type :m, :x 0, :y -20}
+                              {:type :a, :radius 35, :sweep 0, :x 27.674081684444918, :y -33.572326236320706,
+                               :arc-x 0, :arc-y -55}
+                              {:type :l, :x 45.3706736131674, :y -56.427673763679294}
+                              {:type :a, :radius 35, :sweep 1, :x 73.04475529761231, :y -70,
+                               :arc-x 73.04475529761231, :arc-y -35}
+                              {:type :h, :x 129.68386622447827}]}
+                     {:character :d,
+                      :plots [{:type :m, :x 0, :y -10}
+                              {:type :a, :radius 45, :sweep 0, :x 35.580962165714915, :y -27.450133732412343,
+                               :arc-x 0, :arc-y -55}
+                              {:type :l, :x 53.27755409443736, :y -50.305481259770914}
+                              {:type :a, :radius 25, :sweep 1, :x 73.04475529761231, :y -60,
+                               :arc-x 73.04475529761231, :arc-y -35}
+                              {:type :h, :x 129.68386622447827}]}
+                     {:character :e,
+                      :plots [{:type :m, :x 0, :y 0}
+                              {:type :a, :radius 55, :sweep 0, :x 43.48784264698487, :y -21.327941228503956,
+                               :arc-x 0, :arc-y -55}
+                              {:type :l, :x 61.18443457570734, :y -44.183288755862556}
+                              {:type :a, :radius 15, :sweep 1, :x 73.04475529761231, :y -50,
+                               :arc-x 73.04475529761231, :arc-y -35}]}
+                     {:character :f,
+                      :plots [{:type :m, :x 0, :y 10} {:type :h, :x 179.68386622447827}]}
+                     {:character :g,
+                      :plots [{:type :m, :x 0, :y 20} {:type :h, :x 179.68386622447827}]}
+                     {:character :h,
+                      :plots [{:type :m, :x 0, :y 30} {:type :h, :x 179.68386622447827}]}
+                     {:character :i,
+                      :plots [{:type :m, :x 0, :y 40}
+                              {:type :h, :x 73.04475529761231}
+                              {:type :a, :radius 35, :sweep 1, :x 103.94213294641845, :y 58.557614089583765,
+                               :arc-x 73.04475529761231, :arc-y 75}
+                              {:type :l, :x 116.4421329464185, :y 82.04673681874982}
+                              {:type :a, :radius 15, :sweep 0, :x 129.68386622447827, :y 90,
+                               :arc-x 129.68386622447827, :arc-y 75}
+                              {:type :h, :x 229.68386622447827}]}
+                     {:character :j,
+                      :plots [{:type :m, :x 0, :y 50}
+                              {:type :h, :x 73.04475529761231}
+                              {:type :a, :radius 25, :sweep 1, :x 95.11431076104527, :y 63.25543863541697,
+                               :arc-x 73.04475529761231, :arc-y 75}
+                              {:type :l, :x 107.6143107610453, :y 86.74456136458302}
+                              {:type :a, :radius 25, :sweep 0, :x 129.68386622447827, :y 100,
+                               :arc-x 129.68386622447827, :arc-y 75}
+                              {:type :h, :x 229.68386622447827}]}
+                     {:character :k,
+                      :plots [{:type :m, :x 0, :y 60}
+                              {:type :h, :x 73.04475529761231}
+                              {:type :a, :radius 15, :sweep 1, :x 87.92892344831732, :y 73.13947898116186,
+                               :arc-x 73.04475529761231, :arc-y 75}
+                              {:type :l, :x 94.9541405394999, :y 129.34121571062232}
+                              {:type :a, :radius 35, :sweep 0, :x 129.68386622447827, :y 160,
+                               :arc-x 129.68386622447827, :arc-y 125}
+                              {:type :h, :x 179.68386622447827}]}
+                     {:character :l,
+                      :plots [{:type :m, :x 179.68386622447827, :y -140} {:type :h, :x 229.68386622447827}]}
+                     {:character :m,
+                      :plots [{:type :m, :x 179.68386622447827, :y -130} {:type :h, :x 229.68386622447827}]}
+                     {:character :n,
+                      :plots [{:type :m, :x 179.68386622447827, :y -120} {:type :h, :x 229.68386622447827}]}
+                     {:character :o,
+                      :plots [{:type :m, :x 179.68386622447827, :y -110} {:type :h, :x 229.68386622447827}]}
+                     {:character :p,
+                      :plots [{:type :m, :x 179.68386622447827, :y -100} {:type :h, :x 229.68386622447827}]}
+                     {:character :q,
+                      :plots [{:type :m, :x 179.68386622447827, :y -90} {:type :h, :x 229.68386622447827}]}
+                     {:character :r,
+                      :plots [{:type :m, :x 179.68386622447827, :y -80} {:type :h, :x 229.68386622447827}]}
+                     {:character :s,
+                      :plots [{:type :m, :x 179.68386622447827, :y -70} {:type :h, :x 229.68386622447827}]}
+                     {:character :t,
+                      :plots [{:type :m, :x 229.68386622447827, :y -10} {:type :h, :x 329.68386622447827}]}
+                     {:character :u,
+                      :plots [{:type :m, :x 229.68386622447827, :y 0} {:type :h, :x 329.68386622447827}]}
+                     {:character :v,
+                      :plots [{:type :m, :x 229.68386622447827, :y 10} {:type :h, :x 329.68386622447827}]}
+                     {:character :w,
+                      :plots [{:type :m, :x 229.68386622447827, :y 20} {:type :h, :x 329.68386622447827}]}
+                     {:character :x,
+                      :plots [{:type :m, :x 229.68386622447827, :y 30} {:type :h, :x 329.68386622447827}]}
+                     {:character :y,
+                      :plots [{:type :m, :x 329.68386622447827, :y -80}
+                              {:type :h, :x 379.68386622447827}]}
+                     {:character :z,
+                      :plots [{:type :m, :x 329.68386622447827, :y -70} {:type :h, :x 379.68386622447827}]}
+                     {:character :1,
+                      :plots [{:type :m, :x 379.68386622447827, :y -160} {:type :h, :x 429.68386622447827}]}
+                     {:character :2,
+                      :plots [{:type :m, :x 379.68386622447827, :y -150} {:type :h, :x 429.68386622447827}]}
+                     {:character :3,
+                      :plots [{:type :m, :x 379.68386622447827, :y -140} {:type :h, :x 429.68386622447827}]}}}))))
+
 
 (deftest test-arc-distance
   (is (= (f/arc-distance 5 (/ 3 4))) 4)
@@ -576,67 +550,63 @@
   (is (= (f/layer-x-distance (/ 4 3) 10 110) 95))
   (is (= (f/layer-x-distance (/ 3 4) 10 100) 150)))
 
-(deftest test-arc-centers
-  (is (= (f/arc-center-up {:node-y [56 83]} 15) 41))
-  (is (= (f/arc-center-down {:node-y [56 83]} 15) 98)))
-
-(deftest test-arc-radii
-  (is (= (f/arc-radius-up {:order 5} 15 20) 115))
-  (is (= (f/arc-radius-down {:order 16 :node {:weight 21}} 15 20) 95)))
+(deftest test-arc-radius
+  (is (= (f/arc-radius {:order 5} 15 20) 115)))
 
 (deftest test-arc-y-info
   (is (= (f/arc-y-info {:order 5 :node {:weight 21} :node-y [56 456]}
                        {:order 2 :node {:weight 4} :node-y [62 122]}
                        :up 15 20)
-         {:src-arc-y 41
-          :src-arc-radius 115
-          :dest-arc-y 137
-          :dest-arc-radius 35}))
-  (is (= (f/arc-y-info {:order 2 :node {:weight 4} :node-y [62 122]}
-                       {:order 5 :node {:weight 21} :node-y [56 456]}
+         {:src-arc-radius 115
+          :dest-arc-radius 55
+          :src-arc-y -115
+          :dest-arc-y 55}))
+  (is (= (f/arc-y-info {:order 2 :node {:weight 4} :node-y [62 122] :y 102}
+                       {:order 5 :node {:weight 21} :node-y [56 456] :y 156}
                        :down 15 20)
-         {:src-arc-y 137
-          :src-arc-radius 35
-          :dest-arc-y 41
-          :dest-arc-radius 115})))
+         {:src-arc-radius 55
+          :dest-arc-radius 115
+          :src-arc-y 157
+          :dest-arc-y 41})))
 
 (deftest test-add-y-info
-  (is (= (f/add-y-info [{:pair [{:order 5 :node {:weight 21} :node-y [56 456]}
-                                {:order 2 :node {:weight 4} :node-y [62 122]}]
+  (is (= (f/add-y-info [{:src {:order 5 :node {:weight 21} :node-y [56 456] :y 156}
+                         :dest {:order 2 :node {:weight 4} :node-y [62 122] :y 102}
                          :dir :up}
-                        {:pair [{:order 2 :node {:weight 4} :node-y [62 122]}
-                                {:order 5 :node {:weight 21} :node-y [56 456]}]
+                        {:src {:order 2 :node {:weight 4} :node-y [62 122] :y 102}
+                         :dest {:order 5 :node {:weight 21} :node-y [56 456] :y 156}
                          :dir :down}]
                        15 20)
-         [{:pair [{:order 5 :node {:weight 21} :node-y [56 456]
-                   :arc-y 41 :arc-radius 115}
-                  {:order 2 :node {:weight 4} :node-y [62 122]
-                   :arc-y 137 :arc-radius 35}]
+         [{:src {:order 5 :node {:weight 21} :node-y [56 456] :y 156
+                 :arc-y 41 :arc-radius 115}
+           :dest {:order 2 :node {:weight 4} :node-y [62 122] :y 102
+                  :arc-y 157 :arc-radius 55}
            :dir :up
-           :total-arc-radius 150}
-          {:pair [{:order 2 :node {:weight 4} :node-y [62 122]
-                   :arc-y 137 :arc-radius 35}
-                  {:order 5 :node {:weight 21} :node-y [56 456]
-                   :arc-y 41 :arc-radius 115}]
+           :total-arc-radius 170}
+          {:src {:order 2 :node {:weight 4} :node-y [62 122] :y 102
+                 :arc-y 157 :arc-radius 55}
+           :dest {:order 5 :node {:weight 21} :node-y [56 456] :y 156
+                  :arc-y 41 :arc-radius 115}
            :dir :down
-           :total-arc-radius 150}])))
+           :total-arc-radius 170}])))
 
 (deftest test-add-x-info
-  (is (= (f/add-x-info [{:pair [{:node {:layer-id 0}}
-                                {:node {:layer-id 1}}]}
-                        {:pair [{:node {:layer-id 1}}
-                                {:node {:layer-id 2}}]}]
+  (is (= (f/add-x-info [{:src {:node {:layer-id 0}}
+                         :dest {:node {:layer-id 1}}}
+                        {:src {:node {:layer-id 1}}
+                         :dest {:node {:layer-id 2}}}]
                        [[15 27] [78 92] [156 200]])
-         [{:pair [{:node {:layer-id 0} :arc-x 27 :xs [15 27]}
-                  {:node {:layer-id 1} :arc-x 78 :xs [78 92]}]}
-          {:pair [{:node {:layer-id 1} :arc-x 92 :xs [78 92]}
-                  {:node {:layer-id 2} :arc-x 156 :xs [156 200]}]}])))
+         [{:src {:node {:layer-id 0} :arc-x 27 :xs [15 27]}
+           :dest {:node {:layer-id 1} :arc-x 78 :xs [78 92]}}
+          {:src {:node {:layer-id 1} :arc-x 92 :xs [78 92]}
+           :dest {:node {:layer-id 2} :arc-x 156 :xs [156 200]}}])))
 
 (deftest test-pair-up
-  (is (= (f/pair-up [{:y 15} {:y 15} {:y 25} {:y 5}])
-         [{:dir :level :pair [{:y 15} {:y 15}]}
-          {:dir :down :pair [{:y 15} {:y 25}]}
-          {:dir :up :pair [{:y 25} {:y 5}]}])))
+  (is (= (f/pair-up [{:y 15 :character :a} {:y 15 :character :a}
+                     {:y 25 :character :a} {:y 5 :character :a}])
+         [{:dir :level, :src {:y 15 :character :a}, :dest {:y 15 :character :a}, :character :a}
+          {:dir :down, :src {:y 15 :character :a}, :dest {:y 25 :character :a}, :character :a}
+          {:dir :up, :src {:y 25 :character :a}, :dest {:y 5 :character :a}, :character :a}])))
 
 (let [node-1 (Node. :0-0 0 #{:a :b :c} 3)
       node-2 (Node. :0-1 0 #{:d :e} 2)
@@ -648,89 +618,89 @@
       node-8 (Node. :2-1 2 #{:b :e} 2)
       node-9 (Node. :2-2 2 #{:d :f} 2)
       path-info {:a [{:dir :down,
-                      :pair [{:node node-1
-                              :node-y [100 140], :y 100, :order 0, :arc-y 155, :arc-radius 55
-                              :xs [0 15] :arc-x 15}
-                             {:node node-4
-                              :node-y [100 120], :y 120, :order 1, :arc-y 85, :arc-radius 35
-                              :xs [275 302] :arc-x 275}],
+                      :src {:node node-1
+                            :node-y [100 140], :y 100, :order 0, :arc-y 155, :arc-radius 55
+                            :xs [0 15] :arc-x 15}
+                      :dest {:node node-4
+                             :node-y [100 120], :y 120, :order 1, :arc-y 85, :arc-radius 35
+                             :xs [275 302] :arc-x 275},
                       :total-arc-radius 90}
                      {:dir :level,
-                      :pair [{:node node-4
-                              :node-y [100 120], :y 120, :order 1 :xs [275 302]}
-                             {:node node-7
-                              :node-y [100 120], :y 120, :order 1 :xs [602 680]}]}],
+                      :src {:node node-4
+                            :node-y [100 120], :y 120, :order 1 :xs [275 302]}
+                      :dest {:node node-7
+                             :node-y [100 120], :y 120, :order 1 :xs [602 680]}}],
                  :b [{:dir :up,
-                      :pair [{:node node-1
-                              :node-y [100 140], :y 120, :order 1, :arc-y 85, :arc-radius 35
-                              :xs [0 15] :arc-x 15}
-                             {:node node-4
-                              :node-y [100 120], :y 100, :order 0, :arc-y 135, :arc-radius 35
-                              :xs [275 302] :arc-x 275}],
+                      :src {:node node-1
+                            :node-y [100 140], :y 120, :order 1, :arc-y 85, :arc-radius 35
+                            :xs [0 15] :arc-x 15}
+                      :dest {:node node-4
+                             :node-y [100 120], :y 100, :order 0, :arc-y 135, :arc-radius 35
+                             :xs [275 302] :arc-x 275},
                       :total-arc-radius 70}
                      {:dir :down,
-                      :pair [{:node node-4
-                              :node-y [100 120], :y 100, :order 0, :arc-y 135, :arc-radius 35
-                              :xs [275 302] :arc-x 302}
-                             {:node node-8
-                              :node-y [400 420], :y 400, :order 0, :arc-y 385, :arc-radius 15
-                              :xs [602 680] :arc-x 602}],
+                      :src {:node node-4
+                            :node-y [100 120], :y 100, :order 0, :arc-y 135, :arc-radius 35
+                            :xs [275 302] :arc-x 302}
+                      :dest {:node node-8
+                             :node-y [400 420], :y 400, :order 0, :arc-y 385, :arc-radius 15
+                             :xs [602 680] :arc-x 602},
                       :total-arc-radius 50}],
                  :c [{:dir :down,
-                      :pair [{:node node-1
-                              :node-y [100 140], :y 140, :order 2, :arc-y 155, :arc-radius 15
-                              :xs [0 15] :arc-x 15}
-                             {:node node-5
-                              :node-y [400 440], :y 440, :order 2, :arc-y 385, :arc-radius 55
-                              :xs [275 302] :arc-x 275}],
+                      :src {:node node-1
+                            :node-y [100 140], :y 140, :order 2, :arc-y 155, :arc-radius 15
+                            :xs [0 15] :arc-x 15}
+                      :dest {:node node-5
+                             :node-y [400 440], :y 440, :order 2, :arc-y 385, :arc-radius 55
+                             :xs [275 302] :arc-x 275},
                       :total-arc-radius 70}
                      {:dir :up,
-                      :pair [{:node node-5
-                              :node-y [400 440], :y 440, :order 2, :arc-y 385, :arc-radius 55
-                              :xs [275 302] :arc-x 302}
-                             {:node node-7
-                              :node-y [100 120], :y 100, :order 0, :arc-y 135, :arc-radius 35
-                              :xs [602 680] :arc-x 602}],
+                      :src {:node node-5
+                            :node-y [400 440], :y 440, :order 2, :arc-y 385, :arc-radius 55
+                            :xs [275 302] :arc-x 302}
+                      :dest {:node node-7
+                             :node-y [100 120], :y 100, :order 0, :arc-y 135, :arc-radius 35
+                             :xs [602 680] :arc-x 602},
                       :total-arc-radius 90}],
                  :e [{:dir :down,
-                      :pair [{:node node-2
-                              :node-y [400 420], :y 400, :order 0, :arc-y 435, :arc-radius 35
-                              :xs [0 15] :arc-x 15}
-                             {:node node-5
-                              :node-y [400 440], :y 420, :order 1, :arc-y 385, :arc-radius 35
-                              :xs [275 302] :arc-x 275}],
+                      :src {:node node-2
+                            :node-y [400 420], :y 400, :order 0, :arc-y 435, :arc-radius 35
+                            :xs [0 15] :arc-x 15}
+                      :dest {:node node-5
+                             :node-y [400 440], :y 420, :order 1, :arc-y 385, :arc-radius 35
+                             :xs [275 302] :arc-x 275},
                       :total-arc-radius 70}
                      {:dir :level,
-                      :pair [{:node node-5
-                              :node-y [400 440], :y 420, :order 1 :xs [275 302]}
-                             {:node node-8
-                              :node-y [400 420], :y 420, :order 1 :xs [602 680]}]}],
+                      :src {:node node-5
+                            :node-y [400 440], :y 420, :order 1 :xs [275 302]}
+                      :dest {:node node-8
+                             :node-y [400 420], :y 420, :order 1 :xs [602 680]}}],
                  :d [{:dir :up,
-                      :pair [{:node node-2
-                              :node-y [400 420], :y 420, :order 1, :arc-y 385, :arc-radius 35
-                              :xs [0 15] :arc-x 15}
-                             {:node node-5
-                              :node-y [400 440], :y 400, :order 0, :arc-y 455, :arc-radius 55
-                              :xs [275 302] :arc-x 275}],
+                      :src {:node node-2
+                            :node-y [400 420], :y 420, :order 1, :arc-y 385, :arc-radius 35
+                            :xs [0 15] :arc-x 15}
+                      :dest {:node node-5
+                             :node-y [400 440], :y 400, :order 0, :arc-y 455, :arc-radius 55
+                             :xs [275 302] :arc-x 275},
                       :total-arc-radius 90}
                      {:dir :down,
-                      :pair [{:node node-5
-                              :node-y [400 440], :y 400, :order 0, :arc-y 455, :arc-radius 55
-                              :xs [275 302] :arc-x 302}
-                             {:node node-9
-                              :node-y [700 720], :y 720, :order 1, :arc-y 685, :arc-radius 35
-                              :xs [602 680] :arc-x 602}],
+                      :src {:node node-5
+                            :node-y [400 440], :y 400, :order 0, :arc-y 455, :arc-radius 55
+                            :xs [275 302] :arc-x 302}
+                      :dest {:node node-9
+                             :node-y [700 720], :y 720, :order 1, :arc-y 685, :arc-radius 35
+                             :xs [602 680] :arc-x 602},
                       :total-arc-radius 90}],
                  :f [{:dir :level,
-                      :pair [{:node node-3
-                              :node-y [700 700], :y 700, :order 0 :xs [0 15]}
-                             {:node node-6
-                              :node-y [700 700], :y 700, :order 0 :xs [275 302]}]}
+                      :src {:node node-3
+                            :node-y [700 700], :y 700, :order 0 :xs [0 15]}
+                      :dest {:node node-6
+                             :node-y [700 700], :y 700, :order 0 :xs [275 302]}}
                      {:dir :level,
-                      :pair [{:node node-6
-                              :node-y [700 700], :y 700, :order 0 :xs [275 302]}
-                             {:node node-9
-                              :node-y [700 720], :y 700, :order 0 :xs [602 680]}]}]}]
+                      :src {:node node-6
+                            :node-y [700 700], :y 700, :order 0 :xs [275 302]}
+                      :dest {:node node-9
+                             :node-y [700 720], :y 700, :order 0 :xs [602 680]}}]}]
 
   (deftest test-relative-layer-xs
     (is (= (f/relative-layer-xs path-info [{:id 0} {:id 1} {:id 2}] (/ 4 3) 50)
@@ -746,23 +716,23 @@
 
   (deftest test-arcs-and-tangent
     (let [pair-map (-> (get (:a path-info) 0)
-                       (assoc-in [:pair 0 :arc-x] 15)
-                       (assoc-in [:pair 1 :arc-x] 275))]
+                       (assoc-in [:src :arc-x] 15)
+                       (assoc-in [:dest :arc-x] 275))]
       (is (= (f/arcs-and-tangent pair-map)
-             [{:type :a, :radius 55, :sweep 1, :x 46.22786856020158 :y 200.2749403664629}
-              {:type :l, :x 255.12772000714446 :y 113.81132568774913}
-              {:type :a, :radius 35, :sweep 0, :x 275 :y 85}]))))
+             [{:type :a, :radius 55, :sweep 1, :x 19.27557971566049, :y 100.1664389438819, :arc-x 15, :arc-y 155}
+              {:type :l, :x 272.2791765445797, :y 119.89408430843879}
+              {:type :a, :radius 35, :sweep 0, :x 275, :y 120, :arc-x 275, :arc-y 85}]))))
 
   (deftest test-char-plots
     (let [up-info (-> (get (:b path-info) 0))
-          up-plot [{:type :a, :radius 35, :sweep 0, :x 17.712552257943955, :y 53.600278873976116}
-                   {:type :l, :x 271.987647109936, :y 100.12987338615297}
-                   {:type :a, :radius 35, :sweep 1, :x 275, :y 135}
+          up-plot [{:type :a, :radius 35, :sweep 0, :x 17.712552257943955, :y 119.89472825869149, :arc-x 15, :arc-y 85}
+                   {:type :l, :x 272.28744774205603, :y 100.10527174130851}
+                   {:type :a, :radius 35, :sweep 1, :x 275, :y 100, :arc-x 275, :arc-y 135}
                    {:type :h, :x 302}]
           down-info (-> (get (:a path-info) 0))
-          down-plot [{:type :a, :radius 55, :sweep 1, :x 46.22786856020158, :y 200.2749403664629}
-                     {:type :l, :x 255.12772000714446, :y 113.81132568774913}
-                     {:type :a, :radius 35, :sweep 0, :x 275, :y 85}
+          down-plot [{:type :a, :radius 55, :sweep 1, :x 19.27557971566049, :y 100.1664389438819, :arc-x 15, :arc-y 155}
+                     {:type :l, :x 272.2791765445797, :y 119.89408430843879}
+                     {:type :a, :radius 35, :sweep 0, :x 275, :y 120, :arc-x 275, :arc-y 85}
                      {:type :h, :x 302}]
           level-info (-> (get (:a path-info) 1))
           level-plot [{:type :h, :x 680}]

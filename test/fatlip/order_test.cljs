@@ -1,6 +1,5 @@
 (ns fatlip.order-test
-  (:require-macros [cemerick.cljs.test :refer (is deftest are testing)])
-  (:require [cemerick.cljs.test :as test]
+  (:require [cljs.test :refer-macros [is deftest are testing]]
             [fatlip.protocols :refer [Node Edge Segment Edge->Segment rev]]
             [fatlip.core :as fc]
             [fatlip.order :as f]))
@@ -31,7 +30,7 @@
                (Edge. "src" "dest" #{} 0)]
         node-3 (Node. :0-2 0 #{} 0)
         seg-3 [(Edge. "src" "dest" #{} 0)]
-        node-4 (Node. :0-2 0 #{} 0)
+        node-4 (Node. :0-3 0 #{} 0)
         minus-ps [seg-1 node-1 node-2 seg-2 node-3 seg-3 node-4]]
     (is (= (f/set-positions minus-ps) {seg-1 0, node-1 2, node-2 3
                                        seg-2 4, node-3 7, seg-3 8
@@ -349,7 +348,7 @@
         "Ordered layers get transformed into flat layers")))
 
 
-(deftest test-CountedAndMarkedGraph->FlatGraph
+(deftest test-OrderedGraph->FlatGraph
   (let [node-0-0 (Node. :0-0 0 #{:a} 1)
         node-0-1 (Node. :0-1 0 #{:b} 1)
         node-0-2 (Node. :0-2 0 #{:c} 1)
@@ -382,10 +381,10 @@
         layers [(f/OrderedLayer. 0 0 [node-0-0 node-0-1 node-0-2])
                 (f/OrderedLayer. 1 0 [node-1-0 [succ]])
                 (f/OrderedLayer. 2 0 [node-2-0 node-2-1 node-2-2])]
-        cm-graph (f/CountedAndMarkedGraph. layers succs preds 0 marked characters)
+        o-graph (f/OrderedGraph. layers succs preds :ps :qs :rs :minus-ps :minus-qs characters)
         succ-seg (Edge->Segment succ 1)
         pred-seg (Edge->Segment pred 1)]
-    (is (= (f/CountedAndMarkedGraph->FlatGraph cm-graph)
+    (is (= (f/OrderedGraph->FlatGraph o-graph)
            (f/map->FlatGraph {:layers [(f/FlatLayer. 0 0 [node-0-0 node-0-1 node-0-2])
                                        (f/FlatLayer. 1 0 [node-1-0 succ-seg])
                                        (f/FlatLayer. 2 0 [node-2-0 node-2-1 node-2-2])]

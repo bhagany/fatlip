@@ -7,7 +7,7 @@
   :dependencies [[cljsjs/d3 "3.5.3-0"]
                  [com.cemerick/piggieback "0.1.5"]
                  [environ "1.0.0"]
-                 [figwheel "0.2.5"]
+                 [figwheel "0.2.6"]
                  [om "0.7.3"]
                  [org.clojure/clojure "1.6.0"]
                  [org.clojure/clojurescript "0.0-3196"]
@@ -16,9 +16,8 @@
 
   :node-dependencies [[source-map-support "0.2.8"]]
 
-  :plugins [[com.cemerick/clojurescript.test "0.3.1"]
-            [lein-cljsbuild "1.0.5"]
-            [lein-figwheel "0.2.5"]
+  :plugins [[lein-cljsbuild "1.0.5"]
+            [lein-figwheel "0.2.6"]
             [lein-npm "0.4.0"]]
 
   :source-paths ["src" "target/classes"]
@@ -29,9 +28,13 @@
 
   :cljsbuild {:builds
               {:test {:source-paths ["src" "test"]
-                      :notify-command ["phantomjs" :cljs.test/runner "target/test.js"]
-                      :compiler {:output-to     "target/test.js"
-                                 :optimizations :whitespace
+                      :compiler {:output-to "resources/public/fatlip/test.js"
+                                 :output-dir "resources/public/fatlip/test/out"
+                                 :optimizations :none
+                                 :main fatlip.test-runner
+                                 :asset-path "fatlip/test/out"
+                                 :source-map true
+                                 :cache-analysis true
                                  :verbose true
                                  :pretty-print true}}
                ;; examples
