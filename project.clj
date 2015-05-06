@@ -7,18 +7,17 @@
   :dependencies [[cljsjs/d3 "3.5.3-0"]
                  [com.cemerick/piggieback "0.1.5"]
                  [environ "1.0.0"]
-                 [figwheel "0.2.6"]
+                 [figwheel "0.3.1"]
                  [om "0.7.3"]
-                 [org.clojure/clojure "1.6.0"]
-                 [org.clojure/clojurescript "0.0-3196"]
+                 [org.clojure/clojure "1.7.0-beta2"]
+                 [org.clojure/clojurescript "0.0-3211"]
                  [org.clojure/core.rrb-vector "0.0.11"]
                  [org.clojure/core.match "0.3.0-alpha4"]]
 
   :node-dependencies [[source-map-support "0.2.8"]]
 
   :plugins [[lein-cljsbuild "1.0.5"]
-            [lein-figwheel "0.2.6"]
-            [lein-npm "0.4.0"]]
+            [lein-figwheel "0.3.1"]]
 
   :source-paths ["src" "target/classes"]
 
