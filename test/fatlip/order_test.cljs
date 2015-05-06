@@ -364,26 +364,28 @@
                     node-2-1 [:b]
                     node-2-2 [:c]}
         succ (Edge. node-0-1 node-2-1 #{:b} 1)
-        pred (Edge. node-2-1 node-0-1 #{:b} 1)
-        marked-1 (Edge. node-0-0 node-1-0 #{:a} 1)
-        marked-2 (Edge. node-1-0 node-0-0 #{:a} 1)
-        marked #{marked-1 marked-2}
-        succs {node-0-0 #{marked-1}
+        marked-1 (Edge. node-0-2 node-1-0 #{:c} 1)
+        marked-2 (Edge. node-1-0 node-0-2 #{:c} 1)
+        marked-3 (Edge. node-1-0 node-2-2 #{:c} 1)
+        marked-4 (Edge. node-2-2 node-1-0 #{:c} 1)
+        marked #{marked-1 marked-2 marked-3 marked-4}
+        succs {node-0-0 #{(Edge. node-0-0 node-1-0 #{:a} 1)}
                node-0-1 #{succ}
-               node-0-2 #{(Edge. node-0-2 node-1-0 #{:c} 1)}
+               node-0-2 #{marked-1}
                node-1-0 #{(Edge. node-1-0 node-2-0 #{:a} 1)
-                          (Edge. node-1-0 node-2-2 #{:c} 1)}}
-        preds {node-1-0 #{marked-2
-                          (Edge. node-1-0 node-0-2 #{:c} 1)}
+                          marked-3}}
+        preds {node-1-0 #{(Edge. node-1-0 node-0-0 #{:a} 1)
+                          marked-2}
                node-2-0 #{(Edge. node-2-0 node-1-0 #{:a} 1)}
-               node-2-1 #{pred}
-               node-2-2 #{(Edge. node-2-2 node-1-0 #{:c} 1)}}
+               node-2-1 #{(Edge. node-2-1 node-0-1 #{:b} 1)}
+               node-2-2 #{marked-4}}
         layers [(f/OrderedLayer. 0 0 [node-0-0 node-0-1 node-0-2])
                 (f/OrderedLayer. 1 0 [node-1-0 [succ]])
                 (f/OrderedLayer. 2 0 [node-2-0 node-2-1 node-2-2])]
-        o-graph (f/OrderedGraph. layers succs preds :ps :qs :rs :minus-ps :minus-qs characters)
         succ-seg (Edge->Segment succ 1)
-        pred-seg (Edge->Segment pred 1)]
+        minus-ps [[node-0-0 [succ] node-0-2] [node-1-0 [succ]]]
+        minus-qs [[node-1-0 [succ]] [node-2-0 [succ] node-2-2]]
+        o-graph (f/OrderedGraph. layers succs preds #{} #{} #{} minus-ps minus-qs characters)]
     (is (= (f/OrderedGraph->FlatGraph o-graph)
            (f/map->FlatGraph {:layers [(f/FlatLayer. 0 0 [node-0-0 node-0-1 node-0-2])
                                        (f/FlatLayer. 1 0 [node-1-0 succ-seg])
@@ -417,6 +419,6 @@
                                          node-2-1 1
                                          node-2-2 0}
                               :marked marked
-                              :crossings 0
+                              :crossings 2
                               :characters characters}))
         "Counted and marked graphs are converted to flat graphs")))
