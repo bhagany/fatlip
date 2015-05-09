@@ -10,9 +10,11 @@
                  [figwheel "0.3.1"]
                  [om "0.7.3"]
                  [org.clojure/clojure "1.7.0-beta2"]
-                 [org.clojure/clojurescript "0.0-3211"]
+                 [org.clojure/clojurescript "0.0-3255" :classifier "aot" :exclusions [org.clojure/tools.reader org.clojure/data.json]]
+                 [org.clojure/core.match "0.3.0-alpha4"]
                  [org.clojure/core.rrb-vector "0.0.11"]
-                 [org.clojure/core.match "0.3.0-alpha4"]]
+                 [org.clojure/data.json "0.2.6" :classifier "aot"]
+                 [org.clojure/tools.reader "0.9.2" :classifier "aot"]]
 
   :node-dependencies [[source-map-support "0.2.8"]]
 
