@@ -724,7 +724,9 @@
               {:type :a, :radius 35, :sweep 0, :x 275, :y 120, :arc-x 275, :arc-y 85}]))))
 
   (deftest test-char-plots
-    (let [up-info (-> (get (:b path-info) 0))
+    (let [initial [{:type :m, :x 0, :y 120}
+                   {:type :h, :x 15}]
+          up-info (-> (get (:b path-info) 0))
           up-plot [{:type :a, :radius 35, :sweep 0, :x 17.712552257943955, :y 119.89472825869149, :arc-x 15, :arc-y 85}
                    {:type :l, :x 272.28744774205603, :y 100.10527174130851}
                    {:type :a, :radius 35, :sweep 1, :x 275, :y 100, :arc-x 275, :arc-y 135}
@@ -735,25 +737,22 @@
                      {:type :a, :radius 35, :sweep 0, :x 275, :y 120, :arc-x 275, :arc-y 85}
                      {:type :h, :x 302}]
           level-info (-> (get (:a path-info) 1))
-          level-plot [{:type :h, :x 680}]
+          level-m {:type :m, :x 275, :y 120}
+          level-initial-h {:type :h :x 302}
+          level-end-h {:type :h, :x 680}
           h [{:type :h, :x 78}]
           ala [{:type :a, :radius 55, :sweep 1, :x 46.22786856020158 :y 200.2749403664629}
                {:type :l, :x 255.12772000714446 :y 113.81132568774913}
                {:type :a, :radius 35, :sweep 0, :x 255.12772000714446 :y 113.81132568774913}]]
-      (is (= (f/char-plots [] up-info) (into [{:type :m, :x 0, :y 120}
-                                              {:type :h, :x 15}]
-                                             up-plot)))
-      (is (= (f/char-plots [] down-info) (into [{:type :m, :x 0, :y 100}
-                                                {:type :h, :x 15}]
-                                               down-plot)))
-      (is (= (f/char-plots [] level-info) (into [{:type :m, :x 275, :y 120}]
-                                                level-plot)))
+      (is (= (f/char-plots initial up-info) (into initial up-plot)))
+      (is (= (f/char-plots initial down-info) (into initial down-plot)))
+      (is (= (f/char-plots [level-m level-initial-h] level-info) [level-m level-end-h]))
       (is (= (f/char-plots h up-info) (into h up-plot)))
       (is (= (f/char-plots h down-info) (into h down-plot)))
-      (is (= (f/char-plots h level-info) level-plot))
+      (is (= (f/char-plots h level-info) [level-end-h]))
       (is (= (f/char-plots ala up-info) (into ala up-plot)))
       (is (= (f/char-plots ala down-info) (into ala down-plot)))
-      (is (= (f/char-plots ala level-info) (into ala level-plot))))))
+      (is (= (f/char-plots ala level-info) (conj ala level-end-h))))))
 
 (deftest test-extend-h
   (is (= (f/extend-h [{:type :h, :x 14}] 27) [{:type :h, :x 27}])))

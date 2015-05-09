@@ -768,18 +768,12 @@
 (defn char-plots
   "Generates coordinates a single character's path"
   [plots {:keys [dir src dest], :as segment}]
-  ;; TODO checking empty? on every step seems silly; once we have
-  ;; multipart paths, potentially with mid-path M's, we should just
-  ;; use (move-to src) as the seed value in the reduce
-  (let [plots' (if (empty? plots)
-                 (into plots (move-to src))
-                 plots)
-        last-type (:type (peek plots'))
+  (let [last-type (:type (peek plots))
         [dest-start-x dest-end-x] (:xs dest)]
     (match [last-type dir]
-           [:h :level] (extend-h plots' dest-end-x)
-           [_ :level] (conj plots' (h-to dest-end-x))
-           :else (plot-duration (into plots' (arcs-and-tangent segment))
+           [:h :level] (extend-h plots dest-end-x)
+           [_ :level] (conj plots (h-to dest-end-x))
+           :else (plot-duration (into plots (arcs-and-tangent segment))
                                 dest-start-x dest-end-x))))
 
 
@@ -790,10 +784,11 @@
   (let [layer-xs (absolute-layer-xs paths-y layers max-slope layer-sep)
         plots (->> paths-y
                    (map (fn [[character segments]]
-                          {:character character
-                           :plots (reduce char-plots
-                                          []
-                                          (add-x-info segments layer-xs))})))]
+                          (let [x-info (add-x-info segments layer-xs)]
+                            {:character character
+                             :plots (reduce char-plots
+                                            (move-to (:src (first x-info)))
+                                            x-info)}))))]
     {:min-x (ffirst layer-xs)
      :max-x (second (get layer-xs (dec (count layer-xs))))
      :plots plots}))
