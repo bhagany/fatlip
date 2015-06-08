@@ -20,7 +20,7 @@
   :plugins [[lein-cljsbuild "1.0.6"]
             [lein-figwheel "0.3.3"]]
 
-  ;; :resource-paths to change where figwheel serves from?d
+  ;; :resource-paths to change where figwheel serves from?
 
   :clean-targets ^{:protect false} ["resources/public/out" "fatlip.js" "fatlip.min.js"]
 

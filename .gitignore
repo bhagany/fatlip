@@ -8,8 +8,7 @@ figwheel_server.log
 *.class
 /.lein-*
 /.nrepl-port
-/resources/public
-/out
+out/
 /.repl
 .DS_Store
 .\#*
