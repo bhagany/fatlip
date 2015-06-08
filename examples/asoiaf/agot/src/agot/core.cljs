@@ -1,4 +1,4 @@
-(ns asoiaf.agot.core
+(ns agot.core
   (:require [fatlip.core :as fatlip]
             [fatlip.debug :as debug]))
 

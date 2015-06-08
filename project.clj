@@ -7,64 +7,43 @@
   :dependencies [[cljsjs/d3 "3.5.3-0"]
                  [com.cemerick/piggieback "0.1.5"]
                  [environ "1.0.0"]
-                 [figwheel "0.3.1"]
+                 [figwheel "0.3.3" :exclusions [org.clojure/clojure]]
                  [om "0.7.3"]
-                 [org.clojure/clojure "1.7.0-beta2"]
-                 [org.clojure/clojurescript "0.0-3255" :classifier "aot" :exclusions [org.clojure/tools.reader org.clojure/data.json]]
+                 [org.clojure/clojure "1.7.0-RC1"]
+                 [org.clojure/clojurescript "0.0-3308" :classifier "aot" :exclusions [org.clojure/tools.reader
+                                                                                      org.clojure/data.json]]
                  [org.clojure/core.match "0.3.0-alpha4"]
                  [org.clojure/core.rrb-vector "0.0.11"]
                  [org.clojure/data.json "0.2.6" :classifier "aot"]
                  [org.clojure/tools.reader "0.9.2" :classifier "aot"]]
 
-  :node-dependencies [[source-map-support "0.2.8"]]
+  :plugins [[lein-cljsbuild "1.0.6"]
+            [lein-figwheel "0.3.3"]]
 
-  :plugins [[lein-cljsbuild "1.0.5"]
-            [lein-figwheel "0.3.1"]]
+  ;; :resource-paths to change where figwheel serves from?d
 
-  :source-paths ["src" "target/classes"]
-
-  :clean-targets ["resources/public/out" "fatlip.js" "fatlip.min.js"]
-
-  :min-lein-version "2.0.0"
+  :clean-targets ^{:protect false} ["resources/public/out" "fatlip.js" "fatlip.min.js"]
 
   :cljsbuild {:builds
               {:test {:source-paths ["src" "test"]
-                      :compiler {:output-to "resources/public/fatlip/test.js"
+                      :figwheel true
+                      :compiler {:output-to "resources/public/fatlip/test/test.js"
                                  :output-dir "resources/public/fatlip/test/out"
                                  :optimizations :none
                                  :main fatlip.test-runner
-                                 :asset-path "fatlip/test/out"
+                                 :asset-path "out"
                                  :source-map true
                                  :cache-analysis true
                                  :verbose true
                                  :pretty-print true}}
                ;; examples
-               :agot-dev {:source-paths ["src" "examples/asoiaf/agot/src" "examples/asoiaf/agot/dev"]
+               :agot-dev {:source-paths ["src" "examples/asoiaf/agot/src"]
+                          :figwheel true
                           :compiler {:output-to     "resources/public/asoiaf/agot/agot.js"
                                      :output-dir    "resources/public/asoiaf/agot/out"
-                                     :main asoiaf.agot.dev
+                                     :main agot.core
                                      :asset-path    "out"
                                      :source-map    true
                                      :optimizations :none
                                      :recompile-dependents true
-                                     :cache-analysis true}}}}
-
-  :figwheel {:http-server-root "public" ;; default and assumes "resources"
-             :server-port 3449 ;; default
-             :css-dirs ["resources/public/css"] ;; watch and update CSS
-
-             ;; To be able to open files in your editor from the heads up display
-             ;; you will need to put a script on your path.
-             ;; that script will have to take a file path and a line number
-             ;; ie. in  ~/bin/myfile-opener
-             ;; #! /bin/sh
-             ;; emacsclient -n +$2 $1
-             ;;
-             ;; :open-file-command "myfile-opener"
-
-             ;; if you want to disable the REPL
-             ;; :repl false
-
-             ;; to configure a different figwheel logfile path
-             ;; :server-logfile "tmp/logs/figwheel-logfile.log"
-             })
+                                     :cache-analysis true}}}})
