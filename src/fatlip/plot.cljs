@@ -616,7 +616,7 @@
   representation of transistions between layers. Also adds information about
   the direction this segment goes."
   [infos]
-  (->> (map vector infos (drop 1 infos))
+  (->> (partition 2 1 infos)
        (reduce (fn [segments [src dest]]
                  (let [src-y (:y src)
                        dest-y (:y dest)]
@@ -842,7 +842,7 @@
                                     (get characters (first (:endpoints item)))))
                                 (:items layer)))
                          layers)]
-    (map vector char-layers (drop 1 char-layers))))
+    (partition 2 1 char-layers)))
 
 
 (defn order-group
