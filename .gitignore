@@ -1,15 +1,10 @@
 /target
-/classes
-/checkouts
+/.nrepl-port
+/.cpcache
 pom.xml
 pom.xml.asc
-figwheel_server.log
 *.jar
 *.class
-/.lein-*
-/.nrepl-port
-out/
-/.repl
 .DS_Store
 .\#*
 \#*\#

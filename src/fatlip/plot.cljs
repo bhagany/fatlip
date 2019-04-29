@@ -635,7 +635,7 @@
 (defn relative-layer-xs
   "Generates a map of layers to the pixel distance to the preceding layer"
   [path-info layers max-slope layer-sep]
-  (->> (vals path-info)
+  (->> (map second path-info)
        (mapcat #(remove (fn [{:keys [dir]}] (= dir :level)) %))
        (reduce (fn [min-seps {:keys [dir total-arc-radius src dest]}]
                  (let [layer (get layers (-> dest

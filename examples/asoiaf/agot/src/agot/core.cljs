@@ -1,6 +1,8 @@
 (ns agot.core
-  (:require [fatlip.core :as fatlip]
-            [fatlip.debug :as debug]))
+  (:require [clojure.string :as s]
+            [fatlip.core :as fatlip]
+            [fatlip.debug :as debug]
+            [reagent.core :as r]))
 
 
 (def input
@@ -225,6 +227,29 @@
 ;;*** When is Petyr sent to the Vale?
 ;;*** Guess at all of Beric's deaths?
 
+(defn data->path
+  [data]
+  (case (:type data)
+    :h (str "H" (:x data))
+    :m (str "M" (:x data) " " (:y data))
+    :l (str "L" (:x data) " " (:y data))
+    :a (let [{:keys [radius sweep x y]} data]
+          (str "A" (s/join " " [radius radius "0 0" sweep x y])))))
 
-(def graph (fatlip/chart! input))
+(defn agot-component
+  []
+  (let [plot-data (fatlip/plot input)
+        {:keys [min-x min-y max-x max-y]} plot-data
+        width (- max-x min-x)
+        height (- max-y min-y)]
+    [:svg {:viewBox (s/join " " [min-x min-y width height])}
+     (map #(let [d (s/join " " (map data->path (:plots %)))
+                 class (:character %)
+                 stroke "#000000"
+                 fill "none"]
+             [:path {:d d :class class :stroke stroke :fill fill}])
+          (:plots plot-data))]))
+
+(r/render [agot-component] (js/document.getElementById "app"))
+
 #_(def test-graph (debug/chart-coarse! input))
