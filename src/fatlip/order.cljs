@@ -174,14 +174,27 @@
         ;; Edges between segment containers need to be counted as well but they
         ;; change with each new ordering, so we just temporarily merge the
         ;; current segment edges with the never-changing node -> node edges
+        next-segs-to-seg-cs (->> (filter vector? next-ordered)
+                                 (mapcat (fn [seg-c]
+                                           (map (fn [seg]
+                                                  [seg seg-c])
+                                                seg-c)))
+                                 (into {}))
+        seg->Edge (fn [seg-c]
+                    (fn [seg]
+                      (let [dest (get next-segs-to-seg-cs seg)
+                            seg-chars (set (mapcat :characters seg))
+                            dest-chars (set (mapcat :characters dest))
+                            edge-characters (set/intersection
+                                             seg-chars
+                                             dest-chars)]
+                        (Edge. seg-c dest
+                               edge-characters
+                               (count edge-characters)))))
         edges (->> (filter vector? ordered)
-                   (map (juxt identity
-                              (partial mapcat :characters)
-                              (partial map :weight)))
-                   (map (fn [[seg-c characters weights]]
-                          [seg-c #{(Edge. seg-c seg-c
-                                          (set characters)
-                                          (reduce + weights))}]))
+                   (map
+                    (fn [seg-c]
+                      [seg-c (set (map (seg->Edge seg-c) seg-c))]))
                    (into {})
                    (merge graph-edges))]
     (->> ordered
