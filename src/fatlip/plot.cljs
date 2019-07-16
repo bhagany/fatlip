@@ -6,7 +6,6 @@
             [fatlip.protocols :refer [Reversible Node Edge->Segment rev
                                       nodes]]))
 
-
 (defprotocol YPlottable
   (ys [graph node-sep char-sep] [graph node-sep char-sep delta]
     "Returns y-coordinates to nodes, given minimum separations between nodes
@@ -128,11 +127,9 @@
   (width [this node-sep char-sep]
     (- (max-y this node-sep char-sep) (min-y this node-sep char-sep))))
 
-
 (defn square [x]
   "Squares a number"
   (* x x))
-
 
 (defn check-alignment
   "Checks whether a predecessor is a valid alignment candidate"
@@ -140,7 +137,6 @@
   (when (and (< last-idx (:idx pred))
              (not (contains? marked (:edge pred))))
     pred))
-
 
 (defn pred->segs+src
   "Takes a predecessor Edge and returns a vector of Segments, one for each
@@ -156,7 +152,6 @@
                (mapv (partial Edge->Segment pred)
                      (range (dec dest-layer) src-layer -1)))]
     (conj segs src)))
-
 
 (defn blockify-layer
   "Assign every node in a layer to an already-existing block, or begin a new
@@ -204,7 +199,6 @@
         [roots blocks -1])
        (take 2)))
 
-
 (defn blockify
   "Associate nodes with their median-ly positioned parent if it exists, hasn't
   been aligned with by another node, and we haven't aligned with nodes of
@@ -244,7 +238,6 @@
             sources' (apply conj (rest sources)
                             (set/difference dests all-dests))]
         (recur sources' succs' (conj sorted node))))))
-
 
 (defn block-edges
   "Uses neighbor information (:aboves) from a FlatGraph to determine where the
@@ -351,7 +344,6 @@
      :simple-succs simple-succs :simple-preds simple-preds
      :sources sources :sinks sinks}))
 
-
 (defn classify-start
   "Given a block that is a start (source or sink) in a ClassGraph, returns a set
   containing that start and all of its descendants"
@@ -363,7 +355,6 @@
       (let [[n & ns] nodes
             unseen-ns (set/difference (get edges n) seen)]
         (recur (conj seen n) (apply conj ns unseen-ns))))))
-
 
 (defn classify
   "Organizes blocks into classes, defined as all blocks that are reachable from
@@ -507,14 +498,12 @@
              :max-y js/-Infinity}
             (nodes flat-graph))))
 
-
 (defn arc-distance
   "Calculates the distance traveled by an arc given the radius of that arc and
   the the radius slope, or the slope of the tangent to that radius"
   [radius slope]
   {:pre [(every? number? [radius slope])]}
   (/ radius (.sqrt js/Math (+ 1 (square slope)))))
-
 
 (defn arc-x-distance
   "Calculates the x-distance covered by an arc given that arc's radius and
@@ -523,14 +512,12 @@
   {:pre [(every? number? [radius radius-slope])]}
   (arc-distance radius radius-slope))
 
-
 (defn arc-y-distance
   "Calculates the y-distance covered by an arc given that arc's radius and
   slope"
   [radius radius-slope]
   {:pre [(every? number? [radius radius-slope])]}
   (arc-distance radius (/ 1 radius-slope)))
-
 
 (defn layer-x-distance
   "Calculates the minimum distance between two layers based on the maximum
@@ -620,7 +607,6 @@
         tangent-x-dist (/ tangent-y-dist max-slope)]
     (+ arcs-x-dist tangent-x-dist)))
 
-
 (defn arc-radius
   "Given node info map (must have :order) a min-arc-radius and the number of
   pixels characters should be separated by, and returns the radius of the arc
@@ -628,7 +614,6 @@
   [{:keys [order]} min-arc-radius char-sep]
   {:pre [(integer? order) (every? number? [min-arc-radius char-sep])]}
   (+ min-arc-radius (* order char-sep)))
-
 
 (defn arc-y-info
   "Returns the y values of the arc centers, as well as the radii for each arc
@@ -642,7 +627,6 @@
      :dest-arc-radius dest-arc-r
      :src-arc-y (src-op (:y src) src-arc-r)
      :dest-arc-y (dest-op (:y dest) dest-arc-r)}))
-
 
 (defn add-y-info
   "Adds :arc-y and :arc-radius information to character segments, plus
@@ -662,7 +646,6 @@
                  (assoc-in [:dest :arc-radius] dest-arc-radius)))))
        char-segs))
 
-
 (defn add-x-info
   "Adds :xs to character segments, and if the segment is not :level, also
   adds :arc-x for each segment"
@@ -679,7 +662,6 @@
                  (assoc-in [:src :arc-x] (src-xs 1))
                  (assoc-in [:dest :arc-x] (dest-xs 0))))))
        char-segs))
-
 
 (defn pair-up
   "Given a list of character positions, pairs each with the one following for a
@@ -700,7 +682,6 @@
                           :dest dest
                           :character (:character src)})))
                [])))
-
 
 (defn relative-layer-xs
   "Generates a map of layers to the pixel distance to the preceding layer"
@@ -725,7 +706,6 @@
               [layer (apply max layer-sep x-ds)]))
        (into {})))
 
-
 (defn absolute-layer-xs
   "Generates a map of layers to their absolute x-values, including duration"
   [path-info layers max-slope layer-sep]
@@ -736,7 +716,6 @@
                              [start-x end-x]))
                          [0 (:duration (first layers))]
                          (rest layers)))))
-
 
 (defn arcs-and-tangent
   "Given a segment that is not :level, generates plotting information for the
@@ -800,20 +779,17 @@
      {:type :a, :radius dest-radius, :sweep dest-sweep
       :x dest-x, :y dest-path-y :arc-x dest-x :arc-y dest-y}]))
 
-
 (defn extend-h
   "Extends a terminal :h plot to a new x value"
   [plots x]
   {:pre [(= (:type (peek plots)) :h) (number? x)]}
   (assoc-in plots [(dec (count plots)) :x] x))
 
-
 (defn h-to
   "Draw a horizontal line to x"
   [x]
   {:pre [(number? x)]}
   {:type :h, :x x})
-
 
 (defn plot-duration
   "Plots a layer duration after a non-:level transition"
@@ -822,7 +798,6 @@
   (if (= start-x end-x)
     plots
     (conj plots (h-to end-x))))
-
 
 (defn move-to
   "Starts a path by moving to its beginning and drawing the initial layer's
@@ -834,7 +809,6 @@
                 :y y}]]
     (plot-duration plots start-x end-x)))
 
-
 (defn char-plots
   "Generates coordinates a single character's path"
   [plots {:keys [dir src dest], :as segment}]
@@ -845,7 +819,6 @@
            [_ :level] (conj plots (h-to dest-end-x))
            :else (plot-duration (into plots (arcs-and-tangent segment))
                                 dest-start-x dest-end-x))))
-
 
 (defn plot-xs
   "Given y-values and layer-spacing parameters, calculate an x-value for
@@ -863,7 +836,6 @@
      :max-x (second (get layer-xs (dec (count layer-xs))))
      :plots plots}))
 
-
 (defn character-ys
   "Given node-level ys, generate y info for each character"
   [node-ys characters char-sep]
@@ -876,7 +848,6 @@
                          (get characters node)))
           node-ys))
 
-
 (defn character-segments
   "Takes character-level y info, and generates all the line segments for each
   character's path"
@@ -885,7 +856,6 @@
        (group-by :character)
        vals
        (mapcat pair-up)))
-
 
 (defn get-segments-by-layer-character
   "Takes character segments and organizes them by layer, and then by character"
@@ -898,7 +868,6 @@
                 (into {} (map (fn [seg]
                                 [(:character seg) seg])
                               seg-layer)))))))
-
 
 (defn get-character-layer-pairs
   "Generates a layer structure that mirrors the underlying graph, but with
@@ -914,7 +883,6 @@
                          layers)]
     (partition 2 1 char-layers)))
 
-
 (defn order-group
   "Modifies the :order attribute for segments in char-segs, for each character
   named in `group`"
@@ -924,7 +892,6 @@
                     (inc i)])
                  [char-segs 0]
                  group)))
-
 
 (defn plot
   "Generates coordinates for all paths in a FlatGraph"

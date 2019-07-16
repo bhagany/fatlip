@@ -5,7 +5,6 @@
             [fatlip.protocols :refer [Layered Sparse Directed Reversible
                                       Nodey Node Edge Edge->Segment rev]]))
 
-
 (defrecord OrderedGraph [layers succs preds ps qs rs
                          minus-ps minus-qs characters]
   Layered
@@ -56,7 +55,6 @@
 
 (defrecord AccumulatorNode [weight node-edges is-seg-c])
 
-
 (defn replace-ps
   "Step 1 of ESK - replace all p nodes with edges and merge segment containers"
   [items ps succs]
@@ -70,7 +68,6 @@
                   (update-in %1 [(dec (count %1))] rrb/catvec %2)
                   (conj %1 %2))
                [])))
-
 
 (defn set-positions
   "Step 2a of ESK. Positions in an ordered layer are used to calculate the
@@ -91,7 +88,6 @@
                        [(first minus-ps) 0]
                        (rest minus-ps))))
 
-
 (defn get-measure
   "Calculate the average weighted position of a node's predecessors"
   [node preds pred-positions]
@@ -103,13 +99,11 @@
                           [(* weight pos) weight]))
                   (apply map +)))))
 
-
 (defn set-measures
   "Step 2b of ESK - Use nodes' predecessors to calculate a 'measure' for the
   nodes and containers in a layer, which is used for ordering"
   [non-qs preds positions]
   (into {} (map #(-> [% (get-measure % (get preds %) positions)]) non-qs)))
-
 
 (defn merge-layer
   "Step 3 of ESK - Considers a layer as two lists, one of nodes and the other
@@ -148,7 +142,6 @@
                          (assoc pos s-2 (+ (get pos seg-1) 1))
                          (into ord [s-1 node-1])))))))))
 
-
 (defn add-qs
   "Step 4 of ESK - takes the results of step 3, which doesn't include the
   q-nodes, and adds them, splitting their segment containers in the process"
@@ -162,7 +155,6 @@
                   (into %1 %2)
                   (conj %1 (vec %2)))
                [])))
-
 
 (defn sorted-edge-order
   "Sorts edges between two ordered layers first by their index in the source
@@ -203,7 +195,6 @@
                             (get edges item))))
          (map #(-> [(get next-order-map (:dest %)) %])))))
 
-
 (defn next-power-of-2
   "A helper for cross counting; the number of leaf nodes in the accumulator
   tree needs to be the first power of 2 greater than the number of nodes in one
@@ -215,7 +206,6 @@
                    (bit-or num shifted)))
                x
                (range 5))))
-
 
 (defn single-edge-super-crossings
   "Counts the number of crossings that result from adding an edge, in order,
@@ -266,7 +256,6 @@
                                             conj edge (rev edge))))]
               (recur t crossings marked parent-index))))))))
 
-
 (defn count-and-mark-super-crossings
   "Counts crossings between separate nodes from one layer to the next"
   [minus-ps minus-qs preds succs]
@@ -287,7 +276,6 @@
                                      (AccumulatorNode. 0 #{} false)))])
          (take 2))))
 
-
 (defn single-edge-sub-crossings
   "Counts the sub-crossings that result from adding a single sub-edge to the
   accumulator tree"
@@ -301,7 +289,6 @@
        (if (odd? index)
          (recur tree parent-index (+ crossings (get tree real-right-index)))
          (recur (update-in tree [real-right-index] inc) parent-index crossings))))))
-
 
 (defn count-sub-crossings-single-node
   "Counts sub-crossings for a node; short circuits if there are fewer than two
@@ -327,7 +314,6 @@
                      [0 (vec (repeat tree-size 0))])
              first)))))
 
-
 (defn count-sub-crossings
   "A modification of ESK. In our scheme, each node in the graph represents a
   set of characters, and those characters have an order within their node. If
@@ -347,7 +333,6 @@
                                                           characters)]
                    (+ crossings c)))
                0)))
-
 
 (defn count-and-mark-crossings-layer
   "Step 5 of ESK, counts the number of crossings that result from a bi-layer
@@ -391,7 +376,6 @@
         sub-crossings (count-sub-crossings minus-ps minus-qs succs characters)]
     [(+ sup-crossings sub-crossings) marked]))
 
-
 (defn OrderedGraph->OrderedGraph
   "Performs one layer-by-layer sweep of the graph using ESK's algorithm"
   [ordered-graph]
@@ -428,7 +412,6 @@
                         :rs rs
                         :characters characters})))
 
-
 (defn get-ordered
   "Orders characters for a single node based on predecessors"
   [node preds characters prev-l-characters]
@@ -443,7 +426,6 @@
     (if (= (count ordered) (count node-characters))
       ordered
       (into ordered (set/difference node-characters (set ordered))))))
-
 
 (defn order-subnodes
   "Orders all characters in all nodes based on their predecessors"
@@ -469,7 +451,6 @@
              first)]
     (assoc graph :characters sorted)))
 
-
 (defn SparseGraph->OrderedGraph
   [sparse-graph]
   (let [{:keys [ps qs rs preds succs characters layers]} sparse-graph
@@ -488,7 +469,6 @@
                         :qs qs
                         :rs rs
                         :characters characters})))
-
 
 (defn SparseGraph->ordered-graphs
   "Implements the 2-layer crossing minimization algorithm on a sparse graph
@@ -544,7 +524,6 @@
                           rev
                           order-subnodes)))))))
 
-
 (def count-and-mark-crossings
   ^{:doc "Takes an OrderedGraph, counts edge crossings and marks edges that should not
          be drawn straight. Memoized."}
@@ -558,7 +537,6 @@
        {:crossings (reduce + crossings)
         :marked (reduce set/union marked)}))))
 
-
 (defn best-ordering
   "Chooses the graph with the fewest crossings from a collection of OrderedGraphs"
   [ordered-graphs]
@@ -567,7 +545,6 @@
                   (let [{:keys [crossings marked]} (count-and-mark-crossings og)]
                     [crossings (reduce #(+ %1 (:weight %2)) 0 marked)])))
        first))
-
 
 (defn neighborify
   "Maps things in a layer (nodes and segments) to the things that are directly
@@ -591,7 +568,6 @@
          (apply map vector)
          (map #(into {} %)))))
 
-
 (defn OrderedLayer->FlatLayer
   "An OrderedLayer is composed of Nodes and vectors of Edges. This function
   transforms an OrderedLayer into a FlatLayer composed of Nodes and Segments"
@@ -601,7 +577,6 @@
                                         (Edge->Segment % (:id ordered-layer))
                                         %)
                                      (-> ordered-layer :items flatten)))))
-
 
 (defn OrderedGraph->FlatGraph
   "Transforms each OrderedLayer into a FlatLayer, and calculates attributes
@@ -623,7 +598,6 @@
                      :marked marked
                      :crossings crossings
                      :characters characters})))
-
 
 (def SparseGraph->FlatGraph (comp OrderedGraph->FlatGraph
                                   best-ordering
