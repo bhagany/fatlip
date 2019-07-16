@@ -23,6 +23,17 @@
            :src dest
            :dest src)))
 
+(defn left
+  [block]
+  (if (:reversed (meta block))
+    (peek block)
+    (first block)))
+
+(defn right
+  [block]
+  (if (:reversed (meta block))
+    (first block)
+    (peek block)))
 
 (defn get-block-rel-ys
   "Calculates the relative y-positions of blocks within a class. If the class
