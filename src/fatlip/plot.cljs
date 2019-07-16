@@ -271,6 +271,56 @@
      (vals blocks))))
 
 
+(comment
+  (defn take-until
+    "Returns a lazy sequence of successive items from coll until
+   (pred item) returns true, including that item. pred must be
+   free of side-effects."
+    [pred coll]
+    (lazy-seq
+     (when-let [s (seq coll)]
+       (if (pred (first s))
+         (cons (first s) nil)
+         (cons (first s) (take-until pred (rest s)))))))
+
+  (defn rotations
+    "Returns a lazy seq of all rotations of a seq"
+    [x]
+    (if (seq x)
+      (map
+       (fn [n _]
+         (lazy-cat (drop n x) (take n x)))
+       (iterate inc 0) x)
+      (list nil)))
+
+  (defn get-cycles'
+    ([nodes adj]
+     (get-cycles' nodes adj '() #{}))
+    ([nodes adj visited cycles]
+     (reduce
+      (fn [cycles' node]
+        (if (some #{node} visited)
+          (conj cycles' (reverse (take-until #(= % node) visited)))
+          (let [unvisited-adj (set/difference (get adj node) visited)]
+            (get-cycles' (get adj node) adj (cons node visited) cycles'))))
+      cycles
+      nodes)))
+
+  (defn get-cycles
+    [nodes adj]
+    (->> (get-cycles' nodes adj)
+         (map (comp set rotations))
+         (into #{})
+         (map first)))
+
+  (get-cycles' #{:1 :2} {:1 #{:2 :3}
+                         :2 #{:1}
+                         :3 #{:2 :3}})
+  (get-cycles #{:1 :2} {:1 #{:2 :3}
+                        :2 #{:1}
+                        :3 #{:2 :3}})
+)
+
 (defn FlatGraph->block-info
   "Organizes all of the Nodes and Segments in a FlatGraph into horizontally-
   aligned blocks. These blocks are then organized into a graph of their own,
