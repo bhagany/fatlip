@@ -211,15 +211,23 @@
   greater index in the past. Continue finding these alignments until we've
   assigned every node into a horizontally aligned block"
   [flat-graph]
-  (take 2 (reduce (fn [[roots blocks pred-layer] layer]
-                    (let [[rs bs] (blockify-layer layer pred-layer roots blocks
-                                                  (:preds flat-graph)
-                                                  (:top-idxs flat-graph)
-                                                  (:marked flat-graph))]
-                      [rs bs layer]))
-                  [{} {} nil]
-                  (:layers flat-graph))))
-
+  (let [[roots blocks'] (->> (:layers flat-graph)
+                             (cons nil) ;; the first partition needs to have layer 1 in the second position
+                             (partition 2 1)
+                             (reduce (fn [[roots blocks] [pred-layer layer]]
+                                       (blockify-layer layer pred-layer roots blocks
+                                                       (:preds flat-graph)
+                                                       (:top-idxs flat-graph)
+                                                       (:marked flat-graph)))
+                                     [{} {}]))
+        reversed (:reversed (meta flat-graph))
+        blocks (->> blocks'
+                    (map (fn [[root block]]
+                           [root (if reversed
+                                   (with-meta block {:reversed true})
+                                   block)]))
+                    (into {}))]
+    [roots blocks]))
 
 (defn topo-sort
   "An implementation of a Kahn topological sort, cribbed with modification from
