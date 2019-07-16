@@ -28,9 +28,9 @@
   "Calculates the relative y-positions of blocks within a class. If the class
   was compacted upward, we start at the top and walk down the class; for
   downward, at the bottom, walking up."
-  [class block-edges node-sep char-sep compacted]
+  [class block-edges node-sep char-sep compaction]
   (let [filter-set (set class)
-        rel-op ({:up + :down -} compacted)]
+        rel-op ({:up + :down -} compaction)]
     (reduce (fn [ys block]
               (let [in-class-edges (filter #(contains? filter-set (:dest %))
                                            (get block-edges block))
@@ -39,20 +39,19 @@
                                      in-class-edges)
                     block-y (if (empty? neighbor-ys)
                               0
-                              (if (= compacted :up)
+                              (if (= compaction :up)
                                 (+ (apply max neighbor-ys) node-sep)
                                 (- (apply min neighbor-ys) node-sep)))]
                 (assoc ys block block-y)))
             {}
             class)))
 
-
 (defn get-shift-ys
   "Calculates the relative y-positions of classes. If compacted upward, we walk
   the classes downward; for downward compaction, upward."
-  [classes block-classes class-edges node-sep char-sep rel-ys compacted]
+  [classes block-classes class-edges node-sep char-sep rel-ys compaction]
   (reduce (fn [ys class]
-            (let [rel-op ({:up + :down -} compacted)
+            (let [rel-op ({:up + :down -} compaction)
                   neighbor-ys (map #(rel-op (- (+ (get ys (get block-classes (:dest %)))
                                                   (get rel-ys (:dest %)))
                                                (get rel-ys (:src %)))
@@ -60,29 +59,28 @@
                                (get class-edges class))
                   class-y (if (empty? neighbor-ys)
                             0
-                            (if (= compacted :up)
+                            (if (= compaction :up)
                               (+ (apply max neighbor-ys) node-sep)
                               (- (apply min neighbor-ys) node-sep)))]
               (assoc ys class class-y)))
           {}
           classes))
 
-
 (defrecord ClassGraph [classes block-classes succs preds block-succs
-                       block-preds sources sinks aligned compacted]
+                       block-preds sources sinks alignment compaction]
   YPlottable
   (ys [this node-sep char-sep]
     (let [{:keys [classes block-classes preds succs
-                  block-preds block-succs compacted]} this
+                  block-preds block-succs compaction]} this
                   [block-edges class-edges] ({:up [block-preds preds]
-                                              :down [block-succs succs]} compacted)
+                                              :down [block-succs succs]} compaction)
                   rel-ys (reduce #(merge %1 (get-block-rel-ys %2 block-edges
                                                               node-sep char-sep
-                                                              compacted))
+                                                              compaction))
                                  {}
                                  classes)
                   shift-ys (get-shift-ys classes block-classes class-edges node-sep
-                                         char-sep rel-ys compacted)
+                                         char-sep rel-ys compaction)
                   block-shift-ys (into {} (mapcat (fn [[class shift]]
                                                     (map #(-> [% shift]) class))
                                                   shift-ys))]
@@ -305,12 +303,11 @@
                  [{} #{}]
                  start-blocks)))
 
-
 (defn block-info->ClassGraph
   "For a particular blockification, compacts these blocks in to a ClassGraph,
   in either an :up or :down direction"
-  [block-info compacted]
-  (let [block-keys (if (= compacted :up)
+  [block-info alignment compaction]
+  (let [block-keys (if (= compaction :up)
                      [:blocks-up :simple-succs :sources]
                      [:blocks-down :simple-preds :sinks])
         [blocks classify-edges start-blocks] (map block-info block-keys)
@@ -333,7 +330,7 @@
                 classes-set)
         sources (set/difference classes-set (set (keys preds)))
         sinks (set/difference classes-set (set (keys succs)))
-        classes (if (= compacted :up)
+        classes (if (= compaction :up)
                   (let [simple-succs (->> succs
                                           (map (fn [[src edges]]
                                                  [src (set (map #(get-in
@@ -356,31 +353,26 @@
                       :sources sources :sinks sinks
                       :block-succs block-succs
                       :block-preds (:preds block-info)
-                      :compacted compacted})))
-
+                      :alignment alignment
+                      :compaction compaction})))
 
 (defn FlatGraph->UpDownClassGraphs
   "Organizes nodes and edges into blocks into classes and then constructs a
   ClassGraph, where the nodes are classes and the edges are BlockEdges that
   span classes. This means there can be multiple edges per class pair."
-  [flat-graph]
-  (let [block-info (FlatGraph->block-info flat-graph)]
-    [(block-info->ClassGraph block-info :up)
-     (block-info->ClassGraph block-info :down)]))
-
+  [flat-graph reversed]
+  (let [block-info (FlatGraph->block-info flat-graph)
+        alignment (if reversed :right :left)]
+    [(block-info->ClassGraph block-info alignment :up)
+     (block-info->ClassGraph block-info alignment :down)]))
 
 (defn FlatGraph->ClassGraphs
   "Takes a FlatGraph and creates four variations of it by aggregating nodes and
   segments into blocks in forward and reverse directions, and then organizes
   these blocks both upward and downward"
   [flat-graph]
-  (mapcat (fn [fg]
-            (let [class-graphs (FlatGraph->UpDownClassGraphs fg)]
-              (if (:reversed (meta fg))
-                (map #(vary-meta % {:aligned-right true}) class-graphs)
-                (map #(vary-meta % {:aligned-left true}) class-graphs))))
-          [flat-graph ^:reversed (rev flat-graph)]))
-
+  (mapcat #(FlatGraph->UpDownClassGraphs % (:reversed (meta %)))
+          [flat-graph (with-meta (rev flat-graph) {:reversed true})]))
 
 (defn plot-ys
   "Given a FlatGraph, generate four ClassGraphs, which are used to assign
@@ -413,7 +405,7 @@
         narrow-min-y (min-y narrowest node-sep char-sep)
         narrow-max-y (max-y narrowest node-sep char-sep)
         y-map (->> class-graphs
-                   (map #(let [delta (if (:aligned-down (meta %))
+                   (map #(let [delta (if (= (:alignment (meta %)) :right)
                                        (- narrow-max-y (max-y % node-sep
                                                               char-sep))
                                        (- narrow-min-y (min-y % node-sep
