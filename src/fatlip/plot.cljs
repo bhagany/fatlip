@@ -422,7 +422,9 @@
                                                                   [(:dest %)])
                                                                 edges))]))
                                           (into {}))]
-                    (topo-sort sinks simple-preds)))]
+                    (->> (topo-sort sinks simple-preds)
+                         (map #(with-meta % {:reversed true}))
+                         (into ^:reversed []))))]
     (map->ClassGraph {:classes classes
                       :block-classes block-classes
                       :succs succs :preds preds
