@@ -251,23 +251,24 @@
   edges are between blocks, given a particular blockification of that graph"
   [flat-graph roots blocks]
   (let [edge->set #(update-in %1 [(:src %2)] (fnil conj #{}) %2)]
-    (reduce (fn [{:keys [succs preds] :as edges} block]
-              (let [b-succs (->> (map #(get-in flat-graph [:aboves %])
-                                      block)
-                                 (remove nil?)
-                                 (group-by #(get roots %))
-                                 (map (fn [[neighbor-root neighbor-nodes]]
-                                        (BlockEdge.
-                                         (get blocks neighbor-root)
-                                         block
-                                         (apply max (map :weight
-                                                         neighbor-nodes))))))
-                    b-preds (map rev b-succs)]
-                (-> edges
-                    (update-in [:succs] #(reduce edge->set % b-succs))
-                    (update-in [:preds] #(reduce edge->set % b-preds)))))
-            {:succs {} :preds {}}
-            (vals blocks))))
+    (reduce
+     (fn [{:keys [succs preds] :as edges} block]
+       (let [b-succs (->> block
+                          (map #(get-in flat-graph [:aboves %]))
+                          (remove nil?)
+                          (group-by #(get roots %))
+                          (map (fn [[neighbor-root neighbor-nodes]]
+                                 (BlockEdge.
+                                  (get blocks neighbor-root)
+                                  block
+                                  (apply max (map :weight
+                                                  neighbor-nodes))))))
+             b-preds (map rev b-succs)]
+         (-> edges
+             (update-in [:succs] #(reduce edge->set % b-succs))
+             (update-in [:preds] #(reduce edge->set % b-preds)))))
+     {:succs {} :preds {}}
+     (vals blocks))))
 
 
 (defn FlatGraph->block-info
