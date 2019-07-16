@@ -110,14 +110,20 @@
          (into {})))
 
   (min-y [this node-sep char-sep]
-    (apply min (map #(get (ys this node-sep char-sep) (ffirst %)) classes)))
+    (let [node-ys (ys this node-sep char-sep)]
+      (->> classes
+           (mapcat identity)
+           (map #(get node-ys (first %)))
+           (apply min))))
 
   (max-y [this node-sep char-sep]
-    (->> classes
-         (mapcat peek)
-         (map #(+ (get (ys this node-sep char-sep) %)
-                  (* char-sep (dec (:weight %)))))
-         (apply max)))
+    (let [node-ys (ys this node-sep char-sep)]
+      (->> classes
+           (mapcat identity)
+           (map first)
+           (map #(+ (get node-ys %)
+                    (* char-sep (dec (:weight %)))))
+           (apply max))))
 
   (width [this node-sep char-sep]
     (- (max-y this node-sep char-sep) (min-y this node-sep char-sep))))
