@@ -1,2 +1,8 @@
-^{:watch-dirs ["src" "examples/asoiaf/agot/src"]}
-{:main agot.core}
+^{:watch-dirs ["src"
+               "devcards"
+               "examples/asoiaf/agot/src"
+               "examples/asoiaf/agot/devcards"]
+  :extra-main-files {:devcards {:main fatlip.cards}
+                     :devcards-agot {:main agot.cards}}}
+{:main agot.core
+ :devcards true}

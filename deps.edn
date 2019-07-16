@@ -5,5 +5,9 @@
         org.clojure/core.rrb-vector {:mvn/version "0.0.11"}}
  :paths ["src" "target"]
  :aliases {:dev {:extra-deps {com.bhauman/figwheel-main {:mvn/version "0.2.0"}
-                              reagent {:mvn/version "0.8.1"}}}
-           :agot {:extra-paths ["examples/asoiaf/agot/src" "examples/asoiaf/agot/resources"]}}}
+                              devcards {:mvn/version "0.2.6"}
+                              reagent {:mvn/version "0.8.1"}}
+                 :extra-paths ["resources" "devcards"]}
+           :agot {:extra-paths ["examples/asoiaf/agot/src"
+                                "examples/asoiaf/agot/resources"
+                                "examples/asoiaf/agot/devcards"]}}}
