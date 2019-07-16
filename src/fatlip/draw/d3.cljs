@@ -16,23 +16,17 @@
 
 (defn draw-d3!
   [plot-data]
-  (let [{:keys [min-x max-x min-y max-y]} plot-data
-        width (- max-x min-x)
-        height (- max-y min-y)
-        svg (-> js/d3 (.select "#app") (.append "svg") (.attr "viewBox" (s/join " " [min-x
-                                                                                     min-y
-                                                                                     width
-                                                                                     height])))]
-    (-> svg
-        (.selectAll "path")
-        (.data (clj->js (:plots plot-data)))
-        (.enter)
-        (.append "path")
-        (.attr "d" #(s/join " " (map data->path (.-plots %))))
-        (.attr "class" #(.-character %))
-        (.attr "stroke" "#000000")
-        (.attr "fill" "none"))
-    #_(-> svg
+  (-> js/d3
+      (.select "svg")
+      (.selectAll "path")
+      (.data (clj->js (:plots plot-data)))
+      (.enter)
+      (.append "path")
+      (.attr "d" #(s/join " " (map data->path (.-plots %))))
+      (.attr "class" #(.-character %))
+      (.attr "stroke" "#000000")
+      (.attr "fill" "none"))
+  #_(-> svg
         (.selectAll "circle")
         (.data (clj->js (drop 8 (take 20 (filter #(= (:type %) :a) (mapcat :plots (drop 0 (take 1 plot-data))))))))
         (.enter)
@@ -42,4 +36,4 @@
         (.attr "r" #(.-radius %))
         (.attr "class" #(.-character %))
         (.attr "stroke" "red")
-        (.attr "fill" "none"))))
+        (.attr "fill" "none")))
