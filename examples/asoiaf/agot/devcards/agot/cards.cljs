@@ -212,33 +212,30 @@
                 layer-sep 50
                 node-sep 50
                 char-sep 15}}]
-   (let [input-sparse-graph (input->SparseGraph input)
-         ordered-graphs (cons
-                         (ord/SparseGraph->OrderedGraph input-sparse-graph)
-                         (ord/SparseGraph->ordered-graphs input-sparse-graph))]
-     (prn (map type (->> (ord/SparseGraph->ordered-graphs input-sparse-graph) ;;ordered-graphs
-                         (map ord/OrderedGraph->FlatGraph)
-                         )))
-     (->> ordered-graphs
-          (map ord/OrderedGraph->FlatGraph)
-          (map #(plot % max-slope min-arc-radius layer-sep node-sep char-sep))))))
+   (->> input
+        input->SparseGraph
+        ord/SparseGraph->ordered-graphs
+        (map ord/OrderedGraph->FlatGraph)
+        (map #(plot % max-slope min-arc-radius layer-sep node-sep char-sep)))))
 
 (defn ordering-component
   []
   [:div
-   (map (fn [{:keys [min-x min-y max-x max-y plots]}]
-          (let [width (- max-x min-x)
-                height (- max-y min-y)]
-            [:svg {:viewBox (s/join " " [min-x min-y width height])}
-             (map #(let [{:keys [plots character]} %
-                         d (s/join " " (map defs/data->path plots))
-                         stroke (get defs/character-colors character)
-                         fill "none"]
-                     ^{:key character}
-                     [:path {:d d :class character :stroke stroke :fill fill
-                             :stroke-width (when (defs/pov-characters character) "2")}])
-                  plots)]))
-        (plot-orderings defs/input))])
+   (map-indexed
+    (fn [i {:keys [min-x min-y max-x max-y plots]}]
+      (let [width (- max-x min-x)
+            height (- max-y min-y)]
+        ^{:key (str "ordering-" i)}
+        [:svg {:viewBox (s/join " " [min-x min-y width height])}
+         (map #(let [{:keys [plots character]} %
+                     d (s/join " " (map defs/data->path plots))
+                     stroke (get defs/character-colors character)
+                     fill "none"]
+                 ^{:key character}
+                 [:path {:d d :class character :stroke stroke :fill fill
+                         :stroke-width (when (defs/pov-characters character) "2")}])
+              plots)]))
+    (plot-orderings defs/input))])
 
 (defcard ordering
   (dc/reagent ordering-component))

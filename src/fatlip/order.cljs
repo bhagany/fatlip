@@ -550,14 +550,12 @@
   "Maps things in a layer (nodes and segments) to the things that are directly
   above or below"
   [layer]
-  (->> (-> layer :items rest)
-       (reduce (fn [[aboves belows last-item] item]
-                 [(assoc aboves item last-item)
-                  (assoc belows last-item item)
-                  item])
-               [{} {} (-> layer :items first)])
-       (take 2)))
-
+  (let [belows (->> layer
+                    :items
+                    (partition 2 1)
+                    (into {} (map vec)))
+        aboves (set/map-invert belows)]
+    [aboves belows]))
 
 (defn indexify
   "Indexes each layer by Node and Segment, from the top and bottom"
