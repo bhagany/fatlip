@@ -120,7 +120,7 @@
            pos positions
            ord []]
       (if (or (empty? nodes) (empty? segments))
-        ;; ESK's algorithm doesn't specify what to do with leftover things I
+        ;; ESK's algorithm doesn't specify what to do with leftover things. I
         ;; think this is because it doesn't take into account nodes that don't
         ;; have parents in layers > 0. In any case, at most one of nodes or
         ;; segments will be non-empty
@@ -495,8 +495,7 @@
      (loop [orderings []
             ordering-set #{}
             input-graph (SparseGraph->OrderedGraph sparse-graph)]
-       (let [graph (OrderedGraph->OrderedGraph input-graph)
-             layers (:layers graph)]
+       (let [graph (OrderedGraph->OrderedGraph input-graph)]
          ;; If we see a graph that we've seen before, this is the
          ;; beginning of a cycle, and we can stop processing
          (if (or (contains? ordering-set graph)
@@ -561,10 +560,11 @@
   "Indexes each layer by Node and Segment, from the top and bottom"
   [layer]
   (let [items (:items layer)
-        len (count items)]
-    (->> (map-indexed #(-> [[%2 %1] [%2 (- len %1 1)]]) items)
-         (apply map vector)
-         (map #(into {} %)))))
+        len (count items)
+        indexed-pairs (map-indexed #(-> [%2 %1]) items)
+        bottom-indexed-pairs (map #(-> [%2 (- len %1 1)]) indexed-pairs)]
+    [(into {} indexed-pairs)
+     (into {} bottom-indexed-pairs)]))
 
 (defn OrderedLayer->FlatLayer
   "An OrderedLayer is composed of Nodes and vectors of Edges. This function

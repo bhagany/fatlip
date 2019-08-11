@@ -33,7 +33,8 @@
        (map (fn [node]
               {:x (* layer-sep (:layer-id node))
                :y (get node-ys node)
-               :id (:id node)}))))
+               :id (:id node)
+               :characters (:characters node)}))))
 
 (defn block-debug-data
   [class node-ys layer-sep]
@@ -186,14 +187,15 @@
                                :visibility (if (:blocks show)
                                              "visible" "hidden")}]]
                       (map
-                       (fn [{:keys [id x y]}]
+                       (fn [{:keys [id x y characters]}]
                          (let [stroke "#000000"
                                fill "#ff0000"]
                            ^{:key id}
                            [:circle {:cx x :cy y :r "10"
                                      :stroke stroke :fill fill
                                      :visibility (if (:nodes show)
-                                                   "visible" "hidden")}]))
+                                                   "visible" "hidden")}
+                            [:title (apply str id "\n" (s/join "\n" (map name characters)))]]))
                        nodes)))
                    blocks)))
                classes)]])
@@ -226,15 +228,17 @@
       (let [width (- max-x min-x)
             height (- max-y min-y)]
         ^{:key (str "ordering-" i)}
-        [:svg {:viewBox (s/join " " [min-x min-y width height])}
-         (map #(let [{:keys [plots character]} %
-                     d (s/join " " (map defs/data->path plots))
-                     stroke (get defs/character-colors character)
-                     fill "none"]
-                 ^{:key character}
-                 [:path {:d d :class character :stroke stroke :fill fill
-                         :stroke-width (when (defs/pov-characters character) "2")}])
-              plots)]))
+        [:div {:style {:margin-bottom "20px"}}
+         [:h3 (inc i) " " (if (even? i) "Forward" "Reverse")]
+         [:svg {:viewBox (s/join " " [min-x min-y width height])}
+          (map #(let [{:keys [plots character]} %
+                      d (s/join " " (map defs/data->path plots))
+                      stroke (get defs/character-colors character)
+                      fill "none"]
+                  ^{:key character}
+                  [:path {:d d :class character :stroke stroke :fill fill
+                          :stroke-width (when (defs/pov-characters character) "2")}])
+               plots)]]))
     (plot-orderings defs/input))])
 
 (defcard ordering
