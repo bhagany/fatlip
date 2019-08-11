@@ -218,18 +218,18 @@
         input->SparseGraph
         ord/SparseGraph->ordered-graphs
         (map ord/OrderedGraph->FlatGraph)
-        (map #(plot % max-slope min-arc-radius layer-sep node-sep char-sep)))))
+        (map #(-> [% (plot % max-slope min-arc-radius layer-sep node-sep char-sep)])))))
 
 (defn ordering-component
   []
   [:div
    (map-indexed
-    (fn [i {:keys [min-x min-y max-x max-y plots]}]
+    (fn [i [{:keys [crossings]} {:keys [min-x min-y max-x max-y plots]}]]
       (let [width (- max-x min-x)
             height (- max-y min-y)]
         ^{:key (str "ordering-" i)}
         [:div {:style {:margin-bottom "20px"}}
-         [:h3 (inc i) " " (if (even? i) "Forward" "Reverse")]
+         [:h3 (inc i) " " (if (even? i) "Forward" "Reverse") ", " crossings " crossings"]
          [:svg {:viewBox (s/join " " [min-x min-y width height])}
           (map #(let [{:keys [plots character]} %
                       d (s/join " " (map defs/data->path plots))
