@@ -103,7 +103,14 @@
   "Step 2b of ESK - Use nodes' predecessors to calculate a 'measure' for the
   nodes and containers in a layer, which is used for ordering"
   [non-qs preds positions]
-  (into {} (map #(-> [% (get-measure % (get preds %) positions)]) non-qs)))
+  (->> non-qs
+       (map-indexed (fn [idx node]
+              (let [node-edges (get preds node)
+                    measure (if (empty? node-edges)
+                              idx
+                              (get-measure node node-edges positions))]
+                [node measure])))
+       (into {})))
 
 (defn merge-layer
   "Step 3 of ESK - Considers a layer as two lists, one of nodes and the other
